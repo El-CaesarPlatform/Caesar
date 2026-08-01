@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول - منصة القيصر</title>
-    <!-- الخطوط -->
+
+    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- مكتبات Firebase الأساسية -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -35,19 +41,19 @@
             padding: 20px;
         }
 
-        /* ------------------ شريط الأخبار المطور ------------------ */
+        /* ------------------ شريط الأخبار ------------------ */
         .news-ticker {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border: 1px solid rgba(0, 210, 255, 0.6);
             border-radius: 30px;
-            padding: 12px 24px; /* كبرنا المسافات الداخلية */
+            padding: 12px 24px;
             margin-bottom: 25px;
             display: flex;
             align-items: center;
             gap: 15px;
-            max-width: 720px; /* وسعنا الشريط ليتسع للسطر كاملاً */
+            max-width: 720px;
             width: 95%;
             color: #fff;
             animation: glowing-border 2.5s infinite ease-in-out;
@@ -56,39 +62,28 @@
         .news-badge {
             background: linear-gradient(90deg, #00d2ff, #0066ff);
             color: #fff;
-            padding: 5px 18px; /* كبرنا شارة "أحدث الأخبار" */
+            padding: 5px 18px;
             border-radius: 20px;
             font-weight: 700;
-            font-size: 1rem; /* تكبير الخط */
+            font-size: 1rem;
             white-space: nowrap;
             box-shadow: 0 0 12px rgba(0, 210, 255, 0.6);
-            flex-shrink: 0; /* حماية البادج من الانكماش */
+            flex-shrink: 0;
         }
 
         .news-text {
             color: #e0f7fc;
             font-weight: 700;
-            font-size: 1.1rem; /* تكبير خط النص */
+            font-size: 1.1rem;
             line-height: 1.5;
-            white-space: normal; /* السماح بظهور النص كاملاً دون قطع (...) */
+            white-space: normal;
         }
 
-        /* أنيميشن التوهج والإضاءة */
         @keyframes glowing-border {
-            0% {
-                box-shadow: 0 0 8px rgba(0, 210, 255, 0.3), inset 0 0 5px rgba(0, 210, 255, 0.2);
-                border-color: rgba(0, 210, 255, 0.4);
-            }
-            50% {
-                box-shadow: 0 0 22px rgba(0, 210, 255, 0.85), inset 0 0 10px rgba(0, 210, 255, 0.4);
-                border-color: rgba(0, 210, 255, 1);
-            }
-            100% {
-                box-shadow: 0 0 8px rgba(0, 210, 255, 0.3), inset 0 0 5px rgba(0, 210, 255, 0.2);
-                border-color: rgba(0, 210, 255, 0.4);
-            }
+            0% { box-shadow: 0 0 8px rgba(0, 210, 255, 0.3), inset 0 0 5px rgba(0, 210, 255, 0.2); border-color: rgba(0, 210, 255, 0.4); }
+            50% { box-shadow: 0 0 22px rgba(0, 210, 255, 0.85), inset 0 0 10px rgba(0, 210, 255, 0.4); border-color: rgba(0, 210, 255, 1); }
+            100% { box-shadow: 0 0 8px rgba(0, 210, 255, 0.3), inset 0 0 5px rgba(0, 210, 255, 0.2); border-color: rgba(0, 210, 255, 0.4); }
         }
-        /* -------------------------------------------------------- */
 
         .brand-title {
             color: #fff;
@@ -100,33 +95,30 @@
             text-align: center;
         }
 
-        .brand-title span {
-            color: #00d2ff;
-        }
+        .brand-title span { color: #00d2ff; }
 
         .login-container {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 40px 30px;
+            padding: 35px 30px;
             border-radius: 20px;
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
             text-align: center;
-            transition: transform 0.3s ease;
         }
 
-        .login-container:hover {
-            transform: translateY(-5px);
-        }
-
-        .login-container h2 {
-            color: #fff;
-            font-size: 1.6rem;
+        .form-header {
+            color: #00d2ff;
+            font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         #custom-alert-msg {
@@ -153,38 +145,20 @@
             border-radius: 12px;
             outline: none;
             color: #fff;
-            font-size: 0.95rem;
+            font-size: 1rem;
             transition: all 0.3s ease;
             text-align: right;
         }
 
         .login-container input:focus {
-            background: rgba(255, 255, 255, 0.15);
+            background-color: rgba(255, 255, 255, 0.15);
             border-color: #00d2ff;
             box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
         }
 
-        .login-container input::placeholder {
-            color: #ccc;
-        }
-
-        .forgot-link {
-            display: block;
-            text-align: right;
-            color: #00d2ff;
-            font-size: 0.9rem;
-            text-decoration: none;
-            margin-top: -5px;
-            margin-bottom: 20px;
-            cursor: pointer;
-            transition: color 0.2s;
-            font-weight: 600;
-        }
-
-        .forgot-link:hover {
-            color: #0099ff;
-            text-decoration: underline;
-        }
+        .login-container input::placeholder { color: #ccc; }
+        
+        #login-code { text-align: center; letter-spacing: 1px; }
 
         .btn {
             width: 100%;
@@ -198,29 +172,20 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 5px 15px rgba(0, 102, 255, 0.3);
+            margin-top: 10px;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background: linear-gradient(90deg, #0066ff, #00d2ff);
             box-shadow: 0 8px 20px rgba(0, 102, 255, 0.5);
             transform: scale(1.02);
         }
-
-        #support-message {
-            display: none;
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(0, 210, 255, 0.1);
-            border: 1px solid rgba(0, 210, 255, 0.4);
-            border-radius: 12px;
-            color: #fff;
-            text-align: right;
-            font-size: 0.9rem;
-            line-height: 1.7;
-        }
-
-        #support-message strong {
-            color: #00d2ff;
+        
+        .btn:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: scale(1);
         }
 
         .whatsapp-float {
@@ -254,101 +219,189 @@
             fill: white;
         }
 
-        /* الموبايل */
         @media (max-width: 480px) {
-            body {
-                align-items: flex-start;
-                padding-top: 20px;
-            }
-
-            .news-ticker {
-                padding: 10px 15px;
-                gap: 10px;
-            }
-
-            .news-badge {
-                font-size: 0.85rem;
-                padding: 4px 12px;
-            }
-
-            .news-text {
-                font-size: 0.95rem;
-            }
-
-            .brand-title {
-                font-size: 1.9rem;
-                margin-bottom: 15px;
-            }
-
-            .login-container {
-                padding: 30px 20px;
-            }
-
-            .login-container h2 {
-                font-size: 1.3rem;
-                margin-bottom: 20px;
-            }
-            
-            .whatsapp-float {
-                bottom: 15px;
-                left: 15px;
-                padding: 8px 14px;
-                font-size: 0.85rem;
-            }
-            
-            .whatsapp-float svg {
-                width: 20px;
-                height: 20px;
-            }
+            body { align-items: flex-start; padding-top: 20px; }
+            .brand-title { font-size: 1.9rem; }
+            .login-container { padding: 25px 20px; }
         }
     </style>
 </head>
 <body>
 
 <div id="hero">
-    <!-- شريط الأخبار العاجلة / التنبيهات -->
     <div class="news-ticker">
-        <span class="news-badge">📢 أحدث الأخبار</span>
-        <span class="news-text">أهلاً وسهلاً بطلاب القيصر الكرام! نتمنى لكم دوام التوفيق والنجاح.</span>
+        <span class="news-badge">📢 تنبيه</span>
+        <span class="news-text">أدخل اسمك الثلاثي والكود الذي استلمته من المعلم للدخول للاختبار.</span>
     </div>
 
     <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
 
     <div class="login-container">
-        <h2>تسجيل دخول الطالب</h2>
-        
+        <div class="form-header">
+            <i class="fas fa-user-graduate"></i>
+            <span>تسجيل دخول الطالب</span>
+        </div>
+
         <div id="custom-alert-msg"></div>
-        
-        <div class="input-group">
-            <input type="text" id="login-name" placeholder="اكتب اسمك الرباعي هنا..." required>
-        </div>
 
-        <div class="input-group">
-            <input type="tel" id="parent-phone" placeholder="رقم هاتف ولي الأمر (إجباري)..." required>
-        </div>
-        
-        <div class="input-group">
-            <input type="password" id="login-pass" placeholder="أدخل كود الاختبار..." required>
-        </div>
-
-        <a class="forgot-link" id="forgot-link">نسيت كود الاختبار</a>
-        
-        <button class="btn" id="login-btn">دخول المنصة</button>
-
-        <div id="support-message">
-            <p><strong>استرجاع أو الحصول على كود الاختبار:</strong></p>
-            <p>يرجى الضغط على زر <strong>"الدعم الفني"</strong> الأخضر في أسفل الشاشة للتواصل معنا عبر الواتساب واستلام الكود الخاص بك فوراً.</p>
-        </div>
+        <!-- استخدام نموذج Form لدعم زر Enter -->
+        <form id="login-form">
+            <div class="input-group">
+                <input type="text" id="login-name" placeholder="اكتب اسمك الثلاثي..." required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off">
+            </div>
+            
+            <button type="submit" class="btn" id="login-btn">دخول المنصة <i class="fas fa-sign-in-alt"></i></button>
+        </form>
     </div>
 </div>
 
-<a href="https://wa.me/201224790723?text=مرحباً، أرغب في استرجاع / الحصول على كود الاختبار الخاص بي." class="whatsapp-float" target="_blank" rel="noopener noreferrer" title="تواصل معنا عبر واتساب">
+<a href="https://wa.me/201224790723?text=مرحباً، أحتاج المساعدة في منصة القيصر." class="whatsapp-float" target="_blank" rel="noopener noreferrer">
     <span>الدعم الفني</span>
     <svg viewBox="0 0 24 24">
         <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.742.002-2.602-1.01-5.05-2.85-6.892-1.84-1.842-4.29-2.856-6.896-2.858-5.442 0-9.866 4.372-9.87 9.746-.002 1.767.46 3.493 1.34 5.023l-.986 3.6 3.69-.968zm13.695-4.937c-.3-.149-1.777-.862-2.053-.962-.276-.1-.477-.149-.677.149-.199.299-.772.962-.947 1.16-.175.201-.35.226-.65.077-1.156-.573-1.928-1.012-2.693-2.316-.201-.341.201-.316.574-1.053.063-.125.032-.236-.016-.336-.048-.1-.477-1.136-.654-1.557-.172-.41-.347-.354-.477-.36l-.408-.008c-.141 0-.368.052-.56.26-.192.208-.733.706-.733 1.722 0 1.017.749 2.002.853 2.141.104.14 1.474 2.227 3.57 3.102.499.208.887.332 1.192.427.502.158.96.135 1.321.082.404-.06 1.777-.716 2.028-1.408.251-.692.251-1.284.175-1.408-.075-.124-.275-.199-.575-.349z"/>
     </svg>
 </a>
 
-<script src="app.js"></script>
+<script>
+    // ==========================================
+    // 1. تهيئة Firebase
+    // ==========================================
+    const firebaseConfig = {
+        apiKey: "AIzaSyDSaHZfMovOtZVkv5HDtfsy4Kh_ttszSLI",
+        authDomain: "el-kaiser-platform.firebaseapp.com",
+        projectId: "el-kaiser-platform",
+        storageBucket: "el-kaiser-platform.firebasestorage.app",
+        messagingSenderId: "639617459641",
+        appId: "1:639617459641:web:7804a357079b1b559c4268"
+    };
+
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+
+    // إظهار رسائل التنبيه
+    function showMessage(text, type) {
+        const msgBox = document.getElementById("custom-alert-msg");
+        if (!msgBox) return;
+
+        msgBox.innerText = text;
+        msgBox.style.display = "block";
+
+        if (type === "error") {
+            msgBox.style.backgroundColor = "rgba(255, 0, 0, 0.2)";
+            msgBox.style.color = "#ff6b6b";
+            msgBox.style.border = "1px solid rgba(255, 0, 0, 0.4)";
+        } else if (type === "success") {
+            msgBox.style.backgroundColor = "rgba(0, 255, 100, 0.2)";
+            msgBox.style.color = "#22c55e";
+            msgBox.style.border = "1px solid rgba(0, 255, 100, 0.4)";
+        } else if (type === "warning") {
+            msgBox.style.backgroundColor = "rgba(234, 179, 8, 0.2)";
+            msgBox.style.color = "#fde047";
+            msgBox.style.border = "1px solid rgba(234, 179, 8, 0.4)";
+        }
+    }
+
+    // ==========================================
+    // 2. البحث عن الطالب (يدعم النص والرقم)
+    // ==========================================
+    async function findStudentDoc(code) {
+        let snapshot = await db.collection("students").where("examCode", "==", code).get();
+        if (snapshot.empty) {
+            snapshot = await db.collection("students").where("code", "==", code).get();
+        }
+
+        // إذا لم ينقّب عن الكود وكان عبارة عن أرقام، نجرب البحث عنه كـ Number
+        if (snapshot.empty && !isNaN(code)) {
+            const numericCode = Number(code);
+            snapshot = await db.collection("students").where("examCode", "==", numericCode).get();
+            if (snapshot.empty) {
+                snapshot = await db.collection("students").where("code", "==", numericCode).get();
+            }
+        }
+        return snapshot;
+    }
+
+    // ==========================================
+    // 3. عملية تسجيل الدخول
+    // ==========================================
+    document.getElementById("login-form").addEventListener("submit", async function(e) {
+        e.preventDefault(); // منع إعادة تحميل الصفحة
+
+        const btn = document.getElementById("login-btn");
+        const studentName = document.getElementById("login-name").value.trim();
+        const code = document.getElementById("login-code").value.trim();
+
+        if (!studentName || !code) {
+            showMessage("⚠️ يرجى كتابة اسمك وكود الدخول!", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'جاري التحقق... <i class="fas fa-spinner fa-spin"></i>';
+        showMessage("⏳ جاري التحقق من كود الدخول...", "warning");
+
+        try {
+            const snapshot = await findStudentDoc(code);
+
+            if (snapshot.empty) {
+                showMessage("❌ كود الدخول غير صحيح! تأكد من الكود المكتوب.", "error");
+                resetButton(btn);
+                return;
+            }
+
+            let userData = null;
+            let docId = null;
+
+            snapshot.forEach(doc => { 
+                userData = doc.data(); 
+                docId = doc.id;
+            });
+
+            // التأكد من تفعيل الكود
+            if (userData.showScore === false || userData.active === false) {
+                showMessage("⚠️ هذا الكود غير مفعّل حالياً أو انتهت صلاحيته.", "warning");
+                resetButton(btn);
+                return;
+            }
+
+            const studentStage = userData.stage || userData.grade || "غير محدد";
+
+            // تحديث اسم الطالب في Firestore
+            try {
+                await db.collection("students").doc(docId).update({ studentName: studentName });
+            } catch (updateErr) {
+                console.warn("تعذر تحديث اسم الطالب في القاعدة (قد تكون بسبب الصلاحيات)، سيتم متابعة الدخول.");
+            }
+
+            proceedToLogin(studentName, studentStage, code);
+
+        } catch (err) {
+            showMessage("❌ حدث خطأ أثناء الاتصال: " + err.message, "error");
+            resetButton(btn);
+        }
+    });
+
+    function resetButton(btn) {
+        btn.disabled = false;
+        btn.innerHTML = 'دخول المنصة <i class="fas fa-sign-in-alt"></i>';
+    }
+
+    function proceedToLogin(name, stage, code) {
+        localStorage.setItem("student_fullname", name);
+        localStorage.setItem("student_stage", stage); 
+        localStorage.setItem("exam_code", code);
+
+        showMessage(`✅ أهلاً بك يا ${name}\nالصف: ${stage}\nجاري تحويلك للمنصة...`, "success");
+
+        setTimeout(() => {
+            window.location.href = "platform.html";
+        }, 1200);
+    }
+</script>
 </body>
 </html>
