@@ -368,9 +368,9 @@
                 docId = doc.id;
             });
 
-            // التأكد من تفعيل الكود
-            if (userData.showScore === false || userData.active === false) {
-                showMessage("⚠️ هذا الكود غير مفعّل حالياً أو انتهت صلاحيته.", "warning");
+            // التأكد من تفعيل الحساب فقط (تمت إزالة showScore من شرط الحظر لمنع إغلاق الكود بعد الامتحان)
+            if (userData.active === false || userData.status === "blocked" || userData.status === "rejected") {
+                showMessage("⚠️ هذا الكود غير مفعّل حالياً أو تم حظر الحساب.", "warning");
                 resetButton(btn);
                 return;
             }
