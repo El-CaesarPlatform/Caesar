@@ -125,7 +125,13 @@
             <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #00d2ff;">
                 🔍 البحث عن حالة إجابة الطالب:
             </label>
-            <input type="text" id="search-student-name" placeholder="اكتب اسم الطالب هنا واضغط استعلام...">
+            <input type="text" id="search-student-name" placeholder="اكتب اسم الطالب هنا...">
+            
+            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #00d2ff;">
+                🔑 كود الطالب <span style="color: #e74c3c;">* (إجباري)</span>:
+            </label>
+            <input type="text" id="search-student-code" placeholder="أدخل كود الطالب هنا..." required>
+
             <button class="btn btn-result-card" onclick="checkStudentResult()">استعلام عن النتيجة 🔍</button>
         </div>
 

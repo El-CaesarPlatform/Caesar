@@ -244,7 +244,7 @@
 
         <div id="custom-alert-msg"></div>
 
-        <!-- استخدام نموذج Form لدعم زر Enter -->
+        <!-- نموذج التسجيل -->
         <form id="login-form">
             <div class="input-group">
                 <input type="text" id="login-name" placeholder="اكتب اسمك الثلاثي..." required autocomplete="off">
@@ -261,7 +261,7 @@
 <a href="https://wa.me/201224790723?text=مرحباً، أحتاج المساعدة في منصة القيصر." class="whatsapp-float" target="_blank" rel="noopener noreferrer">
     <span>الدعم الفني</span>
     <svg viewBox="0 0 24 24">
-        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.742.002-2.602-1.01-5.05-2.85-6.892-1.84-1.842-4.29-2.856-6.896-2.858-5.442 0-9.866 4.372-9.87 9.746-.002 1.767.46 3.493 1.34 5.023l-.986 3.6 3.69-.968zm13.695-4.937c-.3-.149-1.777-.862-2.053-.962-.276-.1-.477-.149-.677.149-.199.299-.772.962-.947 1.16-.175.201-.35.226-.65.077-1.156-.573-1.928-1.012-2.693-2.316-.201-.341.201-.316.574-1.053.063-.125.032-.236-.016-.336-.048-.1-.477-1.136-.654-1.557-.172-.41-.347-.354-.477-.36l-.408-.008c-.141 0-.368.052-.56.26-.192.208-.733.706-.733 1.722 0 1.017.749 2.002.853 2.141.104.14 1.474 2.227 3.57 3.102.499.208.887.332 1.192.427.502.158.96.135 1.321.082.404-.06 1.777-.716 2.028-1.408.251-.692.251-1.284.175-1.408-.075-.124-.275-.199-.575-.349z"/>
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.742.002-2.602-1.01-5.05-2.85-6.892-1.84-1.842-4.29-2.856-6.896-2.858-5.442 0-9.866 4.372-9.746-.002 1.767.46 3.493 1.34 5.023l-.986 3.6 3.69-.968zm13.695-4.937c-.3-.149-1.777-.862-2.053-.962-.276-.1-.477-.149-.677.149-.199.299-.772.962-.947 1.16-.175.201-.35.226-.65.077-1.156-.573-1.928-1.012-2.693-2.316-.201-.341.201-.316.574-1.053.063-.125.032-.236-.016-.336-.048-.1-.477-1.136-.654-1.557-.172-.41-.347-.354-.477-.36l-.408-.008c-.141 0-.368.052-.56.26-.192.208-.733.706-.733 1.722 0 1.017.749 2.002.853 2.141.104.14 1.474 2.227 3.57 3.102.499.208.887.332 1.192.427.502.158.96.135 1.321.082.404-.06 1.777-.716 2.028-1.408.251-.692.251-1.284.175-1.408-.075-.124-.275-.199-.575-.349z"/>
     </svg>
 </a>
 
@@ -314,6 +314,9 @@
         if (snapshot.empty) {
             snapshot = await db.collection("students").where("code", "==", code).get();
         }
+        if (snapshot.empty) {
+            snapshot = await db.collection("students").where("studentCode", "==", code).get();
+        }
 
         // إذا لم ينقّب عن الكود وكان عبارة عن أرقام، نجرب البحث عنه كـ Number
         if (snapshot.empty && !isNaN(code)) {
@@ -322,21 +325,24 @@
             if (snapshot.empty) {
                 snapshot = await db.collection("students").where("code", "==", numericCode).get();
             }
+            if (snapshot.empty) {
+                snapshot = await db.collection("students").where("studentCode", "==", numericCode).get();
+            }
         }
         return snapshot;
     }
 
     // ==========================================
-    // 3. عملية تسجيل الدخول
+    // 3. عملية تسجيل الدخول المحدثة
     // ==========================================
     document.getElementById("login-form").addEventListener("submit", async function(e) {
-        e.preventDefault(); // منع إعادة تحميل الصفحة
+        e.preventDefault();
 
         const btn = document.getElementById("login-btn");
         const studentName = document.getElementById("login-name").value.trim();
-        const code = document.getElementById("login-code").value.trim();
+        const inputCode = document.getElementById("login-code").value.trim();
 
-        if (!studentName || !code) {
+        if (!studentName || !inputCode) {
             showMessage("⚠️ يرجى كتابة اسمك وكود الدخول!", "error");
             return;
         }
@@ -346,7 +352,7 @@
         showMessage("⏳ جاري التحقق من كود الدخول...", "warning");
 
         try {
-            const snapshot = await findStudentDoc(code);
+            const snapshot = await findStudentDoc(inputCode);
 
             if (snapshot.empty) {
                 showMessage("❌ كود الدخول غير صحيح! تأكد من الكود المكتوب.", "error");
@@ -371,14 +377,17 @@
 
             const studentStage = userData.stage || userData.grade || "غير محدد";
 
-            // تحديث اسم الطالب في Firestore
+            // تحديث اسم الطالب في قاعدة البيانات
             try {
-                await db.collection("students").doc(docId).update({ studentName: studentName });
+                await db.collection("students").doc(docId).update({ 
+                    studentName: studentName,
+                    name: studentName 
+                });
             } catch (updateErr) {
-                console.warn("تعذر تحديث اسم الطالب في القاعدة (قد تكون بسبب الصلاحيات)، سيتم متابعة الدخول.");
+                console.warn("تعذر تحديث اسم الطالب في القاعدة، سيتم متابعة الدخول.");
             }
 
-            proceedToLogin(studentName, studentStage, code);
+            proceedToLogin(studentName, studentStage, inputCode, userData, docId);
 
         } catch (err) {
             showMessage("❌ حدث خطأ أثناء الاتصال: " + err.message, "error");
@@ -391,10 +400,18 @@
         btn.innerHTML = 'دخول المنصة <i class="fas fa-sign-in-alt"></i>';
     }
 
-    function proceedToLogin(name, stage, code) {
+    function proceedToLogin(name, stage, inputCode, userData, docId) {
+        // تحديد كود الطالب الحقيقي بدقة مع إعطاء الأولوية للـ code المباشر
+        const realCode = userData.studentCode || userData.code || userData.examCode || inputCode;
+        const studentPhone = userData.phone || userData.studentPhone || userData.mobile || "";
+
+        // حفظ جميع بيانات الطالب بشكل منظم وجلي في LocalStorage
+        localStorage.setItem("student_doc_id", docId);
         localStorage.setItem("student_fullname", name);
         localStorage.setItem("student_stage", stage); 
-        localStorage.setItem("exam_code", code);
+        localStorage.setItem("student_code", realCode);
+        localStorage.setItem("exam_code", realCode);
+        localStorage.setItem("student_phone", studentPhone);
 
         showMessage(`✅ أهلاً بك يا ${name}\nالصف: ${stage}\nجاري تحويلك للمنصة...`, "success");
 
