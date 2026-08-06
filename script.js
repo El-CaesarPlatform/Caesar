@@ -183,9 +183,9 @@ function createTimerBannerElement() {
         top: 15px; 
         left: 50%; 
         transform: translateX(-50%); 
-        background: rgba(231, 76, 60, 0.85); /* لون شبه شفاف */
-        backdrop-filter: blur(5px); /* تأثير زجاجي لقراءة ما خلفه */
-        -webkit-backdrop-filter: blur(5px); /* دعم متصفحات سفاري */
+        background: rgba(231, 76, 60, 0.85);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
         color: white; 
         padding: 8px 20px; 
         border-radius: 20px; 
@@ -198,26 +198,26 @@ function createTimerBannerElement() {
         font-family: monospace; 
         font-size: 1.05rem; 
         border: 1px solid rgba(255, 255, 255, 0.2);
-        pointer-events: none; /* 💡 يمنع العداد من التقاط أي نقرات، مما يسمح للطالب بالضغط على ما تحته */
+        pointer-events: none;
     `;
     
     banner.innerHTML = "⏱️ Time Left: <span id='timer-display-banner'>15:00</span>";
     document.body.appendChild(banner);
 }
 
-// 🗺️ إنشاء عنصر خريطة الأسئلة والزر العائم
+// 🗺️ إنشاء عنصر خريطة الأسئلة والزر العائم (محدث ليتوافق بذكاء مع الموبايل)
 function createQuestionsMapDrawerElement() {
     if (document.getElementById('questions-map-drawer')) return;
 
     const drawer = document.createElement('div');
     drawer.id = 'questions-map-drawer';
     drawer.className = 'questions-map-drawer';
-    drawer.style.cssText = "display: none; position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: #1e1e38; color: #ffffff; z-index: 99999; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.5); border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; transition: all 0.3s ease;";
+    drawer.style.cssText = "display: none; position: fixed; top: 0; right: 0; width: 85%; max-width: 300px; height: 100%; background: #1e1e38; color: #ffffff; z-index: 99999; padding: 20px; box-shadow: -4px 0 25px rgba(0,0,0,0.6); border-left: 1px solid rgba(255,255,255,0.1); overflow-y: auto; transition: all 0.3s ease; direction: rtl;";
 
     drawer.innerHTML = `
         <div class="map-drawer-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1);">
-            <span style="font-weight:bold; color:#00d2ff;">🗺️ خريطة الأسئلة</span>
-            <button class="map-close-btn" onclick="toggleQuestionsMap()" style="background:none; border:none; color:#e74c3c; font-weight:bold; font-size:1.2rem; cursor:pointer;">✕</button>
+            <span style="font-weight:bold; color:#00d2ff; font-size: 1.1rem;">🗺️ خريطة الأسئلة</span>
+            <button class="map-close-btn" onclick="toggleQuestionsMap()" style="background:none; border:none; color:#e74c3c; font-weight:bold; font-size:1.4rem; cursor:pointer; padding: 0 5px;">✕</button>
         </div>
         <div id="questions-map" class="questions-map-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;"></div>
     `;
@@ -226,7 +226,7 @@ function createQuestionsMapDrawerElement() {
     toggleBtn.id = 'map-toggle-btn';
     toggleBtn.className = 'map-toggle-btn';
     toggleBtn.innerHTML = '🗺️ خريطة الأسئلة';
-    toggleBtn.style.cssText = "display: none; position: fixed; bottom: 20px; left: 20px; background: #0066ff; color: white; border: none; padding: 10px 18px; border-radius: 25px; font-weight: bold; cursor: pointer; z-index: 9999; box-shadow: 0 4px 12px rgba(0,102,255,0.4);";
+    toggleBtn.style.cssText = "display: none; position: fixed; bottom: 20px; right: 20px; background: #0066ff; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; z-index: 9999; box-shadow: 0 4px 15px rgba(0,102,255,0.5); font-size: 0.95rem;";
     toggleBtn.onclick = toggleQuestionsMap;
 
     document.body.appendChild(drawer);
@@ -756,7 +756,7 @@ function renderQuestions() {
                 let isChecked = (savedAnswers[`q${qIndex}`] === opt) ? 'checked' : '';
                 html += `
                     <label style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:10px; cursor:pointer; transition:all 0.2s;">
-                        <input type="radio" name="q${qIndex}" value="${opt}" ${isChecked} onchange="autoSaveAnswer('q${qIndex}', '${opt.replace(/'/g, "\\'")}')" style="width:18px; height:18px; accent-color:#0066ff;">
+                        <input type="radio" name="q${qIndex}" value="${opt}" ${isChecked} onchange="autoSaveAnswer('q${qIndex}', '${opt.replace(/'/g, "\\'")} ')" style="width:18px; height:18px; accent-color:#0066ff;">
                         <span style="font-size:0.95rem; color:#fff;">${opt}</span>
                     </label>
                 `;

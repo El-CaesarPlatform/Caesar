@@ -332,7 +332,6 @@
         }
 
         /* ================= 4. نظام الامتحان وتخطيط الأسئلة مع الخريطة ================= */
-        /* إخفاء حاوية الامتحان والشرائط الجانبية الملحقة بها افتراضياً بكل حزم */
         #quiz-wrapper-box, 
         .quiz-container-box {
             display: none;
@@ -358,8 +357,8 @@
 
         /* الشريط الجانبي لخريطة الأسئلة */
         .quiz-sidebar-map {
-            width: 250px;
-            background: var(--bg-card);
+            width: 260px;
+            background: rgba(15, 15, 26, 0.85);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 18px;
@@ -367,6 +366,22 @@
             top: 20px;
             flex-shrink: 0;
             color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .map-toggle-btn {
+            display: none; /* يظهر فقط في شاشات الهاتف */
+            width: 100%;
+            padding: 10px;
+            background: #2a2a4a;
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-bottom: 10px;
+            text-align: center;
         }
 
         .quiz-sidebar-map h3 {
@@ -381,12 +396,12 @@
         /* شبكة مربعات خريطة الأسئلة */
         .questions-grid-map {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+            gap: 8px;
             margin-bottom: 15px;
             max-height: 280px;
             overflow-y: auto;
-            padding-left: 5px;
+            padding: 5px;
         }
 
         /* شكل مربع السؤال في الخريطة */
@@ -394,7 +409,7 @@
             background: #2a2a4a;
             color: #a0a0c0;
             border: 1px solid var(--border-color);
-            height: 40px;
+            height: 42px;
             border-radius: 8px;
             font-weight: bold;
             font-size: 0.95rem;
@@ -510,8 +525,9 @@
             .exam-timer {
                 top: 10px;
                 left: 10px;
-                padding: 6px 14px;
+                padding: 6px 12px;
                 font-size: 0.8rem;
+                z-index: 10001;
             }
 
             .sidebar {
@@ -562,21 +578,45 @@
                 grid-template-columns: 1fr;
             }
 
-            /* تحويل ترتيب خريطة الأسئلة للموبايل لتكون أسفل الأسئلة */
+            #quiz-wrapper-box {
+                padding: 15px 10px;
+            }
+
+            /* تحويل الترتيب لكي تظهر خريطة الأسئلة فوق الأسئلة في الموبايل */
             .quiz-layout {
-                flex-direction: column;
+                flex-direction: column-reverse;
                 gap: 15px;
             }
 
             .quiz-sidebar-map {
                 width: 100%;
                 position: static;
-                margin-top: 10px;
+                margin-top: 0;
+                margin-bottom: 15px;
+                padding: 12px;
+            }
+
+            .map-toggle-btn {
+                display: block !important; /* إظهار زر الإخفاء والإظهار للموبايل وتصغيره وتوسيطه */
+                max-width: 250px !important;
+                width: 80% !important;
+                margin: 0 auto 10px auto !important;
+                padding: 8px 14px !important;
+                font-size: 0.85rem !important;
+                border-radius: 8px !important;
+            }
+
+            .map-content-wrapper {
+                display: block;
+            }
+
+            .map-content-wrapper.collapsed {
+                display: none; /* إخفاء الخريطة عند ضغط الطالب لتوفير المساحة */
             }
 
             .questions-grid-map {
-                grid-template-columns: repeat(5, 1fr);
-                max-height: 200px;
+                grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+                max-height: 180px;
             }
         }
     </style>
@@ -665,13 +705,19 @@
                 <div id="questions-container"></div>
             </div>
 
-            <!-- خريطة الأسئلة الجانبية -->
+            <!-- خريطة الأسئلة الجانبية (محسنة للشاشات الصغيرة) -->
             <div class="quiz-sidebar-map">
-                <h3>🗺️ خريطة الأسئلة</h3>
-                <div id="questions-map" class="questions-grid-map">
-                    <!-- سيتم توليد أزرار الأسئلة هنا بالجافاسكريبت -->
+                <button class="map-toggle-btn" onclick="toggleMobileMap(this)">
+                    🗺️ إخفاء / إظهار خريطة الأسئلة
+                </button>
+
+                <div id="map-content" class="map-content-wrapper">
+                    <h3>🗺️ خريطة الأسئلة</h3>
+                    <div id="questions-map" class="questions-grid-map">
+                        <!-- سيتم توليد أزرار الأسئلة هنا بالجافاسكريبت -->
+                    </div>
+                    <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
                 </div>
-                <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
             </div>
 
         </div>
@@ -693,6 +739,16 @@
         </div>
     </div>
 </div>
+
+<!-- كود بسيط للطي على الموبايل -->
+<script>
+function toggleMobileMap(btn) {
+    const mapContent = document.getElementById('map-content');
+    if (mapContent) {
+        mapContent.classList.toggle('collapsed');
+    }
+}
+</script>
 
 <!-- مكتبات Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
