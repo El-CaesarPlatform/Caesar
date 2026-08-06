@@ -1,9 +1,6 @@
 // ==========================================
 // 💥 1. إعدادات وتصريح Firebase
 // ==========================================
-// ==========================================
-// 💥 1. إعدادات وتصريح Firebase
-// ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyDSaHZfMovOtZVkv5HDtfsy4Kh_ttszSLI",
     authDomain: "el-kaiser-platform.firebaseapp.com",
@@ -28,7 +25,7 @@ if (typeof firebase !== 'undefined') {
 }
 
 // ==========================================
-// ⚙️ 2. المتغيرات العامة ورسائل التنبيه
+// ⚙️ 2. المتغيرات العامة ورسائل التنبيه داخل الصفحة
 // ==========================================
 const DEFAULT_EXAM_DURATION = 15;
 let timeLeft = DEFAULT_EXAM_DURATION * 60;
@@ -40,63 +37,59 @@ let currentSubjectVersion = 1;
 
 window.isExamRunning = false;
 let dynamicExamsDatabase = {};
-
-function showCustomToast(message, type = 'error') {
-    let toast = document.getElementById('custom-toast-notification');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'custom-toast-notification';
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            padding: 14px 28px;
-            border-radius: 14px;
-            font-weight: bold;
-            font-size: 0.95rem;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            backdrop-filter: blur(12px);
-            color: #fff;
-            min-width: 300px;
-            max-width: 90%;
-            display: none;
-            opacity: 0;
-            direction: rtl;
-            font-family: inherit;
-        `;
-        document.body.appendChild(toast);
-    }
-
-    if (type === 'success') {
-        toast.style.background = 'rgba(39, 174, 96, 0.95)';
-        toast.style.border = '1px solid #2ecc71';
-        toast.style.color = '#fff';
-    } else if (type === 'warning') {
-        toast.style.background = 'rgba(243, 156, 18, 0.95)';
-        toast.style.border = '1px solid #f1c40f';
-        toast.style.color = '#111';
-    } else {
-        toast.style.background = 'rgba(231, 76, 60, 0.95)';
-        toast.style.border = '1px solid #e74c3c';
-        toast.style.color = '#fff';
-    }
-
-    toast.innerHTML = message;
-    toast.style.display = 'block';
-    setTimeout(() => { toast.style.opacity = '1'; }, 10);
-
-    clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => { toast.style.display = 'none'; }, 400);
-    }, 3800);
-}
-
 const homeworksDatabase = {};
+
+// 📩 دالة عرض الرسائل المدمجة داخل الصفحة (Inline Alerts)
+function showCustomToast(message, type = 'error') {
+    let messageBox = document.getElementById('inline-page-message');
+
+    if (!messageBox) {
+        messageBox = document.createElement('div');
+        messageBox.id = 'inline-page-message';
+        
+        const mainContainer = document.querySelector('.main-content') || document.querySelector('.container') || document.body;
+        mainContainer.insertBefore(messageBox, mainContainer.firstChild);
+    }
+
+    let bgColor, borderColor, textColor, icon;
+    if (type === 'success') {
+        bgColor = 'rgba(46, 204, 113, 0.12)';
+        borderColor = '#2ecc71';
+        textColor = '#2ecc71';
+        icon = '✅';
+    } else if (type === 'warning') {
+        bgColor = 'rgba(241, 196, 15, 0.12)';
+        borderColor = '#f1c40f';
+        textColor = '#f1c40f';
+        icon = '⚠️';
+    } else {
+        bgColor = 'rgba(231, 76, 60, 0.12)';
+        borderColor = '#e74c3c';
+        textColor = '#e74c3c';
+        icon = '❌';
+    }
+
+    messageBox.style.cssText = `
+        background: ${bgColor};
+        border-right: 5px solid ${borderColor};
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin: 15px 0 25px 0;
+        color: ${textColor};
+        font-weight: bold;
+        font-size: 1rem;
+        direction: rtl;
+        text-align: right;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+    `;
+
+    messageBox.innerHTML = `<span style="font-size: 1.3rem;">${icon}</span> <span style="line-height: 1.5;">${message}</span>`;
+    messageBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
 function isExamFinished(subjectKey, type) {
     const dbSource = (type === "exam") ? dynamicExamsDatabase : homeworksDatabase;
@@ -107,10 +100,9 @@ function isExamFinished(subjectKey, type) {
 }
 
 // ==========================================
-// 🔍 دالة فحص استحقاق الطالب للامتحان (جديدة ومضافة)
+// 🔍 دالة فحص استحقاق الطالب للامتحان
 // ==========================================
 function canStudentAccessExam(exam, studentCode, studentStage) {
-    // 1. فحص المرحلة الدراسية إذا كانت محددة في الامتحان
     if (exam.grade && studentStage && studentStage !== "غير محدد" && exam.grade !== studentStage) {
         return false;
     }
@@ -118,18 +110,15 @@ function canStudentAccessExam(exam, studentCode, studentStage) {
     const cleanStudentCode = (studentCode || "").toString().trim().toLowerCase();
     const targetType = exam.targetType || 'all';
 
-    // 2. إذا كان الامتحان موجه للجميع
     if (targetType === 'all') {
         return true;
     }
 
-    // 3. إذا كان الامتحان مخصص لطالب واحد فقط
     if (targetType === 'specific') {
         const targetCode = (exam.targetCode || (exam.targetStudent && exam.targetStudent.code) || "").toString().trim().toLowerCase();
         return targetCode === cleanStudentCode && cleanStudentCode !== "";
     }
 
-    // 4. إذا كان الامتحان مخصص لمجموعة طلاب محدده بأكوادهم
     if (targetType === 'multiple') {
         if (Array.isArray(exam.targetCodes)) {
             return exam.targetCodes.some(code => code.toString().trim().toLowerCase() === cleanStudentCode) && cleanStudentCode !== "";
@@ -177,18 +166,84 @@ window.onload = function() {
     if (searchCodeInput && studentCode) searchCodeInput.value = studentCode;
 
     createTimerBannerElement();
+    createQuestionsMapDrawerElement();
     setupAntiCheatListeners();
     loadAssignedExam();
     checkAndResumeRunningExam();
 };
 
+// ⏱️ إنشاء بنر التوقيت مثبت في المنتصف ولا يعيق رؤية الطالب
 function createTimerBannerElement() {
     if (document.getElementById('timer-banner')) return;
     const banner = document.createElement('div');
     banner.id = 'timer-banner';
-    banner.style.cssText = "position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: #e74c3c; color: white; padding: 10px 24px; border-radius: 30px; font-weight: bold; z-index: 2000; box-shadow: 0 6px 20px rgba(0,0,0,0.25); display: none; text-align: center; direction: ltr; font-family: monospace; font-size: 1.1rem; border: 2px solid rgba(255,255,255,0.3);";
-    banner.innerHTML = "⏱️ Time Left: <span id='timer-display'>15:00</span>";
+    
+    banner.style.cssText = `
+        position: fixed; 
+        top: 15px; 
+        left: 50%; 
+        transform: translateX(-50%); 
+        background: rgba(231, 76, 60, 0.85); /* لون شبه شفاف */
+        backdrop-filter: blur(5px); /* تأثير زجاجي لقراءة ما خلفه */
+        -webkit-backdrop-filter: blur(5px); /* دعم متصفحات سفاري */
+        color: white; 
+        padding: 8px 20px; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        z-index: 10000; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+        display: none; 
+        text-align: center; 
+        direction: ltr; 
+        font-family: monospace; 
+        font-size: 1.05rem; 
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        pointer-events: none; /* 💡 يمنع العداد من التقاط أي نقرات، مما يسمح للطالب بالضغط على ما تحته */
+    `;
+    
+    banner.innerHTML = "⏱️ Time Left: <span id='timer-display-banner'>15:00</span>";
     document.body.appendChild(banner);
+}
+
+// 🗺️ إنشاء عنصر خريطة الأسئلة والزر العائم
+function createQuestionsMapDrawerElement() {
+    if (document.getElementById('questions-map-drawer')) return;
+
+    const drawer = document.createElement('div');
+    drawer.id = 'questions-map-drawer';
+    drawer.className = 'questions-map-drawer';
+    drawer.style.cssText = "display: none; position: fixed; top: 0; left: 0; width: 280px; height: 100%; background: #1e1e38; color: #ffffff; z-index: 99999; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.5); border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; transition: all 0.3s ease;";
+
+    drawer.innerHTML = `
+        <div class="map-drawer-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1);">
+            <span style="font-weight:bold; color:#00d2ff;">🗺️ خريطة الأسئلة</span>
+            <button class="map-close-btn" onclick="toggleQuestionsMap()" style="background:none; border:none; color:#e74c3c; font-weight:bold; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <div id="questions-map" class="questions-map-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;"></div>
+    `;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'map-toggle-btn';
+    toggleBtn.className = 'map-toggle-btn';
+    toggleBtn.innerHTML = '🗺️ خريطة الأسئلة';
+    toggleBtn.style.cssText = "display: none; position: fixed; bottom: 20px; left: 20px; background: #0066ff; color: white; border: none; padding: 10px 18px; border-radius: 25px; font-weight: bold; cursor: pointer; z-index: 9999; box-shadow: 0 4px 12px rgba(0,102,255,0.4);";
+    toggleBtn.onclick = toggleQuestionsMap;
+
+    document.body.appendChild(drawer);
+    document.body.appendChild(toggleBtn);
+}
+
+function toggleQuestionsMap() {
+    const drawer = document.getElementById('questions-map-drawer');
+    if (drawer) {
+        if (drawer.style.display === 'none' || drawer.style.display === '') {
+            drawer.style.display = 'block';
+            drawer.classList.add('open');
+        } else {
+            drawer.style.display = 'none';
+            drawer.classList.remove('open');
+        }
+    }
 }
 
 function setupAntiCheatListeners() {
@@ -238,7 +293,6 @@ async function loadAssignedExam() {
         let allGradeExams = [];
         snapshot.forEach(doc => allGradeExams.push({ id: doc.id, ...doc.data() }));
 
-        // 🎯 تصفية الامتحانات المتاحة فعلياً لهذا الطالب بناءً على كوده ونوع التخصيص
         const accessibleExams = allGradeExams.filter(exam => canStudentAccessExam(exam, studentCode, studentStage));
 
         if (accessibleExams.length === 0) {
@@ -246,7 +300,6 @@ async function loadAssignedExam() {
             return;
         }
 
-        // ترتيب الامتحانات من الأحدث إلى الأقدم
         accessibleExams.sort((a, b) => {
             const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
             const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
@@ -255,7 +308,6 @@ async function loadAssignedExam() {
 
         examsGrid.innerHTML = "";
 
-        // بناء بطاقات كافة الامتحانات المتاحة للطالب
         accessibleExams.forEach(activeExam => {
             const convertedQuestions = (activeExam.questions || []).map(q => {
                 const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
@@ -306,7 +358,6 @@ async function loadAssignedExam() {
     }
 }
 
-// 💥 التعديل الرئيسي: فحص قاعدة البيانات وإزالة القفل في حال قام الأدمن بإعادة الامتحان 💥
 async function updateExamButtonsStatus() {
     const buttons = document.querySelectorAll('.main-content .btn');
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "";
@@ -335,8 +386,6 @@ async function updateExamButtonsStatus() {
                         if (doc.exists && (doc.data().hasSubmitted === true || doc.data().isSubmitted === true)) {
                             isSubmittedInDB = true;
                         } else {
-                            // 🌟 إذا كان المستند غير موجود بالفيسبوك (الأدمن مسحه لإعادة الامتحان)
-                            // يمسح التخزين المحلي لفتح الزرار للطالب فوراً
                             isSubmittedInDB = false;
                             localStorage.removeItem('finished_' + subjectKey);
                             localStorage.removeItem('finished_' + safeSubjectKey);
@@ -344,7 +393,7 @@ async function updateExamButtonsStatus() {
                             localStorage.removeItem('saved_exam_answers_' + safeSubjectKey);
                         }
                     } catch(e) {
-                        console.warn("خطأ في الاتصال بالفيسبوك للفحص:", e);
+                        console.warn("خطأ في الاتصال بقاعدة البيانات للفحص:", e);
                     }
                 }
 
@@ -403,8 +452,7 @@ async function checkStudentResult() {
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                const storedName = (data.studentName || data.name || doc.id || "").trim().toLowerCase();
-                const storedExam = (data.examName || data.examCode || data.title || "").trim().toLowerCase();
+                const storedName = (data.studentName || data.name || "").trim().toLowerCase();
                 const storedStudentCode = (data.studentCode || data.code || "").toString().trim().toLowerCase();
                 const storedPhone = (data.studentPhone || data.phone || "").toString().trim().toLowerCase();
 
@@ -415,8 +463,8 @@ async function checkStudentResult() {
                 
                 const isRealExamSubmitted = hasSubmittedFlag && (hasAnswers || hasScore);
 
-                const matchByName = (storedName.includes(querySearch) || storedExam.includes(querySearch));
-                const matchByCode = (storedStudentCode.includes(codeSearch) || storedExam.includes(codeSearch) || storedPhone.includes(codeSearch) || doc.id.toLowerCase().includes(codeSearch));
+                const matchByName = storedName.includes(querySearch);
+                const matchByCode = (storedStudentCode === codeSearch || storedPhone === codeSearch);
 
                 if (matchByName && matchByCode && isRealExamSubmitted) {
                     foundResults.push({ id: doc.id, ...data });
@@ -591,13 +639,18 @@ function startExamActual() {
 
     window.isExamRunning = true;
 
+    const mapBtn = document.getElementById('map-toggle-btn');
+    if (mapBtn) mapBtn.style.display = 'flex';
+
     renderQuestions();
 
     const examData = dynamicExamsDatabase[currentActiveSubject];
     const durationInMinutes = (examData && examData.duration) ? examData.duration : DEFAULT_EXAM_DURATION;
 
     if (currentActiveType === "exam") {
-        document.getElementById('timer-banner').style.display = 'block';
+        const topTimer = document.getElementById('timer-banner');
+        if (topTimer) topTimer.style.display = 'block';
+
         timeLeft = durationInMinutes * 60;
 
         const examSessionState = {
@@ -643,10 +696,14 @@ function checkAndResumeRunningExam() {
 
         window.isExamRunning = true;
 
+        const mapBtn = document.getElementById('map-toggle-btn');
+        if (mapBtn) mapBtn.style.display = 'flex';
+
         renderQuestions();
 
         if (currentActiveType === "exam") {
-            document.getElementById('timer-banner').style.display = 'block';
+            const topTimer = document.getElementById('timer-banner');
+            if (topTimer) topTimer.style.display = 'block';
             startTimer();
         }
 
@@ -658,7 +715,7 @@ function checkAndResumeRunningExam() {
 }
 
 // ==========================================
-// 🎨 عرض الأسئلة
+// 🎨 عرض الأسئلة وبناء خريطة الأسئلة
 // ==========================================
 function renderQuestions() {
     const container = document.getElementById('questions-container');
@@ -714,6 +771,41 @@ function renderQuestions() {
 
     const submitBtn = document.getElementById('submit-btn');
     if (submitBtn) submitBtn.style.display = 'block';
+
+    renderQuestionMap();
+}
+
+function renderQuestionMap() {
+    const mapContainer = document.getElementById('questions-map');
+    if (!mapContainer) return;
+
+    mapContainer.innerHTML = "";
+
+    let savedAnswers = {};
+    try {
+        savedAnswers = JSON.parse(localStorage.getItem('saved_exam_answers_' + currentActiveSubject) || '{}');
+    } catch(e) {
+        savedAnswers = {};
+    }
+
+    activeQuestionsList.forEach((q, qIndex) => {
+        const btn = document.createElement('button');
+        btn.id = `q-map-btn-${qIndex}`;
+        btn.innerText = qIndex + 1;
+        
+        const hasSaved = savedAnswers[`q${qIndex}`] && savedAnswers[`q${qIndex}`].toString().trim() !== "";
+        btn.className = hasSaved ? "q-map-btn answered" : "q-map-btn unanswered";
+
+        btn.onclick = () => {
+            const targetBlock = document.getElementById(`block-q${qIndex}`);
+            if (targetBlock) {
+                targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            toggleQuestionsMap();
+        };
+
+        mapContainer.appendChild(btn);
+    });
 }
 
 function autoSaveAnswer(questionKey, answerValue) {
@@ -723,6 +815,21 @@ function autoSaveAnswer(questionKey, answerValue) {
         let savedAnswers = JSON.parse(localStorage.getItem(storageKey) || '{}');
         savedAnswers[questionKey] = answerValue;
         localStorage.setItem(storageKey, JSON.stringify(savedAnswers));
+
+        const qIndexStr = questionKey.replace('q', '');
+        const qIndex = parseInt(qIndexStr, 10);
+        
+        if (!isNaN(qIndex)) {
+            const mapBtn = document.getElementById(`q-map-btn-${qIndex}`);
+            if (mapBtn) {
+                if (answerValue && answerValue.toString().trim() !== "") {
+                    mapBtn.className = "q-map-btn answered";
+                } else {
+                    mapBtn.className = "q-map-btn unanswered";
+                }
+            }
+        }
+
     } catch(e) {
         console.warn("خطأ في الحفظ التلقائي:", e);
     }
@@ -733,8 +840,10 @@ function startTimer() {
     timerInterval = setInterval(() => {
         let m = Math.floor(timeLeft / 60);
         let s = timeLeft % 60;
-        const display = document.getElementById('timer-display');
-        if (display) display.textContent = `${m}:${s < 10 ? '0'+s : s}`;
+        const timeStr = `${m}:${s < 10 ? '0'+s : s}`;
+        
+        const bannerDisplay = document.getElementById('timer-display-banner');
+        if (bannerDisplay) bannerDisplay.textContent = timeStr;
         
         if (--timeLeft < 0) {
             clearInterval(timerInterval);
@@ -742,6 +851,51 @@ function startTimer() {
             calculateAndSend(true);
         }
     }, 1000);
+}
+
+// ==========================================
+// 🔍 دالة فحص الأسئلة والتأكيد قبل التسليم
+// ==========================================
+function submitExamWithCheck() {
+    let unAnsweredIndices = [];
+
+    activeQuestionsList.forEach((q, qIndex) => {
+        const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
+        let isAnswered = false;
+
+        if (isChoice) {
+            let selected = document.querySelector(`input[name="q${qIndex}"]:checked`);
+            if (selected && selected.value.trim() !== "") {
+                isAnswered = true;
+            }
+        } else {
+            let textarea = document.querySelector(`textarea[name="q${qIndex}"]`);
+            if (textarea && textarea.value.trim() !== "") {
+                isAnswered = true;
+            }
+        }
+
+        if (!isAnswered) {
+            unAnsweredIndices.push(qIndex + 1);
+        }
+    });
+
+    if (unAnsweredIndices.length > 0) {
+        showCustomToast(`⚠️ تنبيه: لديك أسئلة غير مجاب عنها رقم: (${unAnsweredIndices.join("، ")}).`, "warning");
+        const firstMissingIndex = unAnsweredIndices[0] - 1;
+        const missingBlock = document.getElementById(`block-q${firstMissingIndex}`);
+        if (missingBlock) {
+            missingBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            missingBlock.style.border = '2px solid #e74c3c';
+            setTimeout(() => { missingBlock.style.border = '1px solid rgba(255,255,255,0.1)'; }, 3500);
+        }
+        return;
+    }
+
+    const confirmSubmit = confirm("هل أنت متأكد من التسليم النهائي؟ لن تتمكن من تعديل الإجابات بعد ذلك.");
+    if (confirmSubmit) {
+        calculateAndSend(true);
+    }
 }
 
 // ==========================================
@@ -827,7 +981,16 @@ function calculateAndSend(bypassValidation = false) {
 
     clearInterval(timerInterval);
     window.isExamRunning = false;
+    
     if (document.getElementById('timer-banner')) document.getElementById('timer-banner').style.display = 'none';
+
+    const mapBtn = document.getElementById('map-toggle-btn');
+    if (mapBtn) mapBtn.style.display = 'none';
+    const drawer = document.getElementById('questions-map-drawer');
+    if (drawer) {
+        drawer.style.display = 'none';
+        drawer.classList.remove('open');
+    }
 
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "طالب مجهول";
     let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
@@ -844,6 +1007,16 @@ function calculateAndSend(bypassValidation = false) {
         submitBtn.disabled = true;
         submitBtn.innerText = "جاري تسليم الإجابات...";
     }
+
+    const currentFormattedTime = new Date().toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
 
     if (typeof db !== 'undefined') {
         const safeSubjectKey = currentActiveSubject.replace(/[/\\.#$\[\]\s]/g, '_');
@@ -876,7 +1049,8 @@ function calculateAndSend(bypassValidation = false) {
             showScore: false,
             showResult: false,
             isResultVisible: false,
-            submittedAt: new Date().toLocaleString('ar-EG')
+            submittedAt: currentFormattedTime,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).then(() => {
             localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
             
@@ -914,10 +1088,8 @@ async function resetStudentExamByAdmin(studentFullName, subjectKey) {
     const uniqueDocId = `${safeStudentName}_${safeSubjectKey}`;
 
     try {
-        // حذف نتيجة الطالب من Firebase
         await db.collection("students").doc(uniqueDocId).delete();
 
-        // حذف المفاتيح من الجهاز المحمول الخاص بالأدمن إذا كان يُجرب من نفس الجهاز
         localStorage.removeItem('finished_' + subjectKey);
         localStorage.removeItem('finished_' + safeSubjectKey);
         localStorage.removeItem('saved_exam_answers_' + subjectKey);
