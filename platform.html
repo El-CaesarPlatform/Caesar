@@ -331,7 +331,7 @@
             line-height: 1.6;
         }
 
-        /* ================= 4. نظام الامتحان ================= */
+        /* ================= 4. نظام الامتحان وضبط الصور والخرائط ================= */
         #quiz-wrapper-box, 
         .quiz-container-box {
             display: none;
@@ -362,6 +362,18 @@
             font-size: 1.15rem;
             margin-bottom: 15px;
             line-height: 1.6;
+        }
+
+        /* 🗺️ تجاوب الصور والخرائط داخل الأسئلة لعدم الخروج عن الشاشة */
+        .single-question-card img,
+        .questions-main-area img {
+            max-width: 100% !important;
+            height: auto !important;
+            display: block;
+            margin: 12px auto;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .option-label {
@@ -429,19 +441,38 @@
                 flex-direction: column;
             }
 
-            /* التايمر للموبايل */
+            /* ⏱️ 1. التايمر للموبايل */
             .exam-timer, #timer-banner {
                 top: 10px;
                 left: 10px;
-                padding: 6px 12px;
-                font-size: 0.8rem;
+                padding: 6px 14px;
+                font-size: 0.85rem;
                 z-index: 10001;
             }
 
+            /* 📐 2. إزاحة المحتوى لأسفل حتى لا يغطي التايمر العائم على العناوين */
+            .main-content {
+                padding: 15px 10px;
+                padding-top: 65px !important;
+            }
+
+            /* 🗺️ 3. إخفاء خريطة شبكة التنقل للموبايل للحد من الفوضى */
+            #question-map,
+            .questions-map,
+            .question-navigation,
+            .questions-grid-nav {
+                display: none !important;
+            }
+
+            /* 📱 4. القائمة الجانبية للموبايل */
             .sidebar {
                 width: 100%;
                 box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
                 padding: 15px;
+            }
+
+            .sidebar[style*="display: none"] {
+                display: none !important;
             }
 
             .sidebar h2 {
@@ -474,10 +505,6 @@
                 transform: none;
             }
 
-            .main-content {
-                padding: 15px 10px;
-            }
-
             .section-title {
                 font-size: 1.4rem;
             }
@@ -494,7 +521,7 @@
 </head>
 <body>
 
-<!-- ⏱️ التايمر العائم فوق شمال (تم تعديل الـ id إلى timer-banner) -->
+<!-- ⏱️ التايمر العائم فوق شمال -->
 <div id="timer-banner" class="exam-timer">
     ⏱️ الوقت المتبقي: <span id="timer-display" style="color: #ffffff; font-weight: 900;">00:00</span>
 </div>

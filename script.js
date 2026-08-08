@@ -37,6 +37,7 @@ let currentSubjectVersion = 1;
 
 window.isExamRunning = false;
 let dynamicExamsDatabase = {};
+const homeworksDatabase = {};
 
 function showCustomToast(message, type = 'error') {
     let toast = document.getElementById('custom-toast-notification');
@@ -92,8 +93,6 @@ function showCustomToast(message, type = 'error') {
         setTimeout(() => { toast.style.display = 'none'; }, 400);
     }, 3800);
 }
-
-const homeworksDatabase = {};
 
 function isExamFinished(subjectKey, type) {
     const dbSource = (type === "exam") ? dynamicExamsDatabase : homeworksDatabase;
@@ -169,39 +168,11 @@ window.onload = function() {
     const searchCodeInput = document.getElementById("search-student-code");
     if (searchCodeInput && studentCode) searchCodeInput.value = studentCode;
 
-    createTimerBannerElement();
     createConfirmSubmitModal();
     setupAntiCheatListeners();
     loadAssignedExam();
     checkAndResumeRunningExam();
 };
-
-// 🔵 إنشاء عنصر التايمر باللون الأزرق المميز
-function createTimerBannerElement() {
-    if (document.getElementById('timer-banner')) return;
-    const banner = document.createElement('div');
-    banner.id = 'timer-banner';
-    banner.style.cssText = `
-        position: fixed;
-        top: 15px;
-        left: 15px;
-        background: linear-gradient(135deg, #0052cc, #00d2ff);
-        color: #ffffff;
-        padding: 10px 22px;
-        border-radius: 30px;
-        font-weight: 900;
-        z-index: 10000;
-        box-shadow: 0 6px 20px rgba(0, 102, 255, 0.45);
-        display: none;
-        text-align: center;
-        direction: rtl;
-        font-size: 0.95rem;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        backdrop-filter: blur(10px);
-    `;
-    banner.innerHTML = "⏱️ الوقت المتبقي: <span id='timer-display' style='color:#ffffff; font-weight:900;'>00:00</span>";
-    document.body.appendChild(banner);
-}
 
 // 🚨 نافذة تأكيد التسليم المنبثقة
 function createConfirmSubmitModal() {
@@ -331,12 +302,11 @@ async function loadAssignedExam() {
             };
 
             examsGrid.innerHTML += `
-                <div class="exam-card" id="card-${activeExam.id}" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2); margin-bottom: 15px;">
-                    <h3 style="color: #00d2ff; font-weight: bold; margin-bottom: 8px;">🏫 ${activeExam.grade || studentStage || 'عام'}</h3>
-                    <h4 style="color: #f8fafc; font-size: 1.2rem; margin-bottom: 12px;">${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
-                    <p style="color: #cbd5e1; margin-bottom: 8px; font-size: 0.9rem;">📝 عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة</p>
-                    <p style="color: #cbd5e1; margin-bottom: 18px; font-size: 0.9rem;">⏱️ مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
-                    <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')" style="background: #0066ff; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%;">ابدأ الآن 🚀</button>
+                <div class="exam-card" id="card-${activeExam.id}">
+                    <h3>🏫 ${activeExam.grade || studentStage || 'عام'}</h3>
+                    <h4>${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
+                    <p>📝 عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br>⏱️ مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
+                    <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن 🚀</button>
                 </div>
             `;
         });
@@ -617,9 +587,10 @@ function startExamActual() {
     const durationInMinutes = (examData && examData.duration) ? examData.duration : DEFAULT_EXAM_DURATION;
 
     if (currentActiveType === "exam") {
-        document.getElementById('timer-banner').style.display = 'block';
+        const timerBanner = document.getElementById('timer-banner');
+        if (timerBanner) timerBanner.style.display = 'flex';
         
-        // حساب وقت النهاية بالملي ثانية
+        // حساب وقت النهاية بالملي ثانية الحقيقي
         const endTime = Date.now() + (durationInMinutes * 60 * 1000);
 
         const examSessionState = {
@@ -667,7 +638,8 @@ function checkAndResumeRunningExam() {
         renderQuestions();
 
         if (currentActiveType === "exam") {
-            document.getElementById('timer-banner').style.display = 'block';
+            const timerBanner = document.getElementById('timer-banner');
+            if (timerBanner) timerBanner.style.display = 'flex';
             startTimer(sessionData.endTime);
         }
 
@@ -701,16 +673,16 @@ function renderQuestions() {
     }
 
     activeQuestionsList.forEach((q, qIndex) => {
-        let html = `<div id="block-q${qIndex}" class="question-block" style="background: rgba(255,255,255,0.04); padding:20px; border-radius:14px; margin-bottom:20px; border:1px solid rgba(255,255,255,0.1); text-align:right;">`;
+        let html = `<div id="block-q${qIndex}" class="single-question-card">`;
 
         if (q.imageUrl && q.imageUrl.trim() !== "") {
             html += `
             <div style="margin-bottom: 15px; text-align:center;">
-                <img src="${q.imageUrl}" alt="صورة السؤال" style="max-width:100%; max-height:300px; border-radius:12px; border:1px solid rgba(255,255,255,0.2);">
+                <img src="${q.imageUrl}" alt="صورة السؤال">
             </div>`;
         }
 
-        html += `<p style="font-weight:bold; font-size:1.1rem; margin-bottom:14px; color:#fff; line-height:1.6;">س${qIndex + 1}: ${q.question} <span style="color:#e74c3c;">*</span></p>`;
+        html += `<h3>س${qIndex + 1}: ${q.question} <span style="color:#e74c3c;">*</span></h3>`;
 
         const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
 
@@ -718,9 +690,10 @@ function renderQuestions() {
             html += `<div class="options-group" style="display:flex; flex-direction:column; gap:10px;">`;
             q.options.forEach((opt) => {
                 let isChecked = (savedAnswers[`q${qIndex}`] === opt) ? 'checked' : '';
+                const cleanOptEscaped = opt.replace(/'/g, "\\'");
                 html += `
-                    <label style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:10px; cursor:pointer; transition:all 0.2s;">
-                        <input type="radio" name="q${qIndex}" value="${opt}" ${isChecked} onchange="autoSaveAnswer('q${qIndex}', '${opt.replace(/'/g, "\\'")}')" style="width:18px; height:18px; accent-color:#0066ff;">
+                    <label class="option-label">
+                        <input type="radio" name="q${qIndex}" value="${opt}" ${isChecked} onchange="autoSaveAnswer('q${qIndex}', '${cleanOptEscaped}')">
                         <span style="font-size:0.95rem; color:#fff;">${opt}</span>
                     </label>
                 `;
@@ -819,7 +792,7 @@ function submitExamWithCheck() {
         if (firstUnansweredElem) {
             firstUnansweredElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
             firstUnansweredElem.style.border = '2px solid #e74c3c';
-            setTimeout(() => { firstUnansweredElem.style.border = '1px solid rgba(255,255,255,0.1)'; }, 4000);
+            setTimeout(() => { firstUnansweredElem.style.border = '1px solid rgba(255,255,255,0.08)'; }, 4000);
         }
 
         showCustomToast(`⚠️ تذكير: نسيت الإجابة على السؤال رقم (${unansweredIndices.join(' ، ')})!`, "warning");
@@ -908,7 +881,9 @@ function calculateAndSend(bypassValidation = false) {
 
     clearInterval(timerInterval);
     window.isExamRunning = false;
-    if (document.getElementById('timer-banner')) document.getElementById('timer-banner').style.display = 'none';
+    
+    const timerBanner = document.getElementById('timer-banner');
+    if (timerBanner) timerBanner.style.display = 'none';
 
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "طالب مجهول";
     let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
@@ -996,7 +971,7 @@ function calculateAndSend(bypassValidation = false) {
 // 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن
 // ==========================================
 async function resetStudentExamByAdmin(studentFullName, subjectKey) {
-    if (typeof db !== 'undefined' || !studentFullName || !subjectKey) {
+    if (typeof db === 'undefined' || !studentFullName || !subjectKey) {
         showCustomToast("❌ بيانات الطالب أو الامتحان غير مكتملة!", "error");
         return;
     }
