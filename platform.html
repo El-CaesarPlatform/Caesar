@@ -60,7 +60,7 @@
         }
 
         /* ================= 1. التايمر العائم (شمال فوق) ================= */
-        .exam-timer {
+        .exam-timer, #timer-banner {
             position: fixed;
             top: 15px;
             left: 15px;
@@ -282,7 +282,7 @@
 
         .btn-submit {
             background: var(--accent-green);
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         .btn-submit:hover {
@@ -331,7 +331,7 @@
             line-height: 1.6;
         }
 
-        /* ================= 4. نظام الامتحان وتخطيط الأسئلة مع الخريطة ================= */
+        /* ================= 4. نظام الامتحان ================= */
         #quiz-wrapper-box, 
         .quiz-container-box {
             display: none;
@@ -343,100 +343,8 @@
             border: 1px solid var(--border-color);
         }
 
-        /* تخطيط مرن يجمع الأسئلة والخريطة */
-        .quiz-layout {
-            display: flex;
-            gap: 25px;
-            align-items: flex-start;
-        }
-
         .questions-main-area {
-            flex: 1;
             width: 100%;
-        }
-
-        /* الشريط الجانبي لخريطة الأسئلة */
-        .quiz-sidebar-map {
-            width: 260px;
-            background: rgba(15, 15, 26, 0.85);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 18px;
-            position: sticky;
-            top: 20px;
-            flex-shrink: 0;
-            color: var(--text-main);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        .map-toggle-btn {
-            display: none; /* يظهر فقط في شاشات الهاتف */
-            width: 100%;
-            padding: 10px;
-            background: #2a2a4a;
-            color: var(--accent-cyan);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            cursor: pointer;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .quiz-sidebar-map h3 {
-            color: var(--accent-cyan);
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
-
-        /* شبكة مربعات خريطة الأسئلة */
-        .questions-grid-map {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-            gap: 8px;
-            margin-bottom: 15px;
-            max-height: 280px;
-            overflow-y: auto;
-            padding: 5px;
-        }
-
-        /* شكل مربع السؤال في الخريطة */
-        .q-map-btn {
-            background: #2a2a4a;
-            color: #a0a0c0;
-            border: 1px solid var(--border-color);
-            height: 42px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .q-map-btn:hover {
-            border-color: var(--accent-cyan);
-            color: #fff;
-        }
-
-        /* السؤال غير المحلول -> رمادي داكن */
-        .q-map-btn.unanswered {
-            background: #34495e;
-            color: var(--text-sub);
-        }
-
-        /* السؤال المحلول -> أخضر */
-        .q-map-btn.answered {
-            background: var(--accent-green) !important;
-            color: #fff !important;
-            border-color: #27ae60;
-            box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
         }
 
         /* تصميم كارت السؤال المفرد */
@@ -522,7 +430,7 @@
             }
 
             /* التايمر للموبايل */
-            .exam-timer {
+            .exam-timer, #timer-banner {
                 top: 10px;
                 left: 10px;
                 padding: 6px 12px;
@@ -581,51 +489,14 @@
             #quiz-wrapper-box {
                 padding: 15px 10px;
             }
-
-            /* تحويل الترتيب لكي تظهر خريطة الأسئلة فوق الأسئلة في الموبايل */
-            .quiz-layout {
-                flex-direction: column-reverse;
-                gap: 15px;
-            }
-
-            .quiz-sidebar-map {
-                width: 100%;
-                position: static;
-                margin-top: 0;
-                margin-bottom: 15px;
-                padding: 12px;
-            }
-
-            .map-toggle-btn {
-                display: block !important; /* إظهار زر الإخفاء والإظهار للموبايل وتصغيره وتوسيطه */
-                max-width: 250px !important;
-                width: 80% !important;
-                margin: 0 auto 10px auto !important;
-                padding: 8px 14px !important;
-                font-size: 0.85rem !important;
-                border-radius: 8px !important;
-            }
-
-            .map-content-wrapper {
-                display: block;
-            }
-
-            .map-content-wrapper.collapsed {
-                display: none; /* إخفاء الخريطة عند ضغط الطالب لتوفير المساحة */
-            }
-
-            .questions-grid-map {
-                grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-                max-height: 180px;
-            }
         }
     </style>
 </head>
 <body>
 
-<!-- ⏱️ التايمر العائم فوق شمال -->
-<div id="exam-timer" class="exam-timer">
-    ⏳ الوقت المتبقي: <span id="timer-display" style="color: #ffeb3b;">00:00</span>
+<!-- ⏱️ التايمر العائم فوق شمال (تم تعديل الـ id إلى timer-banner) -->
+<div id="timer-banner" class="exam-timer">
+    ⏱️ الوقت المتبقي: <span id="timer-display" style="color: #ffffff; font-weight: 900;">00:00</span>
 </div>
 
 <div class="sidebar">
@@ -696,30 +567,11 @@
         <div id="result-display-box"></div>
     </div>
 
-    <!-- حاوية الأسئلة مع خريطة الأسئلة (مخفية بالكامل في البداية) -->
+    <!-- حاوية الأسئلة (مخفية بالكامل في البداية) -->
     <div id="quiz-wrapper-box" class="quiz-container-box">
-        <div class="quiz-layout">
-            
-            <!-- منطقة عرض الأسئلة الأساسية -->
-            <div class="questions-main-area">
-                <div id="questions-container"></div>
-            </div>
-
-            <!-- خريطة الأسئلة الجانبية (محسنة للشاشات الصغيرة) -->
-            <div class="quiz-sidebar-map">
-                <button class="map-toggle-btn" onclick="toggleMobileMap(this)">
-                    🗺️ إخفاء / إظهار خريطة الأسئلة
-                </button>
-
-                <div id="map-content" class="map-content-wrapper">
-                    <h3>🗺️ خريطة الأسئلة</h3>
-                    <div id="questions-map" class="questions-grid-map">
-                        <!-- سيتم توليد أزرار الأسئلة هنا بالجافاسكريبت -->
-                    </div>
-                    <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
-                </div>
-            </div>
-
+        <div class="questions-main-area">
+            <div id="questions-container"></div>
+            <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
         </div>
     </div>
 
@@ -739,16 +591,6 @@
         </div>
     </div>
 </div>
-
-<!-- كود بسيط للطي على الموبايل -->
-<script>
-function toggleMobileMap(btn) {
-    const mapContent = document.getElementById('map-content');
-    if (mapContent) {
-        mapContent.classList.toggle('collapsed');
-    }
-}
-</script>
 
 <!-- مكتبات Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
