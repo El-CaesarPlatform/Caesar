@@ -231,7 +231,7 @@
 <div id="hero">
     <div class="news-ticker">
         <span class="news-badge">📢 تنبيه</span>
-        <span class="news-text">أدخل اسمك الثلاثي والكود الذي استلمته من المعلم للدخول للاختبار.</span>
+        <span class="news-text">أدخل اسمك كما هو مسجل لدى المعلم والكود الخاص بك للدخول.</span>
     </div>
 
     <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
@@ -247,7 +247,7 @@
         <!-- نموذج التسجيل -->
         <form id="login-form">
             <div class="input-group">
-                <input type="text" id="login-name" placeholder="اكتب اسمك الثلاثي..." required autocomplete="off">
+                <input type="text" id="login-name" placeholder="اكتب اسمك كاملاً..." required autocomplete="off">
             </div>
             <div class="input-group">
                 <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off">
@@ -318,7 +318,6 @@
             snapshot = await db.collection("students").where("studentCode", "==", code).get();
         }
 
-        // إذا لم ينقّب عن الكود وكان عبارة عن أرقام، نجرب البحث عنه كـ Number
         if (snapshot.empty && !isNaN(code)) {
             const numericCode = Number(code);
             snapshot = await db.collection("students").where("examCode", "==", numericCode).get();
@@ -333,7 +332,7 @@
     }
 
     // ==========================================
-    // 3. عملية تسجيل الدخول المحدثة
+    // 3. عملية تسجيل الدخول المحدثة والآمنة
     // ==========================================
     document.getElementById("login-form").addEventListener("submit", async function(e) {
         e.preventDefault();
@@ -349,7 +348,7 @@
 
         btn.disabled = true;
         btn.innerHTML = 'جاري التحقق... <i class="fas fa-spinner fa-spin"></i>';
-        showMessage("⏳ جاري التحقق من كود الدخول...", "warning");
+        showMessage("⏳ جاري التحقق من البيانات...", "warning");
 
         try {
             const snapshot = await findStudentDoc(inputCode);
@@ -368,26 +367,32 @@
                 docId = doc.id;
             });
 
-            // التأكد من تفعيل الحساب فقط (تمت إزالة showScore من شرط الحظر لمنع إغلاق الكود بعد الامتحان)
+            // 1. التحقق من حالة الحساب (هل هو محظور أو غير مفعّل)
             if (userData.active === false || userData.status === "blocked" || userData.status === "rejected") {
                 showMessage("⚠️ هذا الكود غير مفعّل حالياً أو تم حظر الحساب.", "warning");
                 resetButton(btn);
                 return;
             }
 
-            const studentStage = userData.stage || userData.grade || "غير محدد";
+            // 2. التحقق من مطابقة الاسم المدخل مع الاسم المسجل في قاعدة البيانات
+            const registeredName = (userData.studentName || userData.name || "").trim();
+            
+            if (registeredName) {
+                // إزالة المسافات الزائدة بين الكلمات للمقارنة بشكل دقيق
+                const cleanInputName = studentName.replace(/\s+/g, ' ').trim();
+                const cleanDbName = registeredName.replace(/\s+/g, ' ').trim();
 
-            // تحديث اسم الطالب في قاعدة البيانات
-            try {
-                await db.collection("students").doc(docId).update({ 
-                    studentName: studentName,
-                    name: studentName 
-                });
-            } catch (updateErr) {
-                console.warn("تعذر تحديث اسم الطالب في القاعدة، سيتم متابعة الدخول.");
+                if (cleanInputName !== cleanDbName) {
+                    showMessage("❌ الاسم غير مطابق للكود المسجل! يرجى كتابة اسمك كما تم تسجيله من المعلم.", "error");
+                    resetButton(btn);
+                    return;
+                }
             }
 
-            proceedToLogin(studentName, studentStage, inputCode, userData, docId);
+            const studentStage = userData.stage || userData.grade || "غير محدد";
+
+            // إكمال الدخول باستخدام الاسم المسجل رسمياً
+            proceedToLogin(registeredName || studentName, studentStage, inputCode, userData, docId);
 
         } catch (err) {
             showMessage("❌ حدث خطأ أثناء الاتصال: " + err.message, "error");
@@ -401,11 +406,9 @@
     }
 
     function proceedToLogin(name, stage, inputCode, userData, docId) {
-        // تحديد كود الطالب الحقيقي بدقة مع إعطاء الأولوية للـ code المباشر
         const realCode = userData.studentCode || userData.code || userData.examCode || inputCode;
         const studentPhone = userData.phone || userData.studentPhone || userData.mobile || "";
 
-        // حفظ جميع بيانات الطالب بشكل منظم وجلي في LocalStorage
         localStorage.setItem("student_doc_id", docId);
         localStorage.setItem("student_fullname", name);
         localStorage.setItem("student_stage", stage); 
