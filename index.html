@@ -29,16 +29,57 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow-x: hidden;
+            overflow: hidden; /* تعطيل التمرير تماماً */
             padding: 20px 0;
         }
 
-        #hero {
-            width: 100%;
+        /* ------------------ شاشة الصيانة المقفلة ------------------ */
+        .maintenance-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 32, 39, 0.94);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 999999; /* يغطي كافة العناصر في الصفحة */
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
             padding: 20px;
+            text-align: center;
+        }
+
+        .maintenance-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(0, 210, 255, 0.6);
+            border-radius: 20px;
+            padding: 40px 25px;
+            max-width: 480px;
+            width: 95%;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.4);
+            animation: glowing-border 2.5s infinite ease-in-out;
+        }
+
+        .maintenance-icon {
+            font-size: 3.8rem;
+            color: #f1c40f;
+            margin-bottom: 18px;
+        }
+
+        .maintenance-title {
+            color: #00d2ff;
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 12px;
+        }
+
+        .maintenance-text {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1.25rem;
+            line-height: 1.6;
         }
 
         /* ------------------ شريط الأخبار ------------------ */
@@ -228,6 +269,15 @@
 </head>
 <body>
 
+<!-- 🛠️ طبقة الصيانة المتميزة لمنع أي تفاعل في الصفحة -->
+<div class="maintenance-overlay">
+    <div class="maintenance-card">
+        <i class="fas fa-tools maintenance-icon"></i>
+        <h2 class="maintenance-title">تنبيه هام</h2>
+        <p class="maintenance-text">المنصة تحت الصيانة الان يرجي العودة لاحقاً</p>
+    </div>
+</div>
+
 <div id="hero">
     <div class="news-ticker">
         <span class="news-badge">📢 تنبيه</span>
@@ -244,16 +294,16 @@
 
         <div id="custom-alert-msg"></div>
 
-        <!-- نموذج التسجيل -->
+        <!-- نموذج التسجيل (تم تعطيل الحقول والأزرار) -->
         <form id="login-form">
             <div class="input-group">
-                <input type="text" id="login-name" placeholder="اكتب اسمك كاملاً..." required autocomplete="off">
+                <input type="text" id="login-name" placeholder="اكتب اسمك كاملاً..." required autocomplete="off" disabled>
             </div>
             <div class="input-group">
-                <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off">
+                <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off" disabled>
             </div>
             
-            <button type="submit" class="btn" id="login-btn">دخول المنصة <i class="fas fa-sign-in-alt"></i></button>
+            <button type="submit" class="btn" id="login-btn" disabled>دخول المنصة <i class="fas fa-sign-in-alt"></i></button>
         </form>
     </div>
 </div>
@@ -332,72 +382,11 @@
     }
 
     // ==========================================
-    // 3. عملية تسجيل الدخول المحدثة والآمنة
+    // 3. منع الإرسال أثناء الصيانة
     // ==========================================
-    document.getElementById("login-form").addEventListener("submit", async function(e) {
+    document.getElementById("login-form").addEventListener("submit", function(e) {
         e.preventDefault();
-
-        const btn = document.getElementById("login-btn");
-        const studentName = document.getElementById("login-name").value.trim();
-        const inputCode = document.getElementById("login-code").value.trim();
-
-        if (!studentName || !inputCode) {
-            showMessage("⚠️ يرجى كتابة اسمك وكود الدخول!", "error");
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerHTML = 'جاري التحقق... <i class="fas fa-spinner fa-spin"></i>';
-        showMessage("⏳ جاري التحقق من البيانات...", "warning");
-
-        try {
-            const snapshot = await findStudentDoc(inputCode);
-
-            if (snapshot.empty) {
-                showMessage("❌ كود الدخول غير صحيح! تأكد من الكود المكتوب.", "error");
-                resetButton(btn);
-                return;
-            }
-
-            let userData = null;
-            let docId = null;
-
-            snapshot.forEach(doc => { 
-                userData = doc.data(); 
-                docId = doc.id;
-            });
-
-            // 1. التحقق من حالة الحساب (هل هو محظور أو غير مفعّل)
-            if (userData.active === false || userData.status === "blocked" || userData.status === "rejected") {
-                showMessage("⚠️ هذا الكود غير مفعّل حالياً أو تم حظر الحساب.", "warning");
-                resetButton(btn);
-                return;
-            }
-
-            // 2. التحقق من مطابقة الاسم المدخل مع الاسم المسجل في قاعدة البيانات
-            const registeredName = (userData.studentName || userData.name || "").trim();
-            
-            if (registeredName) {
-                // إزالة المسافات الزائدة بين الكلمات للمقارنة بشكل دقيق
-                const cleanInputName = studentName.replace(/\s+/g, ' ').trim();
-                const cleanDbName = registeredName.replace(/\s+/g, ' ').trim();
-
-                if (cleanInputName !== cleanDbName) {
-                    showMessage("❌ الاسم غير مطابق للكود المسجل! يرجى كتابة اسمك كما تم تسجيله من المعلم.", "error");
-                    resetButton(btn);
-                    return;
-                }
-            }
-
-            const studentStage = userData.stage || userData.grade || "غير محدد";
-
-            // إكمال الدخول باستخدام الاسم المسجل رسمياً
-            proceedToLogin(registeredName || studentName, studentStage, inputCode, userData, docId);
-
-        } catch (err) {
-            showMessage("❌ حدث خطأ أثناء الاتصال: " + err.message, "error");
-            resetButton(btn);
-        }
+        return false;
     });
 
     function resetButton(btn) {
