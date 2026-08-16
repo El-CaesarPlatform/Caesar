@@ -102,7 +102,7 @@ function isExamFinished(subjectKey, type) {
 }
 
 // ==========================================
-// 🔍 دالة فحص استحقاق الطالب للامتحان (مُحدثة بالكامل)
+// 🔍 دالة فحص استحقاق الطالب للامتحان (مُحدثة مع حماية من الأخطاء)
 // ==========================================
 function canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone) {
     const cleanCode = (studentCode || "").toString().trim().toLowerCase();
@@ -123,10 +123,13 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
         return isMatch;
     }
 
-    // 2️⃣ إذا كان الامتحان موجه لعدة طلاب محددين القائمة
+    // 2️⃣ إذا كان الامتحان موجه لعدة طلاب محددين القائمة (مع حماية Array.isArray)
     if (targetType === 'multiple' || targetType === 'selected') {
-        const targetCodes = (exam.targetCodes || exam.selectedCodes || []).map(c => c.toString().trim().toLowerCase());
-        const targetNames = (exam.targetNames || exam.selectedStudents || []).map(n => (typeof n === 'object' ? (n.name || n.code || '') : n).toString().trim().toLowerCase());
+        const rawCodes = Array.isArray(exam.targetCodes) ? exam.targetCodes : (Array.isArray(exam.selectedCodes) ? exam.selectedCodes : []);
+        const targetCodes = rawCodes.map(c => (c || "").toString().trim().toLowerCase());
+
+        const rawNames = Array.isArray(exam.targetNames) ? exam.targetNames : (Array.isArray(exam.selectedStudents) ? exam.selectedStudents : []);
+        const targetNames = rawNames.map(n => (typeof n === 'object' ? (n.name || n.code || '') : n).toString().trim().toLowerCase());
 
         const matchCode = cleanCode && targetCodes.includes(cleanCode);
         const matchName = cleanName && targetNames.includes(cleanName);
@@ -146,22 +149,35 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 }
 
 // ==========================================
-// 🚀 عند تحميل الصفحة والتجهيز
+// 🚀 عند تحميل الصفحة والتجهيز (معالجة تغيير التليفون والبيانات الناقصة)
 // ==========================================
 window.onload = function() {
     let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
-    let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
+    let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
     let studentPhone = localStorage.getItem("student_phone") || "";
     let parentPhone = localStorage.getItem("parent_phone") || "";
     let studentStage = localStorage.getItem("student_stage") || "غير محدد";
 
-    if (!studentName) {
-        studentName = prompt("🔑 يرجى إدخال اسمك الثلاثي لدخول المنصة:") || "";
-        if (studentName.trim() !== "") {
-            studentName = studentName.trim();
-            localStorage.setItem("student_fullname", studentName);
-        } else {
-            showCustomToast("⚠️ أمن المنصة: يرجى تسجيل الدخول أولاً!", "error");
+    // إذا كانت بيانات الطالب ناقصة (مثل الفتح من تليفون جديد بدون دخول سابق)
+    if (!studentName || !studentCode || studentStage === "غير محدد") {
+        if (!studentName) {
+            studentName = prompt("🔑 يرجى إدخال اسمك الثلاثي لدخول المنصة:") || "";
+            if (studentName.trim() !== "") {
+                studentName = studentName.trim();
+                localStorage.setItem("student_fullname", studentName);
+            }
+        }
+        if (!studentCode) {
+            studentCode = prompt("🔑 يرجى إدخال كود الطالب الخاص بك:") || "";
+            if (studentCode.trim() !== "") {
+                studentCode = studentCode.trim();
+                localStorage.setItem("student_code", studentCode);
+            }
+        }
+
+        // إذا ما زالت البيانات ناقصة يتم التحويل لصفحة التسجيل لتفادي التعليق
+        if (!studentName || !studentCode) {
+            showCustomToast("⚠️ بيانات الدخول غير مكتملة، جاري توجيهك لصفحة التسجيل...", "warning");
             setTimeout(() => { window.location.href = "login.html"; }, 2000);
             return;
         }
@@ -239,7 +255,7 @@ function setupAntiCheatListeners() {
 }
 
 // ==========================================
-// 📚 جلب وعرض الاختبارات المخصصة للطالب (مُحدثة)
+// 📚 جلب وعرض الاختبارات المخصصة للطالب (مع حماية المهلة الزمانية)
 // ==========================================
 async function loadAssignedExam() {
     const examsGrid = document.getElementById('assigned-exam-grid');
@@ -256,8 +272,10 @@ async function loadAssignedExam() {
     }
 
     try {
-        // جلب جميع الامتحانات لفحص الاستحقاق بدقة بدلاً من تقييد الكويري بالصف فقط
-        const snapshot = await db.collection("exams").get();
+        const fetchPromise = db.collection("exams").get();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
+        
+        const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
 
         if (snapshot.empty) {
             examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'>📭 لا يوجد امتحان منشور حالياً.</p>";
@@ -327,13 +345,18 @@ async function loadAssignedExam() {
 
     } catch (err) {
         console.error("خطأ أثناء تحميل الامتحان:", err);
-        examsGrid.innerHTML = "<p style='text-align:center;color:#e74c3c;grid-column:1/-1;'>❌ حدث خطأ أثناء تحميل الامتحان. حاول تحديث الصفحة.</p>";
+        examsGrid.innerHTML = `
+            <div style="text-align:center; color:#e74c3c; grid-column:1/-1; padding:20px;">
+                <p>❌ تعذر تحميل الامتحانات بسبب بطء شبكة الموبايل أو عدم استجابة السيرفر.</p>
+                <button onclick="location.reload()" style="padding:8px 16px; background:#0066ff; color:#fff; border:none; border-radius:6px; cursor:pointer;">إعادة المحاولة 🔄</button>
+            </div>`;
     }
 }
 
 async function updateExamButtonsStatus() {
     const buttons = document.querySelectorAll('.main-content .btn');
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "";
+    let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
 
     for (let btn of buttons) {
         if (btn.classList.contains('btn-result-card')) continue;
@@ -348,10 +371,10 @@ async function updateExamButtonsStatus() {
                 let isSubmittedInDB = false;
                 let isCheckedFromDB = false;
 
-                if (typeof db !== 'undefined' && studentFullName) {
+                if (typeof db !== 'undefined' && (studentCode || studentFullName)) {
                     const safeSubjectKey = subjectKey.replace(/[/\\.#$\[\]\s]/g, '_');
-                    const safeStudentName = studentFullName.replace(/[/\\.#$\[\]\s]/g, '_');
-                    const uniqueDocId = `${safeStudentName}_${safeSubjectKey}`;
+                    const safeIdentifier = (studentCode || studentFullName).replace(/[/\\.#$\[\]\s]/g, '_');
+                    const uniqueDocId = `${safeIdentifier}_${safeSubjectKey}`;
                     try {
                         const doc = await db.collection("students").doc(uniqueDocId).get();
                         isCheckedFromDB = true;
@@ -389,7 +412,7 @@ async function updateExamButtonsStatus() {
 }
 
 // ==========================================
-// 🔍 الاستعلام عن النتائج ومراجعة الأسئلة
+// 🔍 الاستعلام عن النتائج (محدث للاستعلام المباشر بالسيرفر)
 // ==========================================
 async function checkStudentResult() {
     const studentNameInput = document.getElementById("search-student-name");
@@ -421,13 +444,14 @@ async function checkStudentResult() {
 
     if (typeof db !== 'undefined') {
         try {
-            const snapshot = await db.collection("students").get();
+            // استعلام سريع بدلالة الكود لتوفير موارد القراءة ورعايتها
+            const snapshot = await db.collection("students")
+                .where("studentCode", "==", codeSearch)
+                .get();
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 const storedName = (data.studentName || data.name || "").trim().toLowerCase();
-                const storedStudentCode = (data.studentCode || data.code || "").toString().trim().toLowerCase();
-                const storedPhone = (data.studentPhone || data.phone || "").toString().trim().toLowerCase();
 
                 const hasSubmittedFlag = (data.hasSubmitted === true || data.isSubmitted === true || data.status === "submitted");
                 const hasAnswers = (data.answers && Array.isArray(data.answers) && data.answers.length > 0) || 
@@ -436,10 +460,7 @@ async function checkStudentResult() {
                 
                 const isRealExamSubmitted = hasSubmittedFlag && (hasAnswers || hasScore);
 
-                const matchByName = storedName.includes(querySearch);
-                const matchByCode = (storedStudentCode === codeSearch || storedPhone === codeSearch);
-
-                if (matchByName && matchByCode && isRealExamSubmitted) {
+                if (storedName.includes(querySearch) && isRealExamSubmitted) {
                     foundResults.push({ id: doc.id, ...data });
                 }
             });
@@ -596,11 +617,12 @@ async function resetPortalToStep1(subjectKey, type) {
     const cleanSubjectKey = subjectKey.trim();
     const cleanType = type.trim();
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "";
+    let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
 
-    if (typeof db !== 'undefined' && studentFullName) {
+    if (typeof db !== 'undefined' && (studentCode || studentFullName)) {
         const safeSubjectKey = cleanSubjectKey.replace(/[/\\.#$\[\]\s]/g, '_');
-        const safeStudentName = studentFullName.replace(/[/\\.#$\[\]\s]/g, '_');
-        const uniqueDocId = `${safeStudentName}_${safeSubjectKey}`;
+        const safeIdentifier = (studentCode || studentFullName).replace(/[/\\.#$\[\]\s]/g, '_');
+        const uniqueDocId = `${safeIdentifier}_${safeSubjectKey}`;
 
         try {
             const docSnapshot = await db.collection("students").doc(uniqueDocId).get();
@@ -724,17 +746,18 @@ function checkAndResumeRunningExam() {
 }
 
 // ==========================================
-// 🎨 عرض الأسئلة
+// 🎨 عرض الأسئلة (تعديل إصلاح innerHTML والتجميع المباشر)
 // ==========================================
 function renderQuestions() {
     const container = document.getElementById('questions-container');
     if (!container) return;
 
     const examTitle = dynamicExamsDatabase[currentActiveSubject]?.examTitle || "الامتحان الحالي";
-    container.innerHTML = `<h3 style='text-align:right; margin-bottom:12px; font-weight:bold; font-size:1.3rem; color:#00d2ff;'>${examTitle}</h3><hr style='margin-bottom:20px; opacity:0.15;'>`;
+    
+    let fullHtml = `<h3 style='text-align:right; margin-bottom:12px; font-weight:bold; font-size:1.3rem; color:#00d2ff;'>${examTitle}</h3><hr style='margin-bottom:20px; opacity:0.15;'>`;
 
     if (!activeQuestionsList || activeQuestionsList.length === 0) {
-        container.innerHTML += "<p style='color:#e74c3c; text-align:center;'>لا توجد أسئلة متوفرة حالياً.</p>";
+        container.innerHTML = fullHtml + "<p style='color:#e74c3c; text-align:center;'>لا توجد أسئلة متوفرة حالياً.</p>";
         return;
     }
 
@@ -776,8 +799,10 @@ function renderQuestions() {
             let savedText = savedAnswers[`q${qIndex}`] || '';
             html += `<textarea name="q${qIndex}" oninput="autoSaveAnswer('q${qIndex}', this.value)" style="width:100%; height:110px; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.4); color:#fff; resize:vertical; outline:none;" placeholder="اكتب إجابتك التفصيلية هنا...">${savedText}</textarea>`;
         }
-        container.innerHTML += html + `</div>`;
+        fullHtml += html + `</div>`;
     });
+
+    container.innerHTML = fullHtml;
 
     const submitBtn = document.getElementById('submit-btn');
     if (submitBtn) submitBtn.style.display = 'block';
@@ -890,7 +915,7 @@ function confirmFinalSubmit() {
 }
 
 // ==========================================
-// 📤 تصحيح وتسليم الإجابات لقاعدة البيانات
+// 📤 تصحيح وتسليم الإجابات (معدّل للحفظ بالكود ومقارنة الاختيارات بدقة)
 // ==========================================
 function calculateAndSend(bypassValidation = false) {
     let studentAnswersText = {};
@@ -914,7 +939,13 @@ function calculateAndSend(bypassValidation = false) {
             let selected = document.querySelector(`input[name="q${qIndex}"]:checked`);
             if (selected) {
                 studentValue = selected.value;
-                if (studentValue.trim() === (q.correctAnswer || "").trim()) {
+
+                let correctText = (q.correctAnswer || "").toString().trim();
+                if (typeof q.correctAnswerIndex === "number" && q.options && q.options[q.correctAnswerIndex] !== undefined) {
+                    correctText = q.options[q.correctAnswerIndex].toString().trim();
+                }
+
+                if (studentValue.trim().toLowerCase() === correctText.toLowerCase()) {
                     mcqScoreObtained += points;
                     isCorrect = true;
                     correctionStatus = ` [✅ صحيح]`;
@@ -983,8 +1014,8 @@ function calculateAndSend(bypassValidation = false) {
 
     if (typeof db !== 'undefined') {
         const safeSubjectKey = currentActiveSubject.replace(/[/\\.#$\[\]\s]/g, '_');
-        const safeStudentName = studentFullName.replace(/[/\\.#$\[\]\s]/g, '_');
-        const uniqueDocId = `${safeStudentName}_${safeSubjectKey}`;
+        const safeIdentifier = (studentCode || studentFullName).toString().replace(/[/\\.#$\[\]\s]/g, '_');
+        const uniqueDocId = `${safeIdentifier}_${safeSubjectKey}`;
 
         db.collection("students").doc(uniqueDocId).set({
             studentName: studentFullName,
@@ -1038,17 +1069,17 @@ function calculateAndSend(bypassValidation = false) {
 }
 
 // ==========================================
-// 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن
+// 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن (مُحدثة)
 // ==========================================
-async function resetStudentExamByAdmin(studentFullName, subjectKey) {
-    if (typeof db === 'undefined' || !studentFullName || !subjectKey) {
+async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode = "") {
+    if (typeof db === 'undefined' || (!studentFullName && !studentCode) || !subjectKey) {
         showCustomToast("❌ بيانات الطالب أو الامتحان غير مكتملة!", "error");
         return;
     }
 
     const safeSubjectKey = subjectKey.replace(/[/\\.#$\[\]\s]/g, '_');
-    const safeStudentName = studentFullName.replace(/[/\\.#$\[\]\s]/g, '_');
-    const uniqueDocId = `${safeStudentName}_${safeSubjectKey}`;
+    const safeIdentifier = (studentCode || studentFullName).toString().replace(/[/\\.#$\[\]\s]/g, '_');
+    const uniqueDocId = `${safeIdentifier}_${safeSubjectKey}`;
 
     try {
         await db.collection("students").doc(uniqueDocId).delete();
