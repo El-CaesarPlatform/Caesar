@@ -30,7 +30,7 @@
             justify-content: center;
             align-items: center;
             overflow-y: auto;
-            padding: 20px 0;
+            padding: 20px 10px;
         }
 
         /* ------------------ شاشة التحميل الخاصة بـ (القيصر) ------------------ */
@@ -47,6 +47,8 @@
             align-items: center;
             z-index: 99999;
             animation: fadeIn 0.4s ease forwards;
+            padding: 20px;
+            text-align: center;
         }
 
         .splash-logo-container {
@@ -97,6 +99,10 @@
             font-size: 1.1rem;
             font-weight: 700;
             letter-spacing: 0.5px;
+            text-align: center;
+            width: 100%;
+            max-width: 90%;
+            line-height: 1.6;
         }
 
         @keyframes spinRing {
@@ -122,7 +128,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 15px;
+            padding: 10px;
             animation: fadeInUp 0.8s ease-out forwards;
         }
 
@@ -171,6 +177,7 @@
             margin-bottom: 22px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 12px;
             width: 100%;
             color: #fff;
@@ -195,7 +202,7 @@
             font-weight: 700;
             font-size: 1.05rem;
             line-height: 1.5;
-            text-align: right;
+            text-align: center;
         }
 
         @keyframes glowing-border {
@@ -250,15 +257,19 @@
             gap: 10px;
         }
 
+        /* ------------------ رسالة التنبيه بالمنتصف تماماً ------------------ */
         #custom-alert-msg {
             display: none;
-            margin-bottom: 20px;
-            padding: 12px;
+            margin: 0 auto 20px auto;
+            padding: 12px 15px;
             border-radius: 12px;
             font-size: 0.95rem;
             font-weight: 700;
-            text-align: center;
+            text-align: center !important;
             white-space: pre-line;
+            width: 100%;
+            box-sizing: border-box;
+            line-height: 1.6;
         }
 
         /* ------------------ الخانات والعناوين الفوقية ------------------ */
@@ -266,6 +277,7 @@
             position: relative;
             margin-bottom: 20px;
             text-align: right;
+            width: 100%;
         }
 
         .input-label {
@@ -369,15 +381,73 @@
             fill: white;
         }
 
+        /* ------------------ تحسينات الشاشات الصغيرة والتلفونات ------------------ */
         @media (max-width: 480px) {
-            body { align-items: flex-start; padding-top: 20px; }
-            .platform-img { width: 105px; height: 105px; }
-            .brand-title { font-size: 1.8rem; }
-            .news-ticker { flex-direction: column; text-align: center; gap: 8px; }
-            .news-text { text-align: center; }
-            .login-container { padding: 25px 18px; }
-            .splash-logo-container { width: 140px; height: 140px; }
-            .splash-text { font-size: 1.9rem; }
+            body { 
+                align-items: center; 
+                padding: 15px 10px; 
+            }
+            #hero {
+                padding: 5px;
+            }
+            .platform-img { 
+                width: 105px; 
+                height: 105px; 
+            }
+            .brand-title { 
+                font-size: 1.8rem; 
+                margin-bottom: 16px;
+            }
+            .news-ticker { 
+                flex-direction: column; 
+                text-align: center; 
+                gap: 8px; 
+                padding: 12px 15px;
+                border-radius: 20px;
+            }
+            .news-text { 
+                text-align: center; 
+                font-size: 0.92rem;
+            }
+            .login-container { 
+                padding: 24px 18px; 
+                border-radius: 20px;
+            }
+            #custom-alert-msg {
+                font-size: 0.9rem;
+                padding: 10px 12px;
+                text-align: center !important;
+            }
+            .input-label {
+                font-size: 0.88rem;
+            }
+            .login-container input {
+                padding: 13px 14px;
+                font-size: 0.95rem;
+                border-radius: 12px;
+            }
+            .btn {
+                padding: 13px;
+                font-size: 1rem;
+                border-radius: 12px;
+            }
+            .splash-logo-container { 
+                width: 145px; 
+                height: 145px; 
+            }
+            .splash-text { 
+                font-size: 1.9rem; 
+            }
+            .splash-subtext {
+                font-size: 0.98rem;
+                margin-top: 30px;
+            }
+            .whatsapp-float {
+                bottom: 18px;
+                left: 18px;
+                padding: 10px 16px;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -396,7 +466,7 @@
 <div id="hero">
     <!-- مكان صورة المنصة المجهز -->
     <div class="platform-img-container">
-        <img src="https://cdn.phototourl.com/free/2026-09-03-a833c58e-82ac-43f4-aae3-9e7a5b8c17b2.jpg" alt="شعار منصة القيصر" class="platform-img">
+        <img src="https://cdn.phototourl.com/free/2026-09-03-6761f0a0-3e44-4462-a244-c5b16084e5c8.jpg" alt="شعار منصة القيصر" class="platform-img">
     </div>
 
     <div class="news-ticker">
@@ -422,7 +492,7 @@
             
             <div class="input-group">
                 <label for="login-code" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
-                <input type="text" id="login-code" placeholder="ادخل كلمة المرور .." required autocomplete="off">
+                <input type="text" id="login-code" placeholder="ادخل كلمة المرور." required autocomplete="off">
             </div>
             
             <button type="submit" class="btn" id="login-btn">
@@ -523,7 +593,7 @@
         const splashSubtext = document.getElementById("splash-user-welcome");
         
         if (splashSubtext) {
-            splashSubtext.innerText = `أهلاً بك يا ${name}.جاري تحويلك للمنصة`;
+            splashSubtext.innerText = `أهلاً بك يا ${name}\n جاري تحويلك للمنصة ..`;
         }
         
         if (splash) {
