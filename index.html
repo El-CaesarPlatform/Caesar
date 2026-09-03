@@ -33,18 +33,85 @@
             padding: 20px 0;
         }
 
-        /* ------------------ صورة أعلى اليسار ------------------ */
-        /* ------------------ صورة أعلى اليسار (شكل عرضي) ------------------ */
+        /* ------------------ شاشة التحميل الخاصة بـ (القيصر) ------------------ */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1b3a4b 0%, #0a151a 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            animation: fadeIn 0.4s ease forwards;
+        }
 
+        .splash-logo-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-.top-left-logo:hover {
-    transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 10px 25px rgba(0, 210, 255, 0.4);
-    border-color: rgba(0, 210, 255, 0.9);
-}
+        /* الدائرة المضيئة التي تدور حول الكلمة */
+        .splash-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top: 4px solid #ffffff;
+            border-right: 4px solid #00d2ff;
+            animation: spinRing 1.2s linear infinite;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
+        }
 
-        .top-left-logo:hover {
-            transform: scale(1.05);
+        /* دائرة خارجية خفيفة للتصميم */
+        .splash-ring-outer {
+            position: absolute;
+            width: 125%;
+            height: 125%;
+            border-radius: 50%;
+            border: 2px dashed rgba(255, 255, 255, 0.25);
+            animation: spinRingReverse 3s linear infinite;
+        }
+
+        .splash-text {
+            color: #ffffff;
+            font-size: 2.4rem;
+            font-weight: 900;
+            text-shadow: 0 0 18px #00d2ff, 0 0 30px rgba(0, 210, 255, 0.5);
+            z-index: 2;
+            letter-spacing: 1px;
+            animation: pulseText 1.5s ease-in-out infinite alternate;
+        }
+
+        .splash-subtext {
+            color: #e0f7fc;
+            margin-top: 35px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes spinRing {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes spinRingReverse {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
+        }
+
+        @keyframes pulseText {
+            from { transform: scale(0.98); opacity: 0.9; }
+            to { transform: scale(1.04); opacity: 1; }
         }
 
         /* ------------------ الحاوية الرئيسية وتوسيط العناصر ------------------ */
@@ -68,6 +135,29 @@
                 opacity: 1;
                 transform: translateY(0);
             }
+        }
+
+        /* ------------------ تصميم صورة المنصة ------------------ */
+        .platform-img-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .platform-img {
+            width: 130px;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 3px solid #00d2ff;
+            box-shadow: 0 0 25px rgba(0, 210, 255, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .platform-img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 35px rgba(0, 210, 255, 0.7);
         }
 
         /* ------------------ شريط الأخبار ------------------ */
@@ -171,9 +261,24 @@
             white-space: pre-line;
         }
 
+        /* ------------------ الخانات والعناوين الفوقية ------------------ */
         .input-group {
             position: relative;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .input-label {
+            display: block;
+            color: #00d2ff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            margin-right: 4px;
+        }
+
+        .input-label i {
+            margin-left: 6px;
         }
 
         .login-container input {
@@ -212,7 +317,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4);
-            margin-top: 8px;
+            margin-top: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -265,21 +370,35 @@
         }
 
         @media (max-width: 480px) {
-            body { align-items: flex-start; padding-top: 25px; }
-            .top-left-logo { width: 70px; top: 15px; left: 15px; } /* تصغير الصورة للشاشات الصغيرة */
+            body { align-items: flex-start; padding-top: 20px; }
+            .platform-img { width: 105px; height: 105px; }
             .brand-title { font-size: 1.8rem; }
             .news-ticker { flex-direction: column; text-align: center; gap: 8px; }
             .news-text { text-align: center; }
-            .login-container { padding: 28px 20px; }
+            .login-container { padding: 25px 18px; }
+            .splash-logo-container { width: 140px; height: 140px; }
+            .splash-text { font-size: 1.9rem; }
         }
     </style>
 </head>
 <body>
 
-<!-- 🖼️ صورة أعلى اليسار -->
-
+<!-- شاشة الانيميشن الخاصة بـ "القيصر" -->
+<div id="splash-screen">
+    <div class="splash-logo-container">
+        <div class="splash-ring"></div>
+        <div class="splash-ring-outer"></div>
+        <div class="splash-text">القيصر</div>
+    </div>
+    <div class="splash-subtext" id="splash-user-welcome">جاري الدخول إلى المنصة...</div>
+</div>
 
 <div id="hero">
+    <!-- مكان صورة المنصة المجهز -->
+    <div class="platform-img-container">
+        <img src="https://cdn.phototourl.com/free/2026-09-03-a833c58e-82ac-43f4-aae3-9e7a5b8c17b2.jpg" alt="شعار منصة القيصر" class="platform-img">
+    </div>
+
     <div class="news-ticker">
         <span class="news-badge">📢 تنبيه</span>
         <span class="news-text">أدخل اسمك كما هو مسجل لدى المعلم والكود الخاص بك للدخول.</span>
@@ -297,9 +416,12 @@
 
         <form id="login-form">
             <div class="input-group">
+                <label for="login-name" class="input-label"><i class="fas fa-user"></i> الاسم الثلاثي للطالب</label>
                 <input type="text" id="login-name" placeholder="اكتب اسمك كاملاً..." required autocomplete="off">
             </div>
+            
             <div class="input-group">
+                <label for="login-code" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
                 <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off">
             </div>
             
@@ -396,11 +518,22 @@
         localStorage.setItem("exam_code", realCode);
         localStorage.setItem("student_phone", studentPhone);
 
-        showMessage(`✅ أهلاً بك يا ${name}\nالصف: ${stage}\nجاري تحويلك للمنصة...`, "success");
+        // إظهار شاشة الانيميشن الخاصة بـ "القيصر"
+        const splash = document.getElementById("splash-screen");
+        const splashSubtext = document.getElementById("splash-user-welcome");
+        
+        if (splashSubtext) {
+            splashSubtext.innerText = `أهلاً بك يا ${name}.. جاري تجهيز منصتك!`;
+        }
+        
+        if (splash) {
+            splash.style.display = "flex";
+        }
 
+        // تحويل الطالب بعد 2.2 ثانية لرؤية الأنيميشن
         setTimeout(() => {
             window.location.href = "platform.html";
-        }, 1200);
+        }, 2200);
     }
 
     document.getElementById("login-form").addEventListener("submit", async function(e) {
@@ -445,7 +578,13 @@
 
         } catch (error) {
             console.error("خطأ أثناء تسجيل الدخول:", error);
-            showMessage("❌ حدث خطأ في الاتصال بالسيرفر، حاول مرة أخرى.", "error");
+            
+            if (error.code === 'permission-denied') {
+                showMessage("❌ خطأ: قواعد الأمان في فايرسبور (Firestore Rules) ترفض القراءة. يرجى ضبط القواعد في لوحة تحكم Firebase.", "error");
+            } else {
+                showMessage("❌ حدث خطأ أثناء الاتصال بقاعدة البيانات. تأكد من اتصالك بالإنترنت.", "error");
+            }
+            
             resetButton(loginBtn);
         }
     });
