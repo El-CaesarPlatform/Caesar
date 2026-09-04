@@ -33,6 +33,83 @@
             padding: 20px 10px;
         }
 
+        /* ------------------ إشعار الأمان الأنيق (التركاية) ------------------ */
+        .welcome-toast {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 32, 39, 0.9);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1.5px solid #00d2ff;
+            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.4);
+            border-radius: 30px;
+            padding: 10px 22px;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: top 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.5s ease;
+            opacity: 0;
+            max-width: 92%;
+            width: max-content;
+        }
+
+        .welcome-toast.show {
+            top: 20px;
+            opacity: 1;
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast-icon {
+            font-size: 1.4rem;
+            color: #00d2ff;
+            animation: pulseShield 2s infinite ease-in-out;
+        }
+
+        .toast-text {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+        }
+
+        .toast-title {
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 0.95rem;
+        }
+
+        .toast-sub {
+            color: #a0aec0;
+            font-size: 0.78rem;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #a0aec0;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 4px;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+
+        .toast-close:hover {
+            color: #ffffff;
+        }
+
+        @keyframes pulseShield {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #00d2ff); }
+            50% { transform: scale(1.18); filter: drop-shadow(0 0 8px #00d2ff); }
+        }
+
         /* ------------------ شاشة التحميل الخاصة بـ (القيصر) ------------------ */
         #splash-screen {
             position: fixed;
@@ -60,7 +137,6 @@
             align-items: center;
         }
 
-        /* الدائرة المضيئة التي تدور حول الكلمة */
         .splash-ring {
             position: absolute;
             width: 100%;
@@ -73,7 +149,6 @@
             box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
         }
 
-        /* دائرة خارجية خفيفة للتصميم */
         .splash-ring-outer {
             position: absolute;
             width: 125%;
@@ -275,7 +350,7 @@
         /* ------------------ الخانات والعناوين الفوقية ------------------ */
         .input-group {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: right;
             width: 100%;
         }
@@ -316,6 +391,39 @@
         
         #login-code { text-align: center; letter-spacing: 1px; }
 
+        /* ------------------ روابط المساعدة أسفل الخانات ------------------ */
+        .login-links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+            margin-bottom: 20px;
+            text-align: right;
+            padding: 0 4px;
+        }
+
+        .helper-link {
+            color: #cbd5e1;
+            font-size: 0.88rem;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            width: fit-content;
+        }
+
+        .helper-link:hover {
+            color: #00d2ff;
+            transform: translateX(-4px);
+        }
+
+        .helper-link i {
+            color: #00d2ff;
+            font-size: 0.85rem;
+        }
+
         /* ------------------ زر الدخول ------------------ */
         .btn {
             width: 100%;
@@ -329,7 +437,6 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4);
-            margin-top: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -426,6 +533,9 @@
                 font-size: 0.95rem;
                 border-radius: 12px;
             }
+            .helper-link {
+                font-size: 0.82rem;
+            }
             .btn {
                 padding: 13px;
                 font-size: 1rem;
@@ -448,10 +558,31 @@
                 padding: 10px 16px;
                 font-size: 0.85rem;
             }
+            .welcome-toast {
+                padding: 8px 16px;
+            }
+            .toast-title {
+                font-size: 0.88rem;
+            }
+            .toast-sub {
+                font-size: 0.72rem;
+            }
         }
     </style>
 </head>
 <body>
+
+<!-- التركاية: إشعار الترحيب بالأمان (Toast) عند فتح الصفحة -->
+<div id="welcome-toast" class="welcome-toast">
+    <div class="toast-content">
+        <i class="fas fa-shield-halved toast-icon"></i>
+        <div class="toast-text">
+            <span class="toast-title">مع القيصر أنت في أمان 🛡️</span>
+            <span class="toast-sub">بياناتك وحسابك في أقصى درجات الحماية</span>
+        </div>
+    </div>
+    <button class="toast-close" id="close-toast" aria-label="إغلاق">&times;</button>
+</div>
 
 <!-- شاشة الانيميشن الخاصة بـ "القيصر" -->
 <div id="splash-screen">
@@ -466,7 +597,7 @@
 <div id="hero">
     <!-- مكان صورة المنصة المجهز -->
     <div class="platform-img-container">
-        <img src="https://cdn.phototourl.com/free/2026-09-03-6761f0a0-3e44-4462-a244-c5b16084e5c8.jpg" alt="شعار منصة القيصر" class="platform-img">
+        <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="platform-img">
     </div>
 
     <div class="news-ticker">
@@ -492,7 +623,17 @@
             
             <div class="input-group">
                 <label for="login-code" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
-                <input type="text" id="login-code" placeholder="ادخل كلمة المرور." required autocomplete="off">
+                <input type="text" id="login-code" placeholder="أدخل كود الدخول..." required autocomplete="off">
+            </div>
+
+            <!-- روابط المساعدة تحت كلمة المرور -->
+            <div class="login-links-container">
+                <a href="javascript:void(0)" class="helper-link" id="forgot-pass-link">
+                    <i class="fas fa-key"></i> هل نسيت كلمة المرور؟ / واجهت صعوبة في الدخول؟
+                </a>
+                <a href="javascript:void(0)" class="helper-link" id="about-platform-link">
+                    <i class="fas fa-circle-info"></i> تريد معرفة المزيد عن المنصة؟
+                </a>
             </div>
             
             <button type="submit" class="btn" id="login-btn">
@@ -528,6 +669,43 @@
     }
     const db = firebase.firestore();
 
+    // ==========================================
+    // 2. إشعار الترحيب والأمان عند دخول الصفحة
+    // ==========================================
+    window.addEventListener("DOMContentLoaded", () => {
+        const toast = document.getElementById("welcome-toast");
+        const closeBtn = document.getElementById("close-toast");
+
+        // إظهار الإشعار بشكل انسيابي بعد فتح الصفحة بـ 0.7 ثانية
+        setTimeout(() => {
+            toast.classList.add("show");
+        }, 700);
+
+        // إخفاء الإشعار تلقائياً بعد 5 ثوانٍ لعدم مضايقة الطالب
+        const autoHideTimer = setTimeout(() => {
+            toast.classList.remove("show");
+        }, 5700);
+
+        closeBtn.addEventListener("click", () => {
+            clearTimeout(autoHideTimer);
+            toast.classList.remove("show");
+        });
+    });
+
+    // ==========================================
+    // 3. أحداث الروابط التفاعلية المضافة
+    // ==========================================
+    document.getElementById("forgot-pass-link").addEventListener("click", function() {
+        showMessage("💡 تواصل مع الدعم الفني لمساعدتك في استعادة كلمة المرور أو حل مشاكل الدخول.", "warning");
+    });
+
+    document.getElementById("about-platform-link").addEventListener("click", function() {
+        showMessage("ℹ️ تواصل مع الدعم الفني لمعرفة كل شيء عن كورسات وخدمات منصة القيصر!", "success");
+    });
+
+    // ==========================================
+    // 4. وظائف الرسائل والتحقق
+    // ==========================================
     function showMessage(text, type) {
         const msgBox = document.getElementById("custom-alert-msg");
         if (!msgBox) return;
@@ -588,19 +766,17 @@
         localStorage.setItem("exam_code", realCode);
         localStorage.setItem("student_phone", studentPhone);
 
-        // إظهار شاشة الانيميشن الخاصة بـ "القيصر"
         const splash = document.getElementById("splash-screen");
         const splashSubtext = document.getElementById("splash-user-welcome");
         
         if (splashSubtext) {
-            splashSubtext.innerText = `أهلاً بك يا ${name}\n جاري تحويلك للمنصة ..`;
+            splashSubtext.innerText = `أهلاً بك يا ${name}\nجاري تجهيز منصتك...`;
         }
         
         if (splash) {
             splash.style.display = "flex";
         }
 
-        // تحويل الطالب بعد 2.2 ثانية لرؤية الأنيميشن
         setTimeout(() => {
             window.location.href = "platform.html";
         }, 2200);
