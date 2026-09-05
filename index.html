@@ -781,8 +781,7 @@
             window.location.href = "platform.html";
         }, 2200);
     }
-
-    document.getElementById("login-form").addEventListener("submit", async function(e) {
+document.getElementById("login-form").addEventListener("submit", async function(e) {
         e.preventDefault();
         
         const loginBtn = document.getElementById("login-btn");
@@ -807,6 +806,7 @@
             }
 
             let studentFound = false;
+            let nameMatched = false; // 🔥 متغير جديد للتأكد من تطابق الاسم
 
             snapshot.forEach(doc => {
                 const userData = doc.data();
@@ -814,11 +814,20 @@
                 const stage = userData.stage || userData.grade || userData.studentStage || "غير محدد";
 
                 studentFound = true;
-                proceedToLogin(storedName || nameInput, stage, codeInput, userData, doc.id);
+
+                // 🔥 التحقق من أن الاسم المكتوب يطابق الاسم المسجل بالضبط
+                if (nameInput === storedName) {
+                    nameMatched = true;
+                    proceedToLogin(storedName, stage, codeInput, userData, doc.id);
+                }
             });
 
             if (!studentFound) {
                 showMessage("❌ لم يتم العثور على بيانات هذا الطالب!", "error");
+                resetButton(loginBtn);
+            } else if (!nameMatched) {
+                // 🔥 إظهار خطأ إذا كان الكود صحيح ولكن الاسم غير مطابق
+                showMessage("❌ الاسم المدخل لا يطابق الاسم المسجل بهذا الكود! تأكد من الكتابة بدقة.", "error");
                 resetButton(loginBtn);
             }
 
@@ -834,6 +843,7 @@
             resetButton(loginBtn);
         }
     });
+    
 </script>
 </body>
 </html>
