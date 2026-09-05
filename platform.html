@@ -47,7 +47,7 @@
             overflow-x: hidden;
         }
 
-        /* شريط التمرير المخصص */
+        /* شريط التمرير */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -90,7 +90,7 @@
             100% { box-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
         }
 
-        /* ================= 2. القائمة الجانبية والكروت العصرية (تعديل الألوان والكروت) ================= */
+        /* ================= 2. القائمة الجانبية ================= */
         .sidebar {
             width: 280px;
             background: rgba(5, 6, 8, 0.95);
@@ -111,10 +111,8 @@
             font-size: 1.7rem;
             margin-bottom: 25px;
             text-align: center;
-            letter-spacing: 0.5px;
         }
 
-        /* كارت الترحيب بالطالب العائم */
         .user-box {
             background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(157, 78, 221, 0.08));
             padding: 16px;
@@ -123,19 +121,6 @@
             text-align: center;
             border: 1px solid rgba(0, 242, 254, 0.2);
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .user-box::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(0,242,254,0.1) 0%, transparent 70%);
-            pointer-events: none;
         }
 
         .sidebar-menu {
@@ -167,7 +152,6 @@
             box-shadow: 0 4px 15px rgba(0, 242, 254, 0.15);
         }
 
-        /* 🔥 كارت البروفايل المطور العائلي النيون 🔥 */
         .student-profile {
             margin-top: auto;
             background: linear-gradient(180deg, rgba(20, 25, 40, 0.7), rgba(10, 12, 20, 0.9));
@@ -226,9 +210,6 @@
             color: #8a8aa3;
             font-size: 0.75rem;
             font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
         .card-item-value {
@@ -263,7 +244,7 @@
             background: linear-gradient(90deg, var(--accent-cyan), transparent);
         }
 
-        /* ================= كروت الامتحانات الرئيسية ================= */
+        /* الكروت الرئيسية */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
@@ -450,65 +431,94 @@
             border-right: 4px solid var(--accent-cyan);
         }
 
-        /* ================= 4. نظام الامتحان والأسئلة ================= */
+        /* ================= 4. غرفة الامتحان والأسئلة (التعديلات الفخمة الجديدة) ================= */
         #quiz-wrapper-box, 
         .quiz-container-box {
             display: none;
             background: var(--bg-card);
             backdrop-filter: blur(16px);
-            padding: 28px;
-            border-radius: 20px;
+            padding: 32px;
+            border-radius: 24px;
             margin-top: 10px;
             width: 100%;
             border: 1px solid var(--border-color);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
+        /* كارت السؤال المفرد */
         .single-question-card {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            padding: 22px;
-            border-radius: 16px;
-            margin-bottom: 20px;
+            background: rgba(12, 16, 25, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 26px;
+            border-radius: 20px;
+            margin-bottom: 25px;
             text-align: right;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .single-question-card:hover {
+            border-color: rgba(0, 242, 254, 0.2);
         }
 
         .single-question-card h3 {
             color: #ffffff !important;
-            font-size: 1.15rem;
-            margin-bottom: 18px;
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            font-weight: 800;
         }
 
+        /* 🔥 تحسين وتوضيح الصور داخل الأسئلة 🔥 */
         .single-question-card img {
             max-width: 100% !important;
-            height: auto !important;
+            max-height: 350px !important;
+            width: auto;
+            height: auto;
             display: block;
-            margin: 15px auto;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
+            margin: 20px auto;
+            border-radius: 16px;
+            border: 2px solid rgba(0, 242, 254, 0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background: #000;
+            object-fit: contain;
         }
 
+        /* كروت الخيارات وتأثير التحديد البارز */
         .option-label {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 14px;
+            gap: 14px;
+            padding: 16px 18px;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border-color);
-            border-radius: 10px;
-            margin-bottom: 10px;
+            border-radius: 14px;
+            margin-bottom: 12px;
             cursor: pointer;
             transition: all 0.25s ease;
+            font-size: 1.05rem;
+            font-weight: 600;
         }
 
         .option-label:hover {
-            background: rgba(0, 242, 254, 0.08);
-            border-color: var(--accent-cyan);
+            background: rgba(0, 242, 254, 0.06);
+            border-color: rgba(0, 242, 254, 0.4);
+            transform: translateX(-3px);
         }
 
         .option-label input[type="radio"] {
             accent-color: var(--accent-cyan);
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        /* فئة يتم إضافتها برمجياً عبر الـ JS عند اختيار الإجابة لتضيء بالكامل */
+        .option-label.selected-option {
+            background: rgba(0, 242, 254, 0.12) !important;
+            border-color: var(--accent-cyan) !important;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+            color: var(--accent-cyan);
         }
 
         /* ================= 5. النوافذ المنبثقة ================= */
@@ -556,10 +566,6 @@
                 padding-top: 65px !important;
             }
 
-            #question-map, .questions-map, .question-navigation {
-                display: none !important;
-            }
-
             .sidebar {
                 width: 100%;
                 padding: 18px;
@@ -596,12 +602,11 @@
     ⏱️ الوقت المتبقي: <span id="timer-display" style="color: #fff; font-weight: 900;">00:00</span>
 </div>
 
-<!-- 👑 القائمة الجانبية المحدثة مع الكروت العصرية 👑 -->
+<!-- القائمة الجانبية -->
 <div class="sidebar">
     <div>
         <h2>منصة القيصر</h2>
 
-        <!-- كارت الترحيب الجانبي -->
         <div class="user-box">
             <span style="font-size: 0.8rem; color: var(--text-sub); display: block; margin-bottom: 4px;">مرحباً بك مجدداً 👋</span>
             <h3 id="user-display-name" style="color: var(--accent-cyan); margin: 0; font-size: 1.15rem; font-weight: 800;">
@@ -615,10 +620,8 @@
         </ul>
     </div>
 
-    <!-- 🔥 كارت الملف الشخصي العصري 🔥 -->
+    <!-- ملف الطالب -->
     <div class="student-profile">
-        
-        <!-- صورة/أيقونة الطالب -->
         <div class="avatar-container">
             <div class="avatar-inner">🎓</div>
         </div>
@@ -627,30 +630,26 @@
             بيانات الطالب
         </h3>
 
-        <!-- كارت اسم الطالب الجانبي -->
         <div class="sidebar-card-item">
             <span class="card-item-label">👤 الاسم الكامل</span>
             <span class="card-item-value" id="profile-name">...</span>
         </div>
 
-        <!-- كارت الصف الدراسي الجانبي -->
         <div class="sidebar-card-item">
             <span class="card-item-label">🏫 الصف الدراسي</span>
             <span class="card-item-value" id="profile-stage" style="color: var(--accent-gold);">...</span>
         </div>
-
     </div>
 </div>
 
 <!-- المنطقة الرئيسية -->
 <div class="main-content">
 
-    <!-- قسم الامتحانات المتاحة -->
+    <!-- قسم الامتحانات -->
     <div id="exams-section">
         <h2 class="section-title">📚 الاختبارات التفاعلية</h2>
 
         <div class="grid-container" id="assigned-exam-grid">
-            
             <div class="exam-card-neon">
                 <div>
                     <div class="card-header-flex">
@@ -697,56 +696,6 @@
                     <button class="btn btn-glow" onclick="openPortalModal()">بدء الاختبار الآن 🚀</button>
                 </div>
             </div>
-
-            <div class="exam-card-neon">
-                <div>
-                    <div class="card-header-flex">
-                        <span class="status-tag" style="color: var(--accent-cyan); border-color: rgba(0,242,254,0.3); background: rgba(0,242,254,0.08);">
-                            ⚡ تدريب خاص
-                        </span>
-                        <span style="color: var(--accent-gold); font-size: 0.8rem; font-weight: 700;">الصف الثاني الثانوي</span>
-                    </div>
-                    <h3>اختبار التفكير البرمجي TOFAS</h3>
-                    <h4>مبادئ الخوارزميات وتحليل المشكلات</h4>
-                    <p>نموذج محاكاة للشهادة الدولية لقياس قدرات التفكير المنطقي والحل الخوارزمي السريع.</p>
-                </div>
-
-                <div>
-                    <div class="stats-pills">
-                        <div class="pill-item">
-                            <span class="pill-icon">⏱️</span>
-                            <div class="pill-info">
-                                <span class="pill-title">مدة الاختبار</span>
-                                <span class="pill-value">30 دقيقة</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">❓</span>
-                            <div class="pill-info">
-                                <span class="pill-title">الأسئلة</span>
-                                <span class="pill-value">15 سؤال</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">🎯</span>
-                            <div class="pill-info">
-                                <span class="pill-title">الدرجة الكلية</span>
-                                <span class="pill-value">50 درجة</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">🏆</span>
-                            <div class="pill-info">
-                                <span class="pill-title">المستوى</span>
-                                <span class="pill-value">متوسط</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button class="btn btn-glow" onclick="openPortalModal()">بدء الاختبار الآن 🚀</button>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -771,10 +720,12 @@
         <div id="result-display-box"></div>
     </div>
 
-    <!-- حاوية الأسئلة -->
+    <!-- 💡 غرفة الأسئلة داخل الامتحان (الشكل الجديد الفخم) -->
     <div id="quiz-wrapper-box" class="quiz-container-box">
         <div class="questions-main-area">
-            <div id="questions-container"></div>
+            <div id="questions-container">
+                <!-- سيتم توليد الأسئلة برمجياً هنا مع تنسيق الكروت والصور وتظليل الاختيار المحدد -->
+            </div>
             <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
         </div>
     </div>
@@ -797,6 +748,23 @@
         </div>
     </div>
 </div>
+
+<!-- سكريبت لتلوين الكارت المحدد تلقائياً عند النقر (أضف هذا الجافاسكريبت أو تأكد من تفعيله في ملف script.js) -->
+<script>
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'radio') {
+            // إزالة التحديد عن باقي الخيارات في نفس السؤال
+            const name = e.target.name;
+            document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+                radio.closest('.option-label').classList.remove('selected-option');
+            });
+            // إضافة التحديد للخيار الحالي
+            if (e.target.checked) {
+                e.target.closest('.option-label').classList.add('selected-option');
+            }
+        }
+    });
+</script>
 
 <!-- مكتبات Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
