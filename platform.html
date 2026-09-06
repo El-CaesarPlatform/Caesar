@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>منصة القيصر - لوحة التحكم العصرية</title>
-    
+    <link rel="icon" type="image/png" href="https://cdn.phototourl.com/free/2026-09-05-44c7cc9f-ce36-4134-8fd1-1258f9d10560.jpg">
     <!-- الخطوط -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -141,7 +141,12 @@
             border: 1px solid transparent;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+        }
+
+        /* تأثير الأيقونات (SVG) ليتغير لونها مع النص */
+        .sidebar-menu li svg {
+            transition: all 0.3s ease;
         }
 
         .sidebar-menu li.active, 
@@ -163,14 +168,21 @@
             backdrop-filter: blur(10px);
         }
 
+        /* الأفاتار */
         .avatar-container {
-            width: 55px;
-            height: 55px;
-            margin: 0 auto 12px auto;
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 16px auto;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent-cyan), var(--accent-neon-purple));
-            padding: 2px;
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+            padding: 3px;
+            position: relative;
+            animation: avatarPulse 3s infinite alternate;
+        }
+
+        @keyframes avatarPulse {
+            0% { box-shadow: 0 0 15px rgba(0, 242, 254, 0.3); transform: scale(1); }
+            100% { box-shadow: 0 0 25px rgba(157, 78, 221, 0.7); transform: scale(1.03); }
         }
 
         .avatar-inner {
@@ -181,7 +193,16 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.6rem;
+            overflow: hidden;
+        }
+
+        .avatar-inner svg {
+            filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.5));
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .avatar-container:hover .avatar-inner svg {
+            transform: scale(1.15) translateY(-2px);
         }
 
         .sidebar-card-item {
@@ -194,7 +215,7 @@
             transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 5px;
         }
 
         .sidebar-card-item:last-child {
@@ -211,6 +232,9 @@
             color: #8a8aa3;
             font-size: 0.75rem;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .card-item-value {
@@ -440,7 +464,7 @@
             border-right: 4px solid var(--accent-cyan);
         }
 
-        /* ================= 4. غرفة الامتحان والأسئلة (التعديلات التجاوبية الفخمة) ================= */
+        /* ================= 4. غرفة الامتحان والأسئلة ================= */
         #quiz-wrapper-box, 
         .quiz-container-box {
             display: none;
@@ -454,7 +478,6 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
-        /* كارت السؤال المفرد */
         .single-question-card {
             background: rgba(12, 16, 25, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -481,7 +504,6 @@
             word-wrap: break-word;
         }
 
-        /* 🗺️ تحسين وحل مشكلة الخرائط والصور في الموبايل 🗺️ */
         .question-image-wrapper {
             position: relative;
             margin: 20px 0;
@@ -510,7 +532,6 @@
             transform: scale(1.01);
         }
 
-        /* تلميح التكبير فوق الصورة */
         .map-zoom-hint {
             display: inline-flex;
             align-items: center;
@@ -526,7 +547,6 @@
             cursor: pointer;
         }
 
-        /* كروت الخيارات وتأثير التحديد البارز */
         .option-label {
             display: flex;
             align-items: center;
@@ -566,7 +586,7 @@
             font-weight: 800;
         }
 
-        /* ================= 5. النافذة المنبثقة للتكبير والخرائط (Fullscreen Lightbox) ================= */
+        /* ================= 5. النافذة المنبثقة ================= */
         .image-modal {
             display: none;
             position: fixed;
@@ -657,7 +677,7 @@
             to { opacity: 1; transform: scale(1); }
         }
 
-        /* ================= 6. تحسينات التجاوب التامة مع الهواتف الذكية ================= */
+        /* ================= 6. الموبايل ================= */
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -707,7 +727,6 @@
                 gap: 18px;
             }
 
-            /* 🎯 تحسين غلاف الامتحان للموبايل 🎯 */
             #quiz-wrapper-box, 
             .quiz-container-box {
                 padding: 16px 12px;
@@ -739,11 +758,6 @@
                 margin-bottom: 10px;
             }
 
-            .option-label input[type="radio"] {
-                width: 20px;
-                height: 20px;
-            }
-
             .btn-submit {
                 padding: 14px;
                 font-size: 1rem;
@@ -758,11 +772,6 @@
 
             .single-question-card h3 {
                 font-size: 0.98rem;
-            }
-
-            .option-label {
-                font-size: 0.9rem;
-                padding: 10px 12px;
             }
         }
     </style>
@@ -793,29 +802,72 @@
             </h3>
         </div>
 
+        <!-- 🎨 تعديل أيقونات الاختبارات والنتائج إلى SVG احترافي -->
         <ul class="sidebar-menu">
-            <li class="active" onclick="switchTab('exams')">📝 الاختبارات المتاحة</li>
-            <li onclick="switchTab('results')">📊 كشف النتائج</li>
+            <li class="active" onclick="switchTab('exams')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                الاختبارات المتاحة
+            </li>
+            <li onclick="switchTab('results')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                كشف النتائج
+            </li>
         </ul>
     </div>
 
     <!-- ملف الطالب -->
     <div class="student-profile">
+        
+        <!-- أيقونة الأفاتار المرسومة -->
         <div class="avatar-container">
-            <div class="avatar-inner">🎓</div>
+            <div class="avatar-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="url(#avatar-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <defs>
+                        <linearGradient id="avatar-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#00f2fe" />
+                            <stop offset="100%" stop-color="#9d4edd" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+            </div>
         </div>
 
         <h3 style="text-align:center; color: var(--text-main); margin-bottom: 14px; font-size: 1rem; font-weight: 800;">
             بيانات الطالب
         </h3>
 
+        <!-- 🎨 استبدال إيموجي (الاسم) و (الصف) بـ SVG متناسق -->
         <div class="sidebar-card-item">
-            <span class="card-item-label">👤 الاسم الكامل</span>
+            <span class="card-item-label">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                الاسم الكامل
+            </span>
             <span class="card-item-value" id="profile-name">...</span>
         </div>
 
         <div class="sidebar-card-item">
-            <span class="card-item-label">🏫 الصف الدراسي</span>
+            <span class="card-item-label">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                الصف الدراسي
+            </span>
             <span class="card-item-value" id="profile-stage" style="color: var(--accent-gold);">...</span>
         </div>
     </div>
@@ -928,7 +980,7 @@
     </div>
 </div>
 
-<!-- ⚙️ السكريبتات التفاعلية لتظليل الخيارات وتكبير الخرائط بسهولة ⚙️ -->
+<!-- ⚙️ السكريبتات التفاعلية -->
 <script>
     // 1. إضاءة وتظليل الإجابة المختارة
     document.addEventListener('change', function(e) {
