@@ -578,7 +578,7 @@
         <i class="fas fa-shield-halved toast-icon"></i>
         <div class="toast-text">
             <span class="toast-title">مع القيصر أنت في أمان 🛡️</span>
-            <span class="toast-sub">بياناتك وحسابك في أقصى درجات الحماية</span>
+            <span class="toast-sub">اضمن المادة </span>
         </div>
     </div>
     <button class="toast-close" id="close-toast" aria-label="إغلاق">&times;</button>
@@ -700,7 +700,7 @@
     });
 
     document.getElementById("about-platform-link").addEventListener("click", function() {
-        showMessage("ℹ️ تواصل مع الدعم الفني لمعرفة كل شيء عن كورسات وخدمات منصة القيصر!", "success");
+        showMessage("ℹ️ تواصل مع الدعم الفني لمعرفة كل شيء وخدمات منصة القيصر!", "success");
     });
 
     // ==========================================
@@ -827,7 +827,7 @@ document.getElementById("login-form").addEventListener("submit", async function(
                 resetButton(loginBtn);
             } else if (!nameMatched) {
                 // 🔥 إظهار خطأ إذا كان الكود صحيح ولكن الاسم غير مطابق
-                showMessage("❌ الاسم المدخل لا يطابق الاسم المسجل بهذا الكود! تأكد من الكتابة بدقة.", "error");
+                showMessage("❌الاسم غير صحيح او كلمة المرور ", "error");
                 resetButton(loginBtn);
             }
 

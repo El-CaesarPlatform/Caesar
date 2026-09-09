@@ -774,7 +774,220 @@
                 font-size: 0.98rem;
             }
         }
-    </style>
+    
+
+        /* =========================================================
+           كارت الامتحان الديناميكي - مطابق لهيئة الصورة
+           CSS فقط - بدون أي تعديل على script.js
+           ========================================================= */
+        #assigned-exam-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 28px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .exam-card {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            min-height: 438px;
+            padding: 26px 34px 30px;
+            border-radius: 28px;
+            border: 1px solid rgba(0, 242, 254, 0.42);
+            background:
+                radial-gradient(circle at 6% 0%, rgba(0, 242, 254, 0.19), transparent 29%),
+                radial-gradient(circle at 100% 100%, rgba(90, 70, 180, 0.10), transparent 34%),
+                linear-gradient(145deg, rgba(18, 34, 52, 0.98), rgba(13, 18, 31, 0.99));
+            box-shadow: 0 22px 50px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.045);
+            backdrop-filter: blur(18px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: right;
+            isolation: isolate;
+        }
+
+        .exam-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,242,254,.07), transparent 35%, transparent 70%, rgba(124,58,237,.05));
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .exam-card::after {
+            content: '● متاح حالياً';
+            position: absolute;
+            top: 26px;
+            right: 28px;
+            padding: 7px 15px;
+            border-radius: 999px;
+            border: 1px solid rgba(0,245,212,.42);
+            background: rgba(0,245,212,.08);
+            color: var(--accent-green);
+            font-size: .78rem;
+            font-weight: 900;
+            box-shadow: 0 0 18px rgba(0,245,212,.08);
+        }
+
+        .exam-card h3 {
+            position: absolute;
+            top: 26px;
+            left: 28px;
+            margin: 0;
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(0,242,254,.35);
+            background: rgba(0,242,254,.06);
+            color: var(--accent-gold);
+            font-size: .83rem;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .exam-card h4 {
+            margin: 98px 0 24px;
+            padding: 0 6px;
+            color: #fff;
+            font-size: 1.58rem;
+            font-weight: 900;
+            line-height: 1.6;
+            text-align: right;
+            word-break: break-word;
+            text-shadow: 0 0 18px rgba(255,255,255,.05);
+        }
+
+        .exam-card p {
+            margin: 0 0 26px;
+            min-height: 92px;
+            padding: 18px 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,.055);
+            background: rgba(5,10,20,.72);
+            color: #cbd5e1;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 2.15;
+            text-align: right;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.018), 0 8px 18px rgba(0,0,0,.15);
+        }
+
+        .exam-card p strong {
+            color: #fff;
+            font-weight: 900;
+        }
+
+        .exam-card .btn-exam,
+        .exam-card button {
+            width: 100%;
+            min-height: 58px;
+            padding: 13px 20px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(100deg, #087fff 0%, #3b82f6 42%, #8b4dde 100%);
+            color: #fff !important;
+            font-size: 1.04rem;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 12px 28px rgba(0,119,255,.23);
+            transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+        }
+
+        .exam-card .btn-exam:hover,
+        .exam-card button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 32px rgba(86,86,255,.30);
+            filter: brightness(1.05);
+        }
+
+        .exam-card .btn-exam:disabled,
+        .exam-card button:disabled {
+            background: #64748b !important;
+            box-shadow: none;
+            transform: none;
+            filter: none;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            #assigned-exam-grid {
+                gap: 18px;
+            }
+
+            .exam-card {
+                min-height: 390px;
+                padding: 22px 17px 20px;
+                border-radius: 22px;
+            }
+
+            .exam-card::after {
+                top: 20px;
+                right: 17px;
+                padding: 6px 11px;
+                font-size: .68rem;
+            }
+
+            .exam-card h3 {
+                top: 20px;
+                left: 17px;
+                padding: 6px 10px;
+                font-size: .72rem;
+            }
+
+            .exam-card h4 {
+                margin-top: 78px;
+                margin-bottom: 20px;
+                font-size: 1.18rem;
+                line-height: 1.65;
+            }
+
+            .exam-card p {
+                min-height: 88px;
+                padding: 15px;
+                font-size: .87rem;
+                line-height: 2.1;
+            }
+
+            .exam-card .btn-exam,
+            .exam-card button {
+                min-height: 53px;
+                border-radius: 13px;
+                font-size: .96rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .exam-card {
+                min-height: 365px;
+                padding: 19px 14px 17px;
+            }
+
+            .exam-card h3 {
+                left: 14px;
+                top: 19px;
+                font-size: .67rem;
+            }
+
+            .exam-card::after {
+                top: 19px;
+                right: 14px;
+                font-size: .64rem;
+            }
+
+            .exam-card h4 {
+                margin-top: 73px;
+                font-size: 1rem;
+            }
+
+            .exam-card p {
+                font-size: .82rem;
+                padding: 13px;
+            }
+        }
+
+</style>
 </head>
 <body>
 

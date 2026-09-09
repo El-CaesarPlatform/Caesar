@@ -102,7 +102,7 @@ function isExamFinished(subjectKey, type) {
 }
 
 // ==========================================
-// 🔍 دالة فحص استحقاق الطالب للامتحان (مُحدثة مع حماية من الأخطاء)
+// 🔍 دالة فحص استحقاق الطالب للامتحان
 // ==========================================
 function canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone) {
     const cleanCode = (studentCode || "").toString().trim().toLowerCase();
@@ -111,19 +111,16 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 
     const targetType = exam.targetType || 'all';
 
-    // 1️⃣ إذا كان الامتحان موجه لطالب شخصي محدد (حسب الكود أو الاسم أو الهاتف)
     if (targetType === 'specific' || targetType === 'single') {
         const targetCode = (exam.targetCode || exam.targetStudentCode || (exam.targetStudent && exam.targetStudent.code) || "").toString().trim().toLowerCase();
         const targetName = (exam.targetName || exam.targetStudentName || (exam.targetStudent && exam.targetStudent.name) || "").toString().trim().toLowerCase();
         const targetPhone = (exam.targetPhone || (exam.targetStudent && exam.targetStudent.phone) || "").toString().trim().toLowerCase();
 
-        const isMatch = (cleanCode && targetCode === cleanCode) ||
-                        (cleanPhone && targetPhone === cleanPhone) ||
-                        (cleanName && targetName === cleanName);
-        return isMatch;
+        return (cleanCode && targetCode === cleanCode) ||
+               (cleanPhone && targetPhone === cleanPhone) ||
+               (cleanName && targetName === cleanName);
     }
 
-    // 2️⃣ إذا كان الامتحان موجه لعدة طلاب محددين القائمة (مع حماية Array.isArray)
     if (targetType === 'multiple' || targetType === 'selected') {
         const rawCodes = Array.isArray(exam.targetCodes) ? exam.targetCodes : (Array.isArray(exam.selectedCodes) ? exam.selectedCodes : []);
         const targetCodes = rawCodes.map(c => (c || "").toString().trim().toLowerCase());
@@ -131,13 +128,9 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
         const rawNames = Array.isArray(exam.targetNames) ? exam.targetNames : (Array.isArray(exam.selectedStudents) ? exam.selectedStudents : []);
         const targetNames = rawNames.map(n => (typeof n === 'object' ? (n.name || n.code || '') : n).toString().trim().toLowerCase());
 
-        const matchCode = cleanCode && targetCodes.includes(cleanCode);
-        const matchName = cleanName && targetNames.includes(cleanName);
-
-        return matchCode || matchName;
+        return (cleanCode && targetCodes.includes(cleanCode)) || (cleanName && targetNames.includes(cleanName));
     }
 
-    // 3️⃣ إذا كان الامتحان عام للجميع أو حسب الصف الدراسي
     if (targetType === 'all' || targetType === 'عام' || !targetType) {
         if (exam.grade && exam.grade !== "عام" && exam.grade !== "الكل" && studentStage && studentStage !== "غير محدد") {
             return exam.grade === studentStage;
@@ -149,7 +142,7 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 }
 
 // ==========================================
-// 🚀 عند تحميل الصفحة والتجهيز (معالجة تغيير التليفون والبيانات الناقصة)
+// 🚀 عند تحميل الصفحة والتجهيز
 // ==========================================
 window.onload = function() {
     let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
@@ -158,7 +151,6 @@ window.onload = function() {
     let parentPhone = localStorage.getItem("parent_phone") || "";
     let studentStage = localStorage.getItem("student_stage") || "غير محدد";
 
-    // إذا كانت بيانات الطالب ناقصة (مثل الفتح من تليفون جديد بدون دخول سابق)
     if (!studentName || !studentCode || studentStage === "غير محدد") {
         if (!studentName) {
             studentName = prompt("🔑 يرجى إدخال اسمك الثلاثي لدخول المنصة:") || "";
@@ -175,7 +167,6 @@ window.onload = function() {
             }
         }
 
-        // إذا ما زالت البيانات ناقصة يتم التحويل لصفحة التسجيل لتفادي التعليق
         if (!studentName || !studentCode) {
             showCustomToast("⚠️ بيانات الدخول غير مكتملة، جاري توجيهك لصفحة التسجيل...", "warning");
             setTimeout(() => { window.location.href = "login.html"; }, 2000);
@@ -255,7 +246,7 @@ function setupAntiCheatListeners() {
 }
 
 // ==========================================
-// 📚 جلب وعرض الاختبارات المخصصة للطالب (مع حماية المهلة الزمانية)
+// 📚 جلب وعرض الاختبارات المخصصة للطالب
 // ==========================================
 async function loadAssignedExam() {
     const examsGrid = document.getElementById('assigned-exam-grid');
@@ -412,7 +403,7 @@ async function updateExamButtonsStatus() {
 }
 
 // ==========================================
-// 🔍 الاستعلام عن النتائج (محدث للاستعلام المباشر بالسيرفر)
+// 🔍 الاستعلام عن النتائج (عرض تفصيلي وستايل نيون)
 // ==========================================
 async function checkStudentResult() {
     const studentNameInput = document.getElementById("search-student-name");
@@ -423,13 +414,13 @@ async function checkStudentResult() {
     const displayBox = document.getElementById("result-display-box");
 
     if (!querySearch || !codeSearch) {
-        showCustomToast("⚠️ خطأ: يجب إدخال (اسم الطالب) و (كود الطالب / رقم الهاتف) معاً للاستعلام!", "warning");
+        showCustomToast("⚠️ خطأ: يجب إدخال (اسم الطالب) و (كود الطالب) معاً للاستعلام!", "warning");
         if (displayBox) {
             displayBox.style.display = "block";
             displayBox.innerHTML = `
                 <div style="background: rgba(231, 76, 60, 0.1); border-right: 5px solid #e74c3c; padding: 18px; border-radius: 12px; text-align: right; margin-top: 15px;">
                     <p style="color:#e74c3c; font-weight:bold; margin:0; font-size:1.1rem;">
-                        ⚠️ حقل الاسم وكود الطالب أو الهاتف مطلوبان معاً لإجراء الاستعلام!
+                        ⚠️ حقل الاسم وكود الطالب مطلوبان معاً لإجراء الاستعلام!
                     </p>
                 </div>
             `;
@@ -437,22 +428,20 @@ async function checkStudentResult() {
         return;
     }
 
+    if (!displayBox) return;
+
     displayBox.style.display = "block";
-    displayBox.innerHTML = "<p style='text-align:center; color:#00d2ff; font-weight:bold;'>⏳ جاري البحث عن حالة النتيجة وتفاصيل الإجابات...</p>";
+    displayBox.innerHTML = "<p style='text-align:center; color:#00d2ff; font-weight:bold; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);'>⏳ جاري البحث عن النتيجة وسحب نموذج الإجابة...</p>";
 
     let foundResults = [];
 
     if (typeof db !== 'undefined') {
         try {
-            // استعلام سريع بدلالة الكود لتوفير موارد القراءة ورعايتها
-            const snapshot = await db.collection("students")
-                .where("studentCode", "==", codeSearch)
-                .get();
+            const snapshot = await db.collection("students").where("studentCode", "==", codeSearch).get();
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 const storedName = (data.studentName || data.name || "").trim().toLowerCase();
-
                 const hasSubmittedFlag = (data.hasSubmitted === true || data.isSubmitted === true || data.status === "submitted");
                 const hasAnswers = (data.answers && Array.isArray(data.answers) && data.answers.length > 0) || 
                                    (data.answers && typeof data.answers === 'object' && Object.keys(data.answers).length > 0);
@@ -466,101 +455,103 @@ async function checkStudentResult() {
             });
 
             if (foundResults.length > 0) {
-                let html = `<h4 style="color: #00d2ff; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 1.1rem;">📊 حالة أداء الامتحان ومراجعة الإجابات</h4>`;
+                let html = `<h4 style="color: #00d2ff; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 1.2rem; text-shadow: 0 0 10px rgba(0,210,255,0.4);">📊 كشف تفاصيل الامتحان ومطابقة الإجابات</h4>`;
 
                 foundResults.forEach(docData => {
                     const studentStage = docData.stage || docData.studentGrade || localStorage.getItem('student_stage') || "غير محدد";
                     const examTitle = docData.examName || docData.examTitle || docData.title || "امتحان عام";
                     const submittedDate = docData.submittedAt || "تم التسليم بنجاح";
-
                     const isResultVisible = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true);
 
                     if (isResultVisible) {
                         const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : (docData.mcqScore || 0));
                         const maxScore = (docData.maxScore !== undefined) ? docData.maxScore : ((docData.maxExamScore !== undefined) ? docData.maxExamScore : 10);
                         const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                        
+                        let scoreColor = percentage >= 85 ? '#2ecc71' : (percentage >= 50 ? '#f1c40f' : '#e74c3c');
 
                         html += `
-                            <div style="background: rgba(255, 255, 255, 0.05); border-right: 5px solid #2ecc71; padding: 18px; margin-bottom: 15px; border-radius: 12px; text-align: right;">
-                                <h4 style="color: #2ecc71; margin-bottom: 10px; font-weight: bold;">🎉 النتيجة معتمدة ورسمية</h4>
-                                <p style="margin-bottom: 8px;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name || docData.id}</p>
-                                <p style="margin-bottom: 8px;"><strong>🏫 الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
-                                <p style="margin-bottom: 8px;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
-                                <p style="margin-bottom: 12px; font-size: 1.1rem;"><strong>💯 الدرجة:</strong> 
-                                    <span style="color:#2ecc71; font-weight:bold; font-size:1.3rem;">${score}</span> / <span>${maxScore}</span> (${percentage}%)
-                                </p>
+                            <div style="background: rgba(20, 20, 35, 0.8); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid ${scoreColor}; box-shadow: 0 0 15px rgba(0,0,0,0.5); padding: 18px; margin-bottom: 20px; border-radius: 12px; text-align: right;">
+                                <h4 style="color: ${scoreColor}; margin-bottom: 15px; font-weight: bold; text-shadow: 0 0 10px ${scoreColor}40;">🏆 النتيجة النهائية</h4>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name}</p>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>🏫 الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
+                                <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                                    <span style="font-size: 1.1rem; color: #fff;">الدرجة: </span>
+                                    <span style="color:${scoreColor}; font-weight:bold; font-size:1.6rem; text-shadow: 0 0 10px ${scoreColor}60;">${score}</span> 
+                                    <span style="color:#fff; font-size:1.2rem;"> / ${maxScore}</span>
+                                </div>
                         `;
 
-                        // 🔍 مراجعة تفصيلية للأسئلة والإجابات
-                        if (docData.answers && Array.isArray(docData.answers) && docData.answers.length > 0) {
+                        if (docData.answers && Array.isArray(docData.answers)) {
                             html += `
-                                <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 15px;">
-                                    <h5 style="color: #00d2ff; margin-bottom: 15px; font-weight: bold; font-size: 1.05rem;">📝 مراجعة الإجابات والنموذج:</h5>
+                                <div style="margin-top: 25px;">
+                                    <h5 style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">📝 نموذج الإجابة التفصيلي:</h5>
                             `;
 
                             docData.answers.forEach((item, index) => {
                                 const qText = item.question || `سؤال ${index + 1}`;
                                 const stAns = item.studentAnswer || "لم يحل";
-                                const crAns = item.correctAnswer || "";
+                                const crAns = item.correctAnswer || "غير محدد";
                                 const isCorrect = item.isCorrect === true;
                                 const qType = item.type || "choice";
 
-                                let boxBg = isCorrect ? "rgba(46, 204, 113, 0.18)" : "rgba(231, 76, 60, 0.18)";
-                                let borderColor = isCorrect ? "#2ecc71" : "#e74c3c";
-                                let statusBadge = isCorrect ? "✅ إجابة صحيحة" : "❌ إجابة خاطئة";
-                                let badgeColor = isCorrect ? "#2ecc71" : "#e74c3c";
+                                let boxBg, borderColor, icon, statusText;
 
                                 if (qType === "essay" && item.isCorrect === undefined) {
-                                    boxBg = "rgba(241, 196, 15, 0.18)";
+                                    boxBg = "linear-gradient(145deg, rgba(241, 196, 15, 0.05), rgba(241, 196, 15, 0.1))";
                                     borderColor = "#f1c40f";
-                                    statusBadge = "📝 سؤال مقالي";
-                                    badgeColor = "#f1c40f";
+                                    icon = "✍️";
+                                    statusText = "سؤال مقالي (يحتاج تقييم)";
+                                } else if (isCorrect) {
+                                    boxBg = "linear-gradient(145deg, rgba(46, 204, 113, 0.05), rgba(46, 204, 113, 0.15))";
+                                    borderColor = "#2ecc71";
+                                    icon = "✅";
+                                    statusText = "إجابة صحيحة";
+                                } else {
+                                    boxBg = "linear-gradient(145deg, rgba(231, 76, 60, 0.05), rgba(231, 76, 60, 0.15))";
+                                    borderColor = "#e74c3c";
+                                    icon = "❌";
+                                    statusText = "إجابة خاطئة";
                                 }
 
                                 html += `
-                                    <div style="background: ${boxBg}; border-right: 5px solid ${borderColor}; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; text-align: right; transition: all 0.3s ease;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                            <strong style="color: #fff; font-size: 0.98rem;">س${index + 1}: ${qText}</strong>
-                                            <span style="color: ${badgeColor}; font-weight: bold; font-size: 0.88rem; background: rgba(0,0,0,0.25); padding: 3px 10px; border-radius: 6px;">${statusBadge}</span>
+                                    <div style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.05); border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 15px; border-radius: 8px; text-align: right;">
+                                        <div style="margin-bottom: 12px;">
+                                            <strong style="color: #fff; font-size: 1.05rem;">${index + 1}. ${qText}</strong>
                                         </div>
-                                        <p style="margin: 6px 0; color: #cbd5e1; font-size: 0.92rem;">
-                                            <strong>إجابتك:</strong> 
-                                            <span style="color: ${isCorrect ? '#2ecc71' : '#e74c3c'}; font-weight: bold;">${stAns}</span>
-                                        </p>
+                                        
+                                        <div style="display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <span style="color: #cbd5e1; font-size: 0.95rem;">إجابتك: <span style="color: ${borderColor}; font-weight: bold;">${stAns}</span></span>
+                                                <span style="font-size: 0.85rem; background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 4px; color:${borderColor};">${icon} ${statusText}</span>
+                                            </div>
                                 `;
 
-                                if (!isCorrect && qType !== "essay" && crAns) {
+                                if (!isCorrect || qType === "essay") {
                                     html += `
-                                        <p style="margin: 6px 0; color: #2ecc71; font-size: 0.92rem;">
-                                            <strong>الإجابة الصحيحة:</strong> <span style="font-weight: bold;">${crAns}</span>
-                                        </p>
+                                            <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px; margin-top: 4px;">
+                                                <span style="color: #cbd5e1; font-size: 0.95rem;">الإجابة النموذجية: <span style="color: #00d2ff; font-weight: bold; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${crAns}</span></span>
+                                            </div>
                                     `;
                                 }
 
-                                if (qType === "essay" && crAns) {
-                                    html += `
-                                        <p style="margin: 6px 0; color: #00d2ff; font-size: 0.92rem;">
-                                            <strong>نموذج الإجابة:</strong> <span>${crAns}</span>
-                                        </p>
-                                    `;
-                                }
-
-                                html += `</div>`;
+                                html += `
+                                        </div>
+                                    </div>
+                                `;
                             });
-
                             html += `</div>`;
                         }
-
                         html += `</div>`;
 
                     } else {
                         html += `
-                            <div style="background: rgba(255, 255, 255, 0.05); border-right: 5px solid #f1c40f; padding: 18px; margin-bottom: 15px; border-radius: 12px; text-align: right;">
-                                <h4 style="color: #f1c40f; margin-bottom: 10px; font-weight: bold;">⏳ تم التسليم وقيد المراجعة</h4>
-                                <p style="margin-bottom: 8px;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name || docData.id}</p>
-                                <p style="margin-bottom: 8px;"><strong>🏫 الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
-                                <p style="margin-bottom: 8px;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
-                                <p style="margin-bottom: 8px;"><strong>📅 وقت التسليم:</strong> ${submittedDate}</p>
+                            <div style="background: rgba(241, 196, 15, 0.1); border-right: 5px solid #f1c40f; padding: 18px; border-radius: 12px; text-align: right; margin-bottom: 15px;">
+                                <h4 style="color: #f1c40f; margin-bottom: 10px;"><i class="fas fa-hourglass-half"></i> قيد المراجعة</h4>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name}</p>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📅 وقت التسليم:</strong> ${submittedDate}</p>
                                 <p style="color: #2ecc71; font-weight: bold; margin-top: 10px;">
                                     📩 الإجابات محفوظة لدى المعلم، وستظهر الدرجة ونموذج الإجابات هنا فور اعتمادها وإظهارها من اللوحة.
                                 </p>
@@ -579,18 +570,14 @@ async function checkStudentResult() {
 
     displayBox.innerHTML = `
         <div style="background: rgba(231, 76, 60, 0.1); border-right: 5px solid #e74c3c; padding: 20px; border-radius: 12px; text-align: right;">
-            <p style="color:#e74c3c; font-weight:bold; margin:0 0 10px 0; font-size:1.1rem;">
-                ❌ لم يتم العثور على امتحانات مكتملة
-            </p>
-            <p style="color: #cbd5e1; font-size: 0.95rem; margin:0;">
-                عفواً، لم تقم بأداء أو تسليم أي امتحان بهذه البيانات حتى الآن. تذكر: لن تظهر النتيجة إلا بعد إنهاء الامتحان وتسليمه فعلياً.
-            </p>
+            <p style="color:#e74c3c; font-weight:bold; margin:0 0 10px 0; font-size:1.1rem;">❌ لم يتم العثور على نتيجة</p>
+            <p style="color: #cbd5e1; font-size: 0.95rem; margin:0;">عفواً، لم تقم بتسليم امتحان أو لم يتم اعتماد النتيجة بعد.</p>
         </div>
     `;
 }
 
 // ==========================================
-// 🔄 التنقل وبدء الامتحان
+// 🔄 التنقل وبدء الامتحان وحماية الريفريش
 // ==========================================
 function switchTab(tab) {
     if (window.isExamRunning) {
@@ -672,32 +659,32 @@ function startExamActual() {
     const sidebar = document.querySelector('.sidebar');
     if (sidebar) sidebar.style.display = 'none';
 
-    if(document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
-    if(document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
+    if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
+    if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
 
     window.isExamRunning = true;
 
-    renderQuestions();
-
-    const examData = dynamicExamsDatabase[currentActiveSubject];
+    // تسجيل الجلسة قبل عرض الأسئلة لضمان الحفظ
+    const examData = typeof dynamicExamsDatabase !== 'undefined' ? dynamicExamsDatabase[currentActiveSubject] : null;
     const durationInMinutes = (examData && examData.duration) ? examData.duration : DEFAULT_EXAM_DURATION;
-
+    
     if (currentActiveType === "exam") {
-        const timerBanner = document.getElementById('timer-banner');
-        if (timerBanner) timerBanner.style.display = 'flex';
-        
         const endTime = Date.now() + (durationInMinutes * 60 * 1000);
-
         const examSessionState = {
             subjectKey: currentActiveSubject,
             type: currentActiveType,
             questions: activeQuestionsList,
             endTime: endTime
         };
+        // حفظ تفاصيل الجلسة في المتصفح
         localStorage.setItem('active_running_exam_session', JSON.stringify(examSessionState));
-
+        
+        const timerBanner = document.getElementById('timer-banner');
+        if (timerBanner) timerBanner.style.display = 'flex';
         startTimer(endTime);
     }
+
+    renderQuestions();
 }
 
 function checkAndResumeRunningExam() {
@@ -708,29 +695,41 @@ function checkAndResumeRunningExam() {
         const sessionData = JSON.parse(savedSession);
         const remainingMs = sessionData.endTime - Date.now();
 
+        // لو الوقت خلص وهو برا الصفحة
         if (remainingMs <= 0) {
             currentActiveSubject = sessionData.subjectKey;
             currentActiveType = sessionData.type;
             activeQuestionsList = sessionData.questions || [];
             localStorage.removeItem('active_running_exam_session');
-            calculateAndSend(true);
+            calculateAndSend(true); // تسليم إجباري
             return;
         }
 
+        // استعادة البيانات
         currentActiveSubject = sessionData.subjectKey;
         currentActiveType = sessionData.type;
         activeQuestionsList = sessionData.questions;
 
-        document.getElementById('quiz-wrapper-box').style.display = 'block';
+        // تظبيط واجهة المستخدم لترجع لوضع الامتحان فوراً
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const portalModal = document.getElementById('portal-modal');
+        const quizWrapper = document.getElementById('quiz-wrapper-box');
+
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = 'none';
+        if (portalModal) portalModal.style.display = 'none';
+        if (quizWrapper) quizWrapper.style.display = 'block';
+        
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) sidebar.style.display = 'none';
 
-        if(document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
-        if(document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
+        if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
+        if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
 
         window.isExamRunning = true;
 
-        renderQuestions();
+        renderQuestions(); // الدالة دي هتقرأ الإجابات المحفوظة وتفعلها
 
         if (currentActiveType === "exam") {
             const timerBanner = document.getElementById('timer-banner');
@@ -738,15 +737,15 @@ function checkAndResumeRunningExam() {
             startTimer(sessionData.endTime);
         }
 
-        showCustomToast("🔄 تم استعادة جلسة الامتحان وإجاباتك بنجاح!", "success");
+        showCustomToast("🔄 تم استعادة جلسة الامتحان وإجاباتك بنجاح بسبب تحديث الصفحة!", "success");
 
-    } catch(e) {
+    } catch (e) {
         console.warn("خطأ في استعادة الجلسة الحالية:", e);
     }
 }
 
 // ==========================================
-// 🎨 عرض الأسئلة (تعديل إصلاح innerHTML والتجميع المباشر)
+// 🎨 عرض الأسئلة
 // ==========================================
 function renderQuestions() {
     const container = document.getElementById('questions-container');
@@ -774,7 +773,7 @@ function renderQuestions() {
         if (q.imageUrl && q.imageUrl.trim() !== "") {
             html += `
             <div style="margin-bottom: 15px; text-align:center;">
-                <img src="${q.imageUrl}" alt="صورة السؤال">
+                <img src="${q.imageUrl}" alt="صورة السؤال" style="max-width:100%; border-radius:8px;">
             </div>`;
         }
 
@@ -915,7 +914,7 @@ function confirmFinalSubmit() {
 }
 
 // ==========================================
-// 📤 تصحيح وتسليم الإجابات (معدّل للحفظ بالكود ومقارنة الاختيارات بدقة)
+// 📤 تصحيح وتسليم الإجابات
 // ==========================================
 function calculateAndSend(bypassValidation = false) {
     let studentAnswersText = {};
@@ -1069,7 +1068,7 @@ function calculateAndSend(bypassValidation = false) {
 }
 
 // ==========================================
-// 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن (مُحدثة)
+// 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن
 // ==========================================
 async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode = "") {
     if (typeof db === 'undefined' || (!studentFullName && !studentCode) || !subjectKey) {
