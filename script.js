@@ -470,17 +470,58 @@ async function checkStudentResult() {
                         
                         let scoreColor = percentage >= 85 ? '#2ecc71' : (percentage >= 50 ? '#f1c40f' : '#e74c3c');
 
+                        // ==========================================
+                        // 🆕 بداية التعديل: حساب عدد الأسئلة الصح والغلط 
+                        // ==========================================
+                        let correctCount = 0;
+                        let wrongCount = 0;
+                        let ungradedCount = 0;
+
+                        if (docData.answers && Array.isArray(docData.answers)) {
+                            docData.answers.forEach(item => {
+                                if (item.type === "essay" && item.isCorrect === undefined) {
+                                    ungradedCount++;
+                                } else if (item.isCorrect === true) {
+                                    correctCount++;
+                                } else {
+                                    wrongCount++;
+                                }
+                            });
+                        }
+                        // ==========================================
+                        // نهاية التعديل
+                        // ==========================================
+
                         html += `
                             <div style="background: rgba(20, 20, 35, 0.8); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid ${scoreColor}; box-shadow: 0 0 15px rgba(0,0,0,0.5); padding: 18px; margin-bottom: 20px; border-radius: 12px; text-align: right;">
                                 <h4 style="color: ${scoreColor}; margin-bottom: 15px; font-weight: bold; text-shadow: 0 0 10px ${scoreColor}40;">🏆 النتيجة النهائية</h4>
                                 <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name}</p>
                                 <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>🏫 الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
                                 <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
+                                
                                 <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
                                     <span style="font-size: 1.1rem; color: #fff;">الدرجة: </span>
                                     <span style="color:${scoreColor}; font-weight:bold; font-size:1.6rem; text-shadow: 0 0 10px ${scoreColor}60;">${score}</span> 
                                     <span style="color:#fff; font-size:1.2rem;"> / ${maxScore}</span>
                                 </div>
+
+                                <!-- 🆕 إضافة المربعات الخاصة بعدد الإجابات الصحيحة والخاطئة -->
+                                <div style="display: flex; justify-content: space-around; margin-top: 15px; background: rgba(0,0,0,0.2); padding: 15px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="text-align: center;">
+                                        <span style="display: block; font-size: 1.6rem; color: #2ecc71; font-weight: bold; text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);">${correctCount}</span>
+                                        <span style="color: #cbd5e1; font-size: 0.95rem;">إجابة صحيحة ✅</span>
+                                    </div>
+                                    <div style="text-align: center; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 15px;">
+                                        <span style="display: block; font-size: 1.6rem; color: #e74c3c; font-weight: bold; text-shadow: 0 0 8px rgba(231, 76, 60, 0.4);">${wrongCount}</span>
+                                        <span style="color: #cbd5e1; font-size: 0.95rem;">إجابة خاطئة ❌</span>
+                                    </div>
+                                    ${ungradedCount > 0 ? `
+                                    <div style="text-align: center; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 15px;">
+                                        <span style="display: block; font-size: 1.6rem; color: #f1c40f; font-weight: bold; text-shadow: 0 0 8px rgba(241, 196, 15, 0.4);">${ungradedCount}</span>
+                                        <span style="color: #cbd5e1; font-size: 0.95rem;">قيد التقييم ✍️</span>
+                                    </div>` : ''}
+                                </div>
+                                <!-- نهاية الإضافة -->
                         `;
 
                         if (docData.answers && Array.isArray(docData.answers)) {
