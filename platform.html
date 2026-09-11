@@ -987,6 +987,250 @@
             }
         }
 
+
+        /* =========================================================
+           🎨 تصميم احترافي لنتيجة الطالب
+           CSS فقط - بدون تعديل script.js
+           ========================================================= */
+
+        #results-section {
+            animation: resultSectionIn .45s ease;
+        }
+
+        @keyframes resultSectionIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #results-section .section-title {
+            margin-bottom: 20px;
+        }
+
+        #results-section .result-inputs-box {
+            background:
+                linear-gradient(145deg,
+                    rgba(21, 30, 47, 0.92),
+                    rgba(9, 14, 25, 0.96)
+                ) !important;
+            border: 1px solid rgba(0, 242, 254, 0.14) !important;
+            border-radius: 22px !important;
+            padding: 22px !important;
+            box-shadow:
+                0 18px 45px rgba(0,0,0,.28),
+                inset 0 1px 0 rgba(255,255,255,.025) !important;
+        }
+
+        #results-section .result-inputs-box input {
+            height: 52px;
+            font-size: .96rem;
+            border-radius: 13px !important;
+            border-color: rgba(255,255,255,.08) !important;
+            background: rgba(3,8,18,.58) !important;
+            transition: .25s ease;
+        }
+
+        #results-section .result-inputs-box input:focus {
+            border-color: rgba(0,242,254,.55) !important;
+            box-shadow: 0 0 0 4px rgba(0,242,254,.08) !important;
+            transform: translateY(-1px);
+        }
+
+        #results-section .result-inputs-box .btn-result-card {
+            min-height: 54px;
+            border-radius: 14px !important;
+            font-size: 1rem;
+            background:
+                linear-gradient(100deg,
+                    #087fff 0%,
+                    #3b82f6 45%,
+                    #8b4dde 100%
+                ) !important;
+            box-shadow: 0 12px 28px rgba(0,119,255,.18) !important;
+        }
+
+        #result-display-box {
+            margin-top: 18px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            overflow: visible !important;
+        }
+
+        /* عنوان كشف النتيجة الذي ينشئه script.js */
+        #result-display-box > h4 {
+            margin: 0 0 18px !important;
+            padding: 15px 18px !important;
+            border-radius: 18px !important;
+            color: #fff !important;
+            background:
+                linear-gradient(135deg,
+                    rgba(0,136,255,.12),
+                    rgba(157,78,221,.12)
+                ) !important;
+            border: 1px solid rgba(0,242,254,.11) !important;
+            box-shadow: 0 12px 28px rgba(0,0,0,.18) !important;
+            font-size: 1.05rem !important;
+            text-shadow: none !important;
+        }
+
+        /* الكارت الرئيسي للنتيجة الذي ينشئه script.js */
+        #result-display-box > div {
+            border-radius: 24px !important;
+            border-right-width: 4px !important;
+            padding: 24px !important;
+            margin-bottom: 20px !important;
+            background:
+                linear-gradient(145deg,
+                    rgba(18, 28, 45, .96),
+                    rgba(8, 13, 24, .98)
+                ) !important;
+            box-shadow:
+                0 20px 45px rgba(0,0,0,.28),
+                inset 0 1px 0 rgba(255,255,255,.025) !important;
+        }
+
+        #result-display-box > div h4 {
+            font-size: 1.15rem !important;
+            margin-bottom: 16px !important;
+            color: #fff !important;
+        }
+
+        #result-display-box > div p {
+            color: #cbd5e1 !important;
+            line-height: 1.9 !important;
+        }
+
+        /* صندوق الدرجة */
+        #result-display-box > div > div {
+            border-radius: 17px !important;
+            border-color: rgba(255,255,255,.07) !important;
+        }
+
+        /* أرقام الصح والغلط */
+        #result-display-box > div > div[style*="justify-content: space-around"] {
+            gap: 10px !important;
+            background: rgba(2,7,16,.45) !important;
+            border-radius: 18px !important;
+            padding: 13px 10px !important;
+        }
+
+        #result-display-box > div > div[style*="justify-content: space-around"] > div {
+            flex: 1;
+            min-width: 0;
+            padding: 9px 8px !important;
+            border-right: 0 !important;
+        }
+
+        #result-display-box > div > div[style*="justify-content: space-around"] span:first-child {
+            font-size: 1.75rem !important;
+            line-height: 1.15 !important;
+        }
+
+        /* سؤال/إجابة كل سؤال */
+        #result-display-box > div > div:last-child {
+            margin-top: 20px !important;
+        }
+
+        #result-display-box > div > div:last-child > div {
+            border-radius: 17px !important;
+            padding: 17px !important;
+            margin-bottom: 12px !important;
+            box-shadow: 0 10px 24px rgba(0,0,0,.12) !important;
+        }
+
+        #result-display-box > div > div:last-child > div strong {
+            line-height: 1.8 !important;
+        }
+
+        /* إدجابات الطالب والنموذج */
+        #result-display-box > div > div:last-child > div > div {
+            border-radius: 13px !important;
+        }
+
+        #result-display-box > div > div:last-child > div span {
+            line-height: 1.8 !important;
+        }
+
+        /* الكارت الخاص بقيد المراجعة / عدم العثور */
+        #result-display-box > div[style*="f1c40f"],
+        #result-display-box > div[style*="e74c3c"] {
+            padding: 22px !important;
+            border-radius: 21px !important;
+            background:
+                linear-gradient(145deg,
+                    rgba(18,28,45,.96),
+                    rgba(8,13,24,.98)
+                ) !important;
+            box-shadow: 0 18px 40px rgba(0,0,0,.23) !important;
+        }
+
+        @media (max-width: 700px) {
+
+            #results-section .section-title {
+                font-size: 1.22rem;
+                margin-bottom: 16px;
+            }
+
+            #results-section .result-inputs-box {
+                padding: 16px !important;
+                border-radius: 18px !important;
+            }
+
+            #results-section .result-inputs-box input {
+                height: 49px;
+                font-size: .9rem;
+            }
+
+            #results-section .result-inputs-box .btn-result-card {
+                min-height: 50px;
+                font-size: .92rem;
+            }
+
+            #result-display-box > h4 {
+                padding: 13px 14px !important;
+                border-radius: 15px !important;
+                font-size: .9rem !important;
+                line-height: 1.6 !important;
+            }
+
+            #result-display-box > div {
+                padding: 16px !important;
+                border-radius: 20px !important;
+            }
+
+            #result-display-box > div > div[style*="justify-content: space-around"] {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0,1fr));
+                gap: 8px !important;
+            }
+
+            #result-display-box > div > div[style*="justify-content: space-around"] > div {
+                padding: 10px 6px !important;
+                border: 1px solid rgba(255,255,255,.045) !important;
+                border-radius: 13px !important;
+            }
+
+            #result-display-box > div > div:last-child > div {
+                padding: 13px !important;
+                border-radius: 15px !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+
+            #result-display-box > div {
+                padding: 13px !important;
+            }
+
+            #result-display-box > div > div[style*="justify-content: space-around"] span:first-child {
+                font-size: 1.5rem !important;
+            }
+
+            #result-display-box > div > div:last-child > div {
+                padding: 11px !important;
+            }
+        }
+
 </style>
 </head>
 <body>
