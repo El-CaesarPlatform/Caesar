@@ -1,4 +1,3 @@
-// ==========================================
 // 💥 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -471,7 +470,19 @@ async function checkStudentResult() {
                         let scoreColor = percentage >= 85 ? '#2ecc71' : (percentage >= 50 ? '#f1c40f' : '#e74c3c');
 
                         // ==========================================
-                        // 🆕 بداية التعديل: حساب عدد الأسئلة الصح والغلط 
+                        // رسالة التشجيع بناءً على النسبة المئوية
+                        // ==========================================
+                        let motivationMsg = "";
+                        if (percentage >= 85) {
+                            motivationMsg = "برافو عليك يا بطل، أداء مبهر! 🌟";
+                        } else if (percentage >= 50) {
+                            motivationMsg = "ممتاز، بس واثقين إنك هتعمل أحسن المرة الجاية! 💪";
+                        } else {
+                            motivationMsg = "ضعيف، بس أكيد في أحسن المرة الجاية متيأسش! 🎯";
+                        }
+
+                        // ==========================================
+                        // حساب عدد الأسئلة الصح والغلط 
                         // ==========================================
                         let correctCount = 0;
                         let wrongCount = 0;
@@ -488,9 +499,6 @@ async function checkStudentResult() {
                                 }
                             });
                         }
-                        // ==========================================
-                        // نهاية التعديل
-                        // ==========================================
 
                         html += `
                             <div style="background: rgba(20, 20, 35, 0.8); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid ${scoreColor}; box-shadow: 0 0 15px rgba(0,0,0,0.5); padding: 18px; margin-bottom: 20px; border-radius: 12px; text-align: right;">
@@ -503,9 +511,15 @@ async function checkStudentResult() {
                                     <span style="font-size: 1.1rem; color: #fff;">الدرجة: </span>
                                     <span style="color:${scoreColor}; font-weight:bold; font-size:1.6rem; text-shadow: 0 0 10px ${scoreColor}60;">${score}</span> 
                                     <span style="color:#fff; font-size:1.2rem;"> / ${maxScore}</span>
+                                    
+                                    <div style="margin-top: 10px; font-size: 1.25rem; color: ${scoreColor}; font-weight: bold;">
+                                        النسبة المئوية: %${percentage}
+                                    </div>
+                                    <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px dashed ${scoreColor};">
+                                        <span style="font-size: 1.1rem; color: #fff;">${motivationMsg}</span>
+                                    </div>
                                 </div>
 
-                                <!-- 🆕 إضافة المربعات الخاصة بعدد الإجابات الصحيحة والخاطئة -->
                                 <div style="display: flex; justify-content: space-around; margin-top: 15px; background: rgba(0,0,0,0.2); padding: 15px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                                     <div style="text-align: center;">
                                         <span style="display: block; font-size: 1.6rem; color: #2ecc71; font-weight: bold; text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);">${correctCount}</span>
@@ -521,7 +535,6 @@ async function checkStudentResult() {
                                         <span style="color: #cbd5e1; font-size: 0.95rem;">قيد التقييم ✍️</span>
                                     </div>` : ''}
                                 </div>
-                                <!-- نهاية الإضافة -->
                         `;
 
                         if (docData.answers && Array.isArray(docData.answers)) {
