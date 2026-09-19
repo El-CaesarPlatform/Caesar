@@ -1,4 +1,5 @@
 // ==========================================
+// ==========================================
 // 💥 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -148,6 +149,77 @@ function cleanStaleExamStorage(activeExamIds = []) {
     }
 }
 
+// دالة توليد قالب مراجعة الأسئلة مع إجابة الطالب والإجابة النموذجية
+function generateQuestionsReviewHtml(answers) {
+    if (!answers || !Array.isArray(answers) || answers.length === 0) return '';
+    
+    let html = `
+        <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
+            <h5 style="color: #00d2ff; font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; text-align: right; display: flex; align-items: center; gap: 8px;">
+                📝 تفاصيل الأسئلة ونموذج الإجابة:
+            </h5>
+    `;
+
+    answers.forEach((item, index) => {
+        const qText = item.question || `سؤال ${index + 1}`;
+        const stAns = item.studentAnswer || "لم يحل";
+        const crAns = item.correctAnswer || "غير محدد";
+        const isCorrect = item.isCorrect === true;
+        const qType = item.type || "choice";
+
+        let boxBg, borderColor, icon, statusText;
+
+        if (qType === "essay" && item.isCorrect === undefined) {
+            boxBg = "rgba(241, 196, 15, 0.06)";
+            borderColor = "#f1c40f";
+            icon = "✍️";
+            statusText = "سؤال مقالي (قيد المراجعة)";
+        } else if (isCorrect) {
+            boxBg = "rgba(46, 204, 113, 0.08)";
+            borderColor = "#2ecc71";
+            icon = "✅";
+            statusText = "إجابة صحيحة";
+        } else {
+            boxBg = "rgba(231, 76, 60, 0.08)";
+            borderColor = "#e74c3c";
+            icon = "❌";
+            statusText = "إجابة خاطئة";
+        }
+
+        html += `
+            <div style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${borderColor}; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
+                <div style="margin-bottom: 8px;">
+                    <strong style="color: #fff; font-size: 0.98rem; line-height: 1.6;">
+                        س${index + 1}: ${escapeHtml(qText)}
+                    </strong>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                        <span style="color: #cbd5e1; font-size: 0.9rem;">
+                            إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>
+                        </span>
+                        <span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;">
+                            ${icon} ${statusText}
+                        </span>
+                    </div>
+
+                    ${(!isCorrect || qType === "essay") ? `
+                        <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px;">
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">
+                                الإجابة النموذجية الصحيحة: <strong style="color: #00d2ff; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${escapeHtml(crAns)}</strong>
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    return html;
+}
+
 // ==========================================
 // 💾 نظام مزامنة "حسابي" مع النتائج الحقيقية فقط
 // ==========================================
@@ -230,7 +302,7 @@ async function syncAccountWithFirebase() {
                         percentage: isApproved ? `% ${percentage}` : '⏳ قيد التصحيح',
                         score: isApproved ? `${score}.0 من ${maxScore}` : 'قيد التصحيح ⏳',
                         solvedQuestions: solvedCount,
-                        canReview: isApproved, // لا تظهر الإجابات إلا بموافقة الأدمن
+                        canReview: isApproved,
                         startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
                         endTime: docData.submittedAt || 'تم التسليم',
                         answers: docData.answers || []
@@ -329,19 +401,6 @@ function openAnswersReviewModal(recordId) {
         document.body.appendChild(reviewModal);
     }
 
-    let answersHtml = '';
-    item.answers.forEach((ans, idx) => {
-        const isCorr = ans.isCorrect === true;
-        const color = isCorr ? '#2ecc71' : '#e74c3c';
-        answersHtml += `
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${color}; padding: 12px; margin-bottom: 10px; border-radius: 10px; text-align: right;">
-                <strong style="color: #fff; font-size: 0.95rem;">س${idx + 1}: ${escapeHtml(ans.question)}</strong>
-                <div style="margin-top: 6px; font-size: 0.88rem; color: #cbd5e1;">إجابتك: <span style="color:${color}; font-weight:bold;">${escapeHtml(ans.studentAnswer)}</span></div>
-                ${!isCorr ? `<div style="font-size: 0.88rem; color: #00f2fe; margin-top: 4px;">الإجابة الصحيحة: ${escapeHtml(ans.correctAnswer)}</div>` : ''}
-            </div>
-        `;
-    });
-
     reviewModal.innerHTML = `
         <div style="background: #0f1422; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
             <div style="padding: 16px 20px; background: #141c2c; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
@@ -349,7 +408,7 @@ function openAnswersReviewModal(recordId) {
                 <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;">✕</button>
             </div>
             <div style="padding: 18px; overflow-y: auto; flex: 1;">
-                ${answersHtml}
+                ${generateQuestionsReviewHtml(item.answers)}
             </div>
             <div style="padding: 12px; background: #141c2c; text-align: center;">
                 <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="padding: 8px 24px; background: #0088ff; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">إغلاق</button>
@@ -688,7 +747,7 @@ async function updateExamButtonsStatus() {
 }
 
 // ==========================================
-// 🔍 الاستعلام عن النتائج في كشف النتائج
+// 🔍 الاستعلام عن النتائج في كشف النتائج (مع عرض الأسئلة ونموذج الإجابة)
 // ==========================================
 async function checkStudentResult() {
     const studentNameInput = document.getElementById("search-student-name");
@@ -795,6 +854,9 @@ async function checkStudentResult() {
                                     <span style="color:#fff; font-size:1.2rem;"> / ${maxScore}</span>
                                     <div style="margin-top: 10px; font-size: 1.25rem; color: ${scoreColor}; font-weight: bold;">النسبة المئوية: %${percentage}</div>
                                 </div>
+
+                                <!-- 📝 إظهار الأسئلة وإجابة الطالب والنموذج الصحيح -->
+                                ${generateQuestionsReviewHtml(docData.answers)}
                             </div>
                         `;
                     } else {
