@@ -7,8 +7,8 @@
     <link rel="icon" type="image/png" href="https://cdn.phototourl.com/free/2026-09-05-44c7cc9f-ce36-4134-8fd1-1258f9d10560.jpg">
     <!-- الخطوط -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
         /* ================= 0. المتغيرات والتنسيق العام ================= */
@@ -101,7 +101,7 @@
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
         }
 
         .sidebar h2 {
@@ -144,7 +144,6 @@
             gap: 12px;
         }
 
-        /* تأثير الأيقونات (SVG) ليتغير لونها مع النص */
         .sidebar-menu li svg {
             transition: all 0.3s ease;
         }
@@ -156,92 +155,6 @@
             border-color: rgba(0, 242, 254, 0.3);
             transform: translateX(-5px);
             box-shadow: 0 4px 15px rgba(0, 242, 254, 0.15);
-        }
-
-        .student-profile {
-            margin-top: auto;
-            background: linear-gradient(180deg, rgba(20, 25, 40, 0.7), rgba(10, 12, 20, 0.9));
-            padding: 18px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-        }
-
-        /* الأفاتار */
-        .avatar-container {
-            width: 70px;
-            height: 70px;
-            margin: 0 auto 16px auto;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-neon-purple));
-            padding: 3px;
-            position: relative;
-            animation: avatarPulse 3s infinite alternate;
-        }
-
-        @keyframes avatarPulse {
-            0% { box-shadow: 0 0 15px rgba(0, 242, 254, 0.3); transform: scale(1); }
-            100% { box-shadow: 0 0 25px rgba(157, 78, 221, 0.7); transform: scale(1.03); }
-        }
-
-        .avatar-inner {
-            width: 100%;
-            height: 100%;
-            background: #0b0c10;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .avatar-inner svg {
-            filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.5));
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .avatar-container:hover .avatar-inner svg {
-            transform: scale(1.15) translateY(-2px);
-        }
-
-        .sidebar-card-item {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-bottom: 10px;
-            text-align: right;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .sidebar-card-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .sidebar-card-item:hover {
-            border-color: rgba(0, 242, 254, 0.4);
-            background: rgba(0, 242, 254, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .card-item-label {
-            color: #8a8aa3;
-            font-size: 0.75rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .card-item-value {
-            color: #ffffff;
-            font-size: 0.92rem;
-            font-weight: 800;
-            word-break: break-word;
         }
 
         /* ================= 3. المحتوى الرئيسي ================= */
@@ -269,7 +182,7 @@
             background: linear-gradient(90deg, var(--accent-cyan), transparent);
         }
 
-        /* الكروت الرئيسية */
+        /* كروت الامتحانات الرئيسية */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
@@ -277,116 +190,97 @@
             margin-bottom: 40px;
         }
 
-        .exam-card-neon {
-            background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 26px;
+        #assigned-exam-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 28px;
+            width: 100%;
+        }
+
+        .exam-card {
             position: relative;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            width: 100%;
+            min-height: 400px;
+            padding: 26px 34px 30px;
+            border-radius: 28px;
+            border: 1px solid rgba(0, 242, 254, 0.42);
+            background:
+                radial-gradient(circle at 6% 0%, rgba(0, 242, 254, 0.19), transparent 29%),
+                radial-gradient(circle at 100% 100%, rgba(90, 70, 180, 0.10), transparent 34%),
+                linear-gradient(145deg, rgba(18, 34, 52, 0.98), rgba(13, 18, 31, 0.99));
+            box-shadow: 0 22px 50px rgba(0,0,0,.42);
+            backdrop-filter: blur(18px);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            overflow: hidden;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            text-align: right;
         }
 
-        .exam-card-neon:hover {
-            transform: translateY(-8px);
-            border-color: var(--accent-cyan);
-            box-shadow: 0 0 30px rgba(0, 242, 254, 0.25);
-        }
-
-        .card-header-flex {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .status-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(0, 245, 212, 0.1);
+        .exam-card::after {
+            content: '● متاح حالياً';
+            position: absolute;
+            top: 26px;
+            right: 28px;
+            padding: 7px 15px;
+            border-radius: 999px;
+            border: 1px solid rgba(0,245,212,.42);
+            background: rgba(0,245,212,.08);
             color: var(--accent-green);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            border: 1px solid rgba(0, 245, 212, 0.2);
+            font-size: .78rem;
+            font-weight: 900;
         }
 
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent-green);
-            border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent-green);
-            animation: blink 1.5s infinite;
+        .exam-card h3 {
+            position: absolute;
+            top: 26px;
+            left: 28px;
+            margin: 0;
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(0,242,254,.35);
+            background: rgba(0,242,254,.06);
+            color: var(--accent-gold);
+            font-size: .83rem;
+            font-weight: 900;
         }
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .exam-card-neon h3 {
-            font-size: 1.3rem;
-            color: var(--text-main);
-            font-weight: 800;
-            margin-bottom: 6px;
-        }
-
-        .exam-card-neon h4 {
-            font-size: 0.95rem;
-            color: var(--accent-cyan);
-            margin-bottom: 14px;
-            font-weight: 600;
-        }
-
-        .exam-card-neon p {
-            color: var(--text-sub);
-            font-size: 0.88rem;
+        .exam-card h4 {
+            margin: 90px 0 20px;
+            color: #fff;
+            font-size: 1.55rem;
+            font-weight: 900;
             line-height: 1.6;
-            margin-bottom: 22px;
         }
 
-        .stats-pills {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 22px;
+        .exam-card p {
+            margin: 0 0 24px;
+            padding: 16px 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,.06);
+            background: rgba(5,10,20,.72);
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 2;
         }
 
-        .pill-item {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .exam-card .btn-exam {
+            width: 100%;
+            min-height: 56px;
+            padding: 13px 20px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(100deg, #087fff 0%, #3b82f6 42%, #8b4dde 100%);
+            color: #fff !important;
+            font-size: 1.05rem;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 12px 28px rgba(0,119,255,.23);
+            transition: all .25s ease;
         }
 
-        .pill-icon {
-            font-size: 1.2rem;
-        }
-
-        .pill-info span {
-            display: block;
-        }
-
-        .pill-title {
-            color: var(--text-sub);
-            font-size: 0.72rem;
-        }
-
-        .pill-value {
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 0.88rem;
+        .exam-card .btn-exam:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.08);
         }
 
         .btn {
@@ -399,8 +293,6 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 0.95rem;
-            outline: none;
-            display: inline-block;
             text-align: center;
         }
 
@@ -409,14 +301,10 @@
             box-shadow: 0 4px 15px rgba(0, 136, 255, 0.3);
         }
 
-        .btn-glow:hover {
-            box-shadow: 0 0 25px rgba(157, 78, 221, 0.6);
-            transform: scale(1.02);
-        }
-
         .btn-result-card {
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            box-shadow: 0 4px 15px rgba(230, 126, 34, 0.3);
+            background: linear-gradient(100deg, #087fff 0%, #3b82f6 45%, #8b4dde 100%) !important;
+            box-shadow: 0 12px 28px rgba(0,119,255,.18) !important;
+            min-height: 52px;
         }
 
         .btn-submit {
@@ -429,44 +317,40 @@
             box-shadow: 0 4px 20px rgba(0, 245, 212, 0.4);
         }
 
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(0, 245, 212, 0.6);
-        }
-
+        /* كشف النتائج */
         .result-inputs-box {
-            background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            padding: 28px;
-            border-radius: 20px;
-            border: 1px solid var(--border-color);
+            background: linear-gradient(145deg, rgba(21, 30, 47, 0.92), rgba(9, 14, 25, 0.96));
+            border: 1px solid rgba(0, 242, 254, 0.14);
+            border-radius: 22px;
+            padding: 24px;
             margin-bottom: 25px;
         }
 
         .result-inputs-box input {
             width: 100%;
-            padding: 14px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
+            height: 52px;
+            padding: 12px 16px;
+            background: rgba(3, 8, 18, 0.58);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
             color: white;
             margin-bottom: 16px;
             text-align: right;
             outline: none;
+            font-size: 0.95rem;
+        }
+
+        .result-inputs-box input:focus {
+            border-color: rgba(0, 242, 254, 0.55);
         }
 
         #result-display-box {
             display: none;
             margin-top: 20px;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 12px;
-            border-right: 4px solid var(--accent-cyan);
         }
 
         /* ================= 4. غرفة الامتحان والأسئلة ================= */
-        #quiz-wrapper-box, 
-        .quiz-container-box {
+        #quiz-wrapper-box {
             display: none;
             background: var(--bg-card);
             backdrop-filter: blur(16px);
@@ -475,7 +359,6 @@
             margin-top: 10px;
             width: 100%;
             border: 1px solid var(--border-color);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
         .single-question-card {
@@ -485,14 +368,6 @@
             border-radius: 20px;
             margin-bottom: 25px;
             text-align: right;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .single-question-card:hover {
-            border-color: rgba(0, 242, 254, 0.3);
         }
 
         .single-question-card h3 {
@@ -501,50 +376,19 @@
             margin-bottom: 20px;
             line-height: 1.6;
             font-weight: 800;
-            word-wrap: break-word;
         }
 
         .question-image-wrapper {
-            position: relative;
-            margin: 20px 0;
+            margin: 15px 0;
             text-align: center;
-            width: 100%;
         }
 
         .single-question-card img {
             max-width: 100% !important;
             max-height: 380px !important;
-            width: auto;
-            height: auto;
-            display: block;
-            margin: 0 auto;
             border-radius: 16px;
             border: 2px solid rgba(0, 242, 254, 0.4);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-            background: #050608;
-            object-fit: contain;
             cursor: zoom-in;
-            transition: transform 0.3s ease, border-color 0.3s ease;
-        }
-
-        .single-question-card img:hover {
-            border-color: var(--accent-cyan);
-            transform: scale(1.01);
-        }
-
-        .map-zoom-hint {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(0, 242, 254, 0.15);
-            color: var(--accent-cyan);
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            margin-top: 8px;
-            border: 1px solid rgba(0, 242, 254, 0.3);
-            cursor: pointer;
         }
 
         .option-label {
@@ -560,9 +404,6 @@
             transition: all 0.25s ease;
             font-size: 1.05rem;
             font-weight: 600;
-            min-height: 52px;
-            user-select: none;
-            word-break: break-word;
         }
 
         .option-label:hover {
@@ -575,18 +416,203 @@
             width: 22px;
             height: 22px;
             cursor: pointer;
-            flex-shrink: 0;
         }
 
         .option-label.selected-option {
             background: rgba(0, 242, 254, 0.14) !important;
             border-color: var(--accent-cyan) !important;
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
             color: var(--accent-cyan);
             font-weight: 800;
         }
 
-        /* ================= 5. النافذة المنبثقة ================= */
+        /* ================= 5. تصميم حسابي الدقيق ================= */
+        #account-section {
+            animation: fadeIn 0.4s ease;
+        }
+
+        .account-container {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* كارت الطالب في حسابي: الاسم، الصف، وزر الامتحانات فقط */
+        .account-profile-card {
+            background: #0f1422;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 34px 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .account-avatar-box {
+            width: 100px;
+            height: 100px;
+            border-radius: 20px;
+            background: #1b2333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border: 1.5px solid rgba(0, 242, 254, 0.25);
+        }
+
+        .account-profile-card h3 {
+            font-size: 1.45rem;
+            color: #ffffff;
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+
+        .account-profile-card .student-badge {
+            color: var(--accent-gold);
+            font-size: 1rem;
+            font-weight: 800;
+            margin-bottom: 28px;
+        }
+
+        .account-options-wrapper {
+            width: 100%;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 20px;
+        }
+
+        .account-option-title {
+            text-align: right;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .account-action-btn {
+            width: 100%;
+            background: #172033;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            color: #ffffff;
+            padding: 14px 18px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .account-action-btn:hover {
+            background: rgba(0, 242, 254, 0.12);
+            border-color: var(--accent-cyan);
+        }
+
+        /* كارت جدول النتائج الحقيقية فقط */
+        .account-results-card {
+            background: #0f1422;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .account-results-card h3 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .custom-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: #0b0f19;
+        }
+
+        .custom-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .custom-results-table thead {
+            background: #141c2c;
+            border-bottom: 2px solid rgba(0, 242, 254, 0.15);
+        }
+
+        .custom-results-table th {
+            padding: 15px 16px;
+            color: var(--accent-cyan);
+            font-weight: 800;
+            font-size: 0.88rem;
+        }
+
+        .custom-results-table td {
+            padding: 14px 16px;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-weight: 600;
+        }
+
+        .custom-results-table tbody tr:hover {
+            background: rgba(0, 242, 254, 0.03);
+        }
+
+        .tag-answers-btn {
+            background: #0088ff;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        .tag-answers-btn:hover {
+            background: #00f2fe;
+            color: #000;
+        }
+
+        .tag-answers-disabled {
+            color: #ff0055;
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+
+        .table-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 18px;
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            direction: ltr;
+        }
+
+        .page-badge {
+            background: #1d263b;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 800;
+        }
+
+        /* نافذة تكبير الصور */
         .image-modal {
             display: none;
             position: fixed;
@@ -601,20 +627,15 @@
             align-items: center;
             flex-direction: column;
             padding: 15px;
-            animation: fadeIn 0.3s ease;
         }
 
-        .image-modal.active {
-            display: flex;
-        }
-
+        .image-modal.active { display: flex; }
         .image-modal img {
             max-width: 95vw;
             max-height: 82vh;
             object-fit: contain;
             border-radius: 16px;
             border: 2px solid var(--accent-cyan);
-            box-shadow: 0 0 35px rgba(0, 242, 254, 0.4);
         }
 
         .close-img-modal {
@@ -623,29 +644,10 @@
             right: 25px;
             color: #fff;
             font-size: 2rem;
-            font-weight: 900;
             cursor: pointer;
-            background: rgba(255, 0, 85, 0.3);
-            border: 1px solid var(--accent-red);
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
         }
 
-        .img-hint-bottom {
-            color: var(--accent-cyan);
-            margin-top: 15px;
-            font-size: 0.88rem;
-            font-weight: 700;
-            background: rgba(0,0,0,0.6);
-            padding: 6px 16px;
-            border-radius: 20px;
-        }
-
+        /* نافذة البدء */
         .modal {
             position: fixed;
             top: 0;
@@ -669,569 +671,27 @@
             max-width: 460px;
             text-align: center;
             border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
+            from { opacity: 0; transform: scale(0.98); }
             to { opacity: 1; transform: scale(1); }
         }
 
-        /* ================= 6. الموبايل ================= */
-        @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-            }
-
-            .exam-timer, #timer-banner {
-                top: 12px;
-                left: 50%;
-                transform: translateX(-50%);
-                padding: 6px 16px;
-                font-size: 0.85rem;
-                width: max-content;
-                max-width: 90%;
-            }
-
-            .main-content {
-                padding: 15px 10px;
-                padding-top: 60px !important;
-            }
-
-            .sidebar {
-                width: 100%;
-                padding: 16px 14px;
-            }
-
-            .sidebar h2 {
-                margin-bottom: 15px;
-                font-size: 1.4rem;
-            }
-
-            .sidebar-menu {
-                display: flex;
-                gap: 8px;
-            }
-
-            .sidebar-menu li {
-                flex: 1;
-                text-align: center;
-                font-size: 0.85rem;
-                padding: 10px 5px;
-                margin-bottom: 0;
-                justify-content: center;
-            }
-
-            .grid-container {
-                grid-template-columns: 1fr;
-                gap: 18px;
-            }
-
-            #quiz-wrapper-box, 
-            .quiz-container-box {
-                padding: 16px 12px;
-                border-radius: 18px;
-            }
-
-            .single-question-card {
-                padding: 16px 12px;
-                border-radius: 16px;
-                margin-bottom: 18px;
-            }
-
-            .single-question-card h3 {
-                font-size: 1.05rem;
-                line-height: 1.55;
-                margin-bottom: 14px;
-            }
-
-            .single-question-card img {
-                max-height: 260px !important;
-                border-radius: 12px;
-            }
-
-            .option-label {
-                padding: 12px 14px;
-                font-size: 0.95rem;
-                gap: 10px;
-                border-radius: 12px;
-                margin-bottom: 10px;
-            }
-
-            .btn-submit {
-                padding: 14px;
-                font-size: 1rem;
-                border-radius: 12px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .section-title {
-                font-size: 1.35rem;
-            }
-
-            .single-question-card h3 {
-                font-size: 0.98rem;
-            }
-        }
-    
-
-        /* =========================================================
-           كارت الامتحان الديناميكي - مطابق لهيئة الصورة
-           CSS فقط - بدون أي تعديل على script.js
-           ========================================================= */
-        #assigned-exam-grid {
-            grid-template-columns: minmax(0, 1fr);
-            gap: 28px;
-            width: 100%;
-            max-width: 100%;
-        }
-
-        .exam-card {
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            min-height: 438px;
-            padding: 26px 34px 30px;
-            border-radius: 28px;
-            border: 1px solid rgba(0, 242, 254, 0.42);
-            background:
-                radial-gradient(circle at 6% 0%, rgba(0, 242, 254, 0.19), transparent 29%),
-                radial-gradient(circle at 100% 100%, rgba(90, 70, 180, 0.10), transparent 34%),
-                linear-gradient(145deg, rgba(18, 34, 52, 0.98), rgba(13, 18, 31, 0.99));
-            box-shadow: 0 22px 50px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.045);
-            backdrop-filter: blur(18px);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            text-align: right;
-            isolation: isolate;
-        }
-
-        .exam-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(0,242,254,.07), transparent 35%, transparent 70%, rgba(124,58,237,.05));
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .exam-card::after {
-            content: '● متاح حالياً';
-            position: absolute;
-            top: 26px;
-            right: 28px;
-            padding: 7px 15px;
-            border-radius: 999px;
-            border: 1px solid rgba(0,245,212,.42);
-            background: rgba(0,245,212,.08);
-            color: var(--accent-green);
-            font-size: .78rem;
-            font-weight: 900;
-            box-shadow: 0 0 18px rgba(0,245,212,.08);
-        }
-
-        .exam-card h3 {
-            position: absolute;
-            top: 26px;
-            left: 28px;
-            margin: 0;
-            padding: 7px 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(0,242,254,.35);
-            background: rgba(0,242,254,.06);
-            color: var(--accent-gold);
-            font-size: .83rem;
-            font-weight: 900;
-            white-space: nowrap;
-        }
-
-        .exam-card h4 {
-            margin: 98px 0 24px;
-            padding: 0 6px;
-            color: #fff;
-            font-size: 1.58rem;
-            font-weight: 900;
-            line-height: 1.6;
-            text-align: right;
-            word-break: break-word;
-            text-shadow: 0 0 18px rgba(255,255,255,.05);
-        }
-
-        .exam-card p {
-            margin: 0 0 26px;
-            min-height: 92px;
-            padding: 18px 24px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,.055);
-            background: rgba(5,10,20,.72);
-            color: #cbd5e1;
-            font-size: 1rem;
-            font-weight: 700;
-            line-height: 2.15;
-            text-align: right;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.018), 0 8px 18px rgba(0,0,0,.15);
-        }
-
-        .exam-card p strong {
-            color: #fff;
-            font-weight: 900;
-        }
-
-        .exam-card .btn-exam,
-        .exam-card button {
-            width: 100%;
-            min-height: 58px;
-            padding: 13px 20px;
-            border: none;
-            border-radius: 16px;
-            background: linear-gradient(100deg, #087fff 0%, #3b82f6 42%, #8b4dde 100%);
-            color: #fff !important;
-            font-size: 1.04rem;
-            font-weight: 900;
-            cursor: pointer;
-            box-shadow: 0 12px 28px rgba(0,119,255,.23);
-            transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
-        }
-
-        .exam-card .btn-exam:hover,
-        .exam-card button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 32px rgba(86,86,255,.30);
-            filter: brightness(1.05);
-        }
-
-        .exam-card .btn-exam:disabled,
-        .exam-card button:disabled {
-            background: #64748b !important;
-            box-shadow: none;
-            transform: none;
-            filter: none;
-            cursor: not-allowed;
+        @media (max-width: 900px) {
+            .account-container { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 768px) {
-            #assigned-exam-grid {
-                gap: 18px;
-            }
-
-            .exam-card {
-                min-height: 390px;
-                padding: 22px 17px 20px;
-                border-radius: 22px;
-            }
-
-            .exam-card::after {
-                top: 20px;
-                right: 17px;
-                padding: 6px 11px;
-                font-size: .68rem;
-            }
-
-            .exam-card h3 {
-                top: 20px;
-                left: 17px;
-                padding: 6px 10px;
-                font-size: .72rem;
-            }
-
-            .exam-card h4 {
-                margin-top: 78px;
-                margin-bottom: 20px;
-                font-size: 1.18rem;
-                line-height: 1.65;
-            }
-
-            .exam-card p {
-                min-height: 88px;
-                padding: 15px;
-                font-size: .87rem;
-                line-height: 2.1;
-            }
-
-            .exam-card .btn-exam,
-            .exam-card button {
-                min-height: 53px;
-                border-radius: 13px;
-                font-size: .96rem;
-            }
+            body { flex-direction: column; }
+            .main-content { padding: 15px 12px; padding-top: 60px !important; }
+            .sidebar { width: 100%; padding: 16px 14px; }
+            .sidebar-menu { display: flex; gap: 8px; }
+            .sidebar-menu li { flex: 1; text-align: center; font-size: 0.82rem; padding: 10px 4px; justify-content: center; }
+            .exam-card { min-height: 380px; padding: 22px 18px; }
+            .exam-card h4 { margin-top: 75px; font-size: 1.2rem; }
         }
-
-        @media (max-width: 480px) {
-            .exam-card {
-                min-height: 365px;
-                padding: 19px 14px 17px;
-            }
-
-            .exam-card h3 {
-                left: 14px;
-                top: 19px;
-                font-size: .67rem;
-            }
-
-            .exam-card::after {
-                top: 19px;
-                right: 14px;
-                font-size: .64rem;
-            }
-
-            .exam-card h4 {
-                margin-top: 73px;
-                font-size: 1rem;
-            }
-
-            .exam-card p {
-                font-size: .82rem;
-                padding: 13px;
-            }
-        }
-
-
-        /* =========================================================
-           🎨 تصميم احترافي لنتيجة الطالب
-           CSS فقط - بدون تعديل script.js
-           ========================================================= */
-
-        #results-section {
-            animation: resultSectionIn .45s ease;
-        }
-
-        @keyframes resultSectionIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        #results-section .section-title {
-            margin-bottom: 20px;
-        }
-
-        #results-section .result-inputs-box {
-            background:
-                linear-gradient(145deg,
-                    rgba(21, 30, 47, 0.92),
-                    rgba(9, 14, 25, 0.96)
-                ) !important;
-            border: 1px solid rgba(0, 242, 254, 0.14) !important;
-            border-radius: 22px !important;
-            padding: 22px !important;
-            box-shadow:
-                0 18px 45px rgba(0,0,0,.28),
-                inset 0 1px 0 rgba(255,255,255,.025) !important;
-        }
-
-        #results-section .result-inputs-box input {
-            height: 52px;
-            font-size: .96rem;
-            border-radius: 13px !important;
-            border-color: rgba(255,255,255,.08) !important;
-            background: rgba(3,8,18,.58) !important;
-            transition: .25s ease;
-        }
-
-        #results-section .result-inputs-box input:focus {
-            border-color: rgba(0,242,254,.55) !important;
-            box-shadow: 0 0 0 4px rgba(0,242,254,.08) !important;
-            transform: translateY(-1px);
-        }
-
-        #results-section .result-inputs-box .btn-result-card {
-            min-height: 54px;
-            border-radius: 14px !important;
-            font-size: 1rem;
-            background:
-                linear-gradient(100deg,
-                    #087fff 0%,
-                    #3b82f6 45%,
-                    #8b4dde 100%
-                ) !important;
-            box-shadow: 0 12px 28px rgba(0,119,255,.18) !important;
-        }
-
-        #result-display-box {
-            margin-top: 18px !important;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            overflow: visible !important;
-        }
-
-        /* عنوان كشف النتيجة الذي ينشئه script.js */
-        #result-display-box > h4 {
-            margin: 0 0 18px !important;
-            padding: 15px 18px !important;
-            border-radius: 18px !important;
-            color: #fff !important;
-            background:
-                linear-gradient(135deg,
-                    rgba(0,136,255,.12),
-                    rgba(157,78,221,.12)
-                ) !important;
-            border: 1px solid rgba(0,242,254,.11) !important;
-            box-shadow: 0 12px 28px rgba(0,0,0,.18) !important;
-            font-size: 1.05rem !important;
-            text-shadow: none !important;
-        }
-
-        /* الكارت الرئيسي للنتيجة الذي ينشئه script.js */
-        #result-display-box > div {
-            border-radius: 24px !important;
-            border-right-width: 4px !important;
-            padding: 24px !important;
-            margin-bottom: 20px !important;
-            background:
-                linear-gradient(145deg,
-                    rgba(18, 28, 45, .96),
-                    rgba(8, 13, 24, .98)
-                ) !important;
-            box-shadow:
-                0 20px 45px rgba(0,0,0,.28),
-                inset 0 1px 0 rgba(255,255,255,.025) !important;
-        }
-
-        #result-display-box > div h4 {
-            font-size: 1.15rem !important;
-            margin-bottom: 16px !important;
-            color: #fff !important;
-        }
-
-        #result-display-box > div p {
-            color: #cbd5e1 !important;
-            line-height: 1.9 !important;
-        }
-
-        /* صندوق الدرجة */
-        #result-display-box > div > div {
-            border-radius: 17px !important;
-            border-color: rgba(255,255,255,.07) !important;
-        }
-
-        /* أرقام الصح والغلط */
-        #result-display-box > div > div[style*="justify-content: space-around"] {
-            gap: 10px !important;
-            background: rgba(2,7,16,.45) !important;
-            border-radius: 18px !important;
-            padding: 13px 10px !important;
-        }
-
-        #result-display-box > div > div[style*="justify-content: space-around"] > div {
-            flex: 1;
-            min-width: 0;
-            padding: 9px 8px !important;
-            border-right: 0 !important;
-        }
-
-        #result-display-box > div > div[style*="justify-content: space-around"] span:first-child {
-            font-size: 1.75rem !important;
-            line-height: 1.15 !important;
-        }
-
-        /* سؤال/إجابة كل سؤال */
-        #result-display-box > div > div:last-child {
-            margin-top: 20px !important;
-        }
-
-        #result-display-box > div > div:last-child > div {
-            border-radius: 17px !important;
-            padding: 17px !important;
-            margin-bottom: 12px !important;
-            box-shadow: 0 10px 24px rgba(0,0,0,.12) !important;
-        }
-
-        #result-display-box > div > div:last-child > div strong {
-            line-height: 1.8 !important;
-        }
-
-        /* إدجابات الطالب والنموذج */
-        #result-display-box > div > div:last-child > div > div {
-            border-radius: 13px !important;
-        }
-
-        #result-display-box > div > div:last-child > div span {
-            line-height: 1.8 !important;
-        }
-
-        /* الكارت الخاص بقيد المراجعة / عدم العثور */
-        #result-display-box > div[style*="f1c40f"],
-        #result-display-box > div[style*="e74c3c"] {
-            padding: 22px !important;
-            border-radius: 21px !important;
-            background:
-                linear-gradient(145deg,
-                    rgba(18,28,45,.96),
-                    rgba(8,13,24,.98)
-                ) !important;
-            box-shadow: 0 18px 40px rgba(0,0,0,.23) !important;
-        }
-
-        @media (max-width: 700px) {
-
-            #results-section .section-title {
-                font-size: 1.22rem;
-                margin-bottom: 16px;
-            }
-
-            #results-section .result-inputs-box {
-                padding: 16px !important;
-                border-radius: 18px !important;
-            }
-
-            #results-section .result-inputs-box input {
-                height: 49px;
-                font-size: .9rem;
-            }
-
-            #results-section .result-inputs-box .btn-result-card {
-                min-height: 50px;
-                font-size: .92rem;
-            }
-
-            #result-display-box > h4 {
-                padding: 13px 14px !important;
-                border-radius: 15px !important;
-                font-size: .9rem !important;
-                line-height: 1.6 !important;
-            }
-
-            #result-display-box > div {
-                padding: 16px !important;
-                border-radius: 20px !important;
-            }
-
-            #result-display-box > div > div[style*="justify-content: space-around"] {
-                display: grid !important;
-                grid-template-columns: repeat(2, minmax(0,1fr));
-                gap: 8px !important;
-            }
-
-            #result-display-box > div > div[style*="justify-content: space-around"] > div {
-                padding: 10px 6px !important;
-                border: 1px solid rgba(255,255,255,.045) !important;
-                border-radius: 13px !important;
-            }
-
-            #result-display-box > div > div:last-child > div {
-                padding: 13px !important;
-                border-radius: 15px !important;
-            }
-        }
-
-        @media (max-width: 420px) {
-
-            #result-display-box > div {
-                padding: 13px !important;
-            }
-
-            #result-display-box > div > div[style*="justify-content: space-around"] span:first-child {
-                font-size: 1.5rem !important;
-            }
-
-            #result-display-box > div > div:last-child > div {
-                padding: 11px !important;
-            }
-        }
-
-</style>
+    </style>
 </head>
 <body>
 
@@ -1240,11 +700,10 @@
     ⏱️ الوقت المتبقي: <span id="timer-display" style="color: #fff; font-weight: 900;">00:00</span>
 </div>
 
-<!-- 🔍 نافذة تكبير الخرائط والصور ملء الشاشة للموبايل -->
+<!-- 🔍 نافذة تكبير الصور ملء الشاشة -->
 <div id="image-modal" class="image-modal">
     <span class="close-img-modal" id="close-img-modal">&times;</span>
-    <img id="modal-img-src" src="" alt="الخريطة التكبيرية">
-    <div class="img-hint-bottom">🔍 يمكنك التكبير والتحريك برفع إصبعك على الشاشة</div>
+    <img id="modal-img-src" src="" alt="تكبير الصورة">
 </div>
 
 <!-- القائمة الجانبية -->
@@ -1259,19 +718,17 @@
             </h3>
         </div>
 
-        <!-- 🎨 تعديل أيقونات الاختبارات والنتائج إلى SVG احترافي -->
         <ul class="sidebar-menu">
-            <li class="active" onclick="switchTab('exams')">
+            <li class="active" id="tab-btn-exams" onclick="switchTab('exams')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" y1="13" x2="8" y2="13"></line>
                     <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
                 الاختبارات المتاحة
             </li>
-            <li onclick="switchTab('results')">
+            <li id="tab-btn-results" onclick="switchTab('results')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -1279,115 +736,29 @@
                 </svg>
                 كشف النتائج
             </li>
-        </ul>
-    </div>
-
-    <!-- ملف الطالب -->
-    <div class="student-profile">
-        
-        <!-- أيقونة الأفاتار المرسومة -->
-        <div class="avatar-container">
-            <div class="avatar-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="url(#avatar-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <defs>
-                        <linearGradient id="avatar-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#00f2fe" />
-                            <stop offset="100%" stop-color="#9d4edd" />
-                        </linearGradient>
-                    </defs>
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-                </svg>
-            </div>
-        </div>
-
-        <h3 style="text-align:center; color: var(--text-main); margin-bottom: 14px; font-size: 1rem; font-weight: 800;">
-            بيانات الطالب
-        </h3>
-
-        <!-- 🎨 استبدال إيموجي (الاسم) و (الصف) بـ SVG متناسق -->
-        <div class="sidebar-card-item">
-            <span class="card-item-label">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <li id="tab-btn-account" onclick="switchTab('account')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
-                الاسم الكامل
-            </span>
-            <span class="card-item-value" id="profile-name">...</span>
-        </div>
-
-        <div class="sidebar-card-item">
-            <span class="card-item-label">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-                الصف الدراسي
-            </span>
-            <span class="card-item-value" id="profile-stage" style="color: var(--accent-gold);">...</span>
-        </div>
+                حسابي
+            </li>
+        </ul>
     </div>
 </div>
 
-<!-- المنطقة الرئيسية -->
+<!-- المحتوى الرئيسي -->
 <div class="main-content">
 
-    <!-- قسم الامتحانات -->
+    <!-- 1. قسم الاختبارات المتاحة -->
     <div id="exams-section">
         <h2 class="section-title">📚 الاختبارات التفاعلية</h2>
-
         <div class="grid-container" id="assigned-exam-grid">
-            <div class="exam-card-neon">
-                <div>
-                    <div class="card-header-flex">
-                        <span class="status-tag"><span class="pulse-dot"></span> متاح حالياً</span>
-                        <span style="color: var(--accent-gold); font-size: 0.8rem; font-weight: 700;">الصف الثاني الثانوي</span>
-                    </div>
-                    <h3>اختبار البرمجة والويب الشامل</h3>
-                    <h4>تطوير الواجهات الخلفية والربط</h4>
-                    <p>اختبار لقياس استيعاب بروتوكولات الخادم، بناء الـ Endpoints باستخدام Node.js و Express.</p>
-                </div>
-
-                <div>
-                    <div class="stats-pills">
-                        <div class="pill-item">
-                            <span class="pill-icon">⏱️</span>
-                            <div class="pill-info">
-                                <span class="pill-title">مدة الاختبار</span>
-                                <span class="pill-value">45 دقيقة</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">❓</span>
-                            <div class="pill-info">
-                                <span class="pill-title">الأسئلة</span>
-                                <span class="pill-value">20 سؤال</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">🎯</span>
-                            <div class="pill-info">
-                                <span class="pill-title">الدرجة الكلية</span>
-                                <span class="pill-value">100 درجة</span>
-                            </div>
-                        </div>
-                        <div class="pill-item">
-                            <span class="pill-icon">🏆</span>
-                            <div class="pill-info">
-                                <span class="pill-title">المستوى</span>
-                                <span class="pill-value">متقدم</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button class="btn btn-glow" onclick="openPortalModal()">بدء الاختبار الآن 🚀</button>
-                </div>
-            </div>
+            <p style="text-align: center; color: var(--text-sub); grid-column: 1/-1;">جاري تحميل الامتحانات المخصصة لك...</p>
         </div>
     </div>
 
-    <!-- قسم النتائج -->
+    <!-- 2. قسم كشف النتائج -->
     <div id="results-section" style="display: none;">
         <h2 class="section-title">📊 الاستعلام عن حالة الامتحان</h2>
 
@@ -1408,53 +779,112 @@
         <div id="result-display-box"></div>
     </div>
 
-    <!-- 💡 غرفة الأسئلة داخل الامتحان (الشكل التفاعلي المحسن) -->
-    <div id="quiz-wrapper-box" class="quiz-container-box">
-        <div class="questions-main-area">
-            <div id="questions-container">
-                <!-- سيتم توليد الأسئلة برمجياً هنا -->
+    <!-- 3. قسم حسابي (الاسم والصف وزر النتائج فقط، مع عرض درجات الطالب الحقيقية) -->
+    <div id="account-section" style="display: none;">
+        <h2 class="section-title">👤 حسابي</h2>
+
+        <div class="account-container">
+            
+            <!-- كارت الطالب -->
+            <div class="account-profile-card">
+                <div class="account-avatar-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+
+                <h3 id="profile-name">...</h3>
+                <span class="student-badge" id="profile-stage">...</span>
+
+                <div class="account-options-wrapper">
+                    <div class="account-option-title">اختيارات اخرى</div>
+                    <button class="account-action-btn" onclick="document.getElementById('history-table-container').scrollIntoView({behavior: 'smooth'})">
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            نتائج الامتحانات
+                        </span>
+                        <span>❯</span>
+                    </button>
+                </div>
             </div>
+
+            <!-- جدول نتائج الطالب الحقيقية -->
+            <div class="account-results-card" id="history-table-container">
+                <h3>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    كشف نتائج الامتحانات السابقة
+                </h3>
+
+                <div class="custom-table-wrapper">
+                    <table class="custom-results-table">
+                        <thead>
+                            <tr>
+                                <th>التسلسل</th>
+                                <th>اسم الامتحان</th>
+                                <th>عدد الاسئلة</th>
+                                <th>النتيجة</th>
+                                <th>الدرجة</th>
+                                <th>الاسئلة المحلولة</th>
+                                <th>الاجابات</th>
+                                <th>وقت بدأ الامتحان</th>
+                                <th>وقت انهاء الامتحان</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-history-tbody">
+                            <!-- تعرض درجات الطالب الفعلية فقط -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-pagination">
+                    <span>1 - <span id="history-count-display">0</span> من <span id="history-total-display">0</span></span>
+                    <span class="page-badge">1</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 4. غرفة الاختبار -->
+    <div id="quiz-wrapper-box">
+        <div class="questions-main-area">
+            <div id="questions-container"></div>
             <button id="submit-btn" class="btn btn-submit" onclick="submitExamWithCheck()">تسليم الإجابات 📤</button>
         </div>
     </div>
 
 </div>
 
-<!-- النافذة المنبثقة للبدء -->
+<!-- نافذة تعليمات البدء -->
 <div id="portal-modal" class="modal">
     <div class="modal-content">
         <div id="step-1">
             <h3 style="color: var(--accent-cyan); margin-bottom: 15px;">تعليمات الاختبار</h3>
             <p style="margin-bottom: 20px; line-height: 1.6; font-size: 0.95rem; color: var(--text-sub);">
-                يرجى عدم إغلاق المتصفح أثناء إجراء الاختبار. ستبدأ حاسبة الوقت تلقائياً عند البدء.
-               تعليمات  هامة للامتحان أن شاء الله 
-1-لازم يكون النت قوي عشان الامتحان يفتح معاك و الاسئلة تظهر 
-2-ممنوع الخروج من المتصفح لو. خرجت انا هعرف وهيتم خصم درجة كل مرة تطلع فيها او يتم الغاء امتحانك,     الامتحان هيكون متاح لمدة يومين من النهاردةو 
+                يرجى عدم إغلاق المتصفح أثناء الاختبار. ستبدأ حاسبة الوقت تلقائياً عند الضغط على زر البدء.
             </p>
             <button class="btn btn-glow" onclick="showInstructionsPage()">موافق والمتابعة ➔</button>
         </div>
         <div id="step-2" style="display:none;">
-            <h3 style="color: var(--accent-green); margin-bottom: 15px;">هل أنت جاهز للبدء؟
-                متنساش التعليمات مهمة جدا <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Document</title>
-                </head>
-                <body>
-                    
-                </body>
-                </html>
-            </h3>
+            <h3 style="color: var(--accent-green); margin-bottom: 15px;">هل أنت جاهز للبدء؟</h3>
             <button class="btn btn-submit" onclick="startExamActual()">ابدأ الامتحان الآن 🚀</button>
         </div>
     </div>
 </div>
 
-<!-- ⚙️ السكريبتات التفاعلية -->
+<!-- السكريبتات التفاعلية -->
 <script>
-    // 1. إضاءة وتظليل الإجابة المختارة
     document.addEventListener('change', function(e) {
         if (e.target.type === 'radio') {
             const name = e.target.name;
@@ -1469,34 +899,26 @@
         }
     });
 
-    // 2. تفعيل تكبير الخرائط والصور عند الضغط عليها ملء الشاشة
     document.addEventListener('click', function(e) {
         if (e.target.tagName === 'IMG' && e.target.closest('.single-question-card')) {
-            const imgUrl = e.target.src;
             const modal = document.getElementById('image-modal');
             const modalImg = document.getElementById('modal-img-src');
-            modalImg.src = imgUrl;
+            modalImg.src = e.target.src;
             modal.classList.add('active');
         }
     });
 
-    // إغلاق نافذة تكبير الخريطة
     document.getElementById('close-img-modal').addEventListener('click', function() {
         document.getElementById('image-modal').classList.remove('active');
     });
 
     document.getElementById('image-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.remove('active');
-        }
+        if (e.target === this) this.classList.remove('active');
     });
 </script>
 
-<!-- مكتبات Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-<!-- ملف الجافاسكريبت الخاص بك -->
 <script src="script.js"></script>
 
 </body>
