@@ -2,6 +2,7 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
 // 💥 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -133,6 +134,38 @@ function isExamFinished(subjectKey, type) {
     return savedVer && savedVer === currentVer;
 }
 
+// هل فيه جلسة امتحان شغالة (أو لسه متسلمتش) للامتحان ده؟ لو آه: إجابات الطالب ممنوع تتمسح
+function isExamSessionActive(subjectKey) {
+    if (window.isExamRunning && currentActiveSubject === subjectKey) return true;
+    try {
+        const session = JSON.parse(localStorage.getItem('active_running_exam_session') || 'null');
+        return !!(session && session.subjectKey === subjectKey);
+    } catch (e) {
+        return false;
+    }
+}
+
+// حفظ لقطة من كل الإجابات الظاهرة في الصفحة (احتياط قبل الريفريش أو قفل الصفحة)
+function saveAllAnswersFromDOM() {
+    if (!window.isExamRunning || !currentActiveSubject || !activeQuestionsList || activeQuestionsList.length === 0) return;
+    try {
+        const storageKey = 'saved_exam_answers_' + currentActiveSubject;
+        let saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        activeQuestionsList.forEach((q, i) => {
+            const radio = document.querySelector(`input[name="q${i}"]:checked`);
+            if (radio) {
+                saved[`q${i}`] = radio.value;
+                return;
+            }
+            const ta = document.querySelector(`textarea[name="q${i}"]`);
+            if (ta && ta.value.trim() !== "") saved[`q${i}`] = ta.value;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+    } catch (e) {
+        console.warn("خطأ في حفظ لقطة الإجابات:", e);
+    }
+}
+
 // دالة تنظيف مخزن المتصفح من بقايا الامتحانات القديمة غير النشطة
 function cleanStaleExamStorage(activeExamIds = []) {
     try {
@@ -141,7 +174,7 @@ function cleanStaleExamStorage(activeExamIds = []) {
             const key = localStorage.key(i);
             if (key && (key.startsWith('saved_exam_answers_') || key.startsWith('finished_'))) {
                 const examId = key.replace('saved_exam_answers_', '').replace('finished_', '');
-                if (activeExamIds.length > 0 && !activeExamIds.includes(examId)) {
+                if (activeExamIds.length > 0 && !activeExamIds.includes(examId) && !isExamSessionActive(examId)) {
                     keysToRemove.push(key);
                 }
             }
@@ -708,7 +741,25 @@ function createConfirmSubmitModal() {
 }
 
 function setupAntiCheatListeners() {
+    // حفظ الإجابات فوراً قبل أي ريفريش أو قفل أو خروج من الصفحة
+    window.addEventListener('pagehide', saveAllAnswersFromDOM);
+
+    // حفظ تلقائي احتياطي لأي اختيار/كتابة (شغال حتى لو نص الاختيار فيه علامات تنصيص)
+    document.addEventListener('change', function (e) {
+        const t = e.target;
+        if (window.isExamRunning && t && t.type === 'radio' && /^q\d+$/.test(t.name) && t.closest('.single-question-card')) {
+            autoSaveAnswer(t.name, t.value);
+        }
+    });
+    document.addEventListener('input', function (e) {
+        const t = e.target;
+        if (window.isExamRunning && t && t.tagName === 'TEXTAREA' && /^q\d+$/.test(t.name) && t.closest('.single-question-card')) {
+            autoSaveAnswer(t.name, t.value);
+        }
+    });
+
     window.addEventListener('beforeunload', function (e) {
+        saveAllAnswersFromDOM();
         if (window.isExamRunning) {
             const confirmationMessage = '⚠️ تنبيه: إغلاق الصفحة أو إعادة تحميلها قد يؤدي إلى فقدان إجاباتك ورصد الاختبار!';
             (e || window.event).returnValue = confirmationMessage;
@@ -718,6 +769,7 @@ function setupAntiCheatListeners() {
 
     document.addEventListener("visibilitychange", function() {
         if (window.isExamRunning && document.hidden) {
+            saveAllAnswersFromDOM();
             showCustomToast("⚠️ تنبيه أمني: يرجى عدم الخروج من شاشة الامتحان لضمان عدم الخصم أو الإلغاء!", "warning");
         }
     });
@@ -869,8 +921,11 @@ async function updateExamButtonsStatus() {
                             isSubmittedInDB = true;
                         } else {
                             isSubmittedInDB = false;
-                            localStorage.removeItem('finished_' + subjectKey);
-                            localStorage.removeItem('saved_exam_answers_' + subjectKey);
+                            // مهم: متمسحش إجابات الطالب لو الامتحان شغال دلوقتي (ريفريش بالغلط)
+                            if (!isExamSessionActive(subjectKey)) {
+                                localStorage.removeItem('finished_' + subjectKey);
+                                localStorage.removeItem('saved_exam_answers_' + subjectKey);
+                            }
                         }
                     } catch(e) {
                         console.warn("خطأ في الاتصال بقاعدة البيانات للفحص:", e);
@@ -1136,6 +1191,7 @@ function startExamActual() {
     if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
 
     window.isExamRunning = true;
+    document.body.classList.add('exam-mode');
     currentQuestionIndex = 0; // بدء الامتحان دائماً من السؤال الأول
 
     const examData = typeof dynamicExamsDatabase !== 'undefined' ? dynamicExamsDatabase[currentActiveSubject] : null;
@@ -1196,6 +1252,7 @@ function checkAndResumeRunningExam() {
         if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
 
         window.isExamRunning = true;
+        document.body.classList.add('exam-mode');
         currentQuestionIndex = 0;
 
         renderQuestions();
@@ -1235,6 +1292,13 @@ function renderQuestions() {
         let isActive = (qIndex === currentQuestionIndex);
         let html = `<div id="block-q${qIndex}" class="single-question-card ${isActive ? 'active-question' : ''}">`;
 
+        const isChoiceHead = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
+        html += `
+        <div class="q-card-head">
+            <span class="q-card-tag">📝 السؤال ${qIndex + 1} من ${activeQuestionsList.length}</span>
+            <span class="q-card-type">${isChoiceHead ? 'اختر الإجابة الصحيحة' : 'اكتب إجابتك'}</span>
+        </div>`;
+
         if (q.imageUrl && q.imageUrl.trim() !== "") {
             html += `
             <div class="question-image-wrapper">
@@ -1242,7 +1306,7 @@ function renderQuestions() {
             </div>`;
         }
 
-        html += `<h3>س${qIndex + 1}: ${escapeHtml(q.question)} <span style="color:#e74c3c;">*</span></h3>`;
+        html += `<h3>${escapeHtml(q.question)} <span style="color:#e74c3c;">*</span></h3>`;
 
         const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
 
@@ -1252,7 +1316,7 @@ function renderQuestions() {
                 let isChecked = (savedAnswers[`q${qIndex}`] === opt) ? 'checked' : '';
                 let selectedClass = isChecked ? 'selected-option' : '';
                 const escapedOpt = escapeHtml(opt);
-                const jsEscapedOpt = opt.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                const jsEscapedOpt = escapeHtml(opt.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r?\n/g, " "));
                 html += `
                     <label class="option-label ${selectedClass}">
                         <input type="radio" name="q${qIndex}" value="${escapedOpt}" ${isChecked} onchange="autoSaveAnswer('q${qIndex}', '${jsEscapedOpt}')">
@@ -1282,9 +1346,34 @@ function renderQuestions() {
 
     if (footerNav) footerNav.style.display = 'flex';
 
+    // ظبط المساحة تحت الهيدر الثابت
+    setupExamBarSpacing();
+
     // 3. إظهار السؤال الحالي وتحديث العدادات
     showQuestion(currentQuestionIndex);
     updateExamProgressCounters();
+}
+
+// الهيدر بتاع الامتحان ثابت (fixed) فبنحسب ارتفاعه ونسيب مساحة بنفس الارتفاع تحته عشان ميغطيش على السؤال
+let examBarObserver = null;
+function setupExamBarSpacing() {
+    const bar = document.querySelector('.exam-top-bar');
+    if (!bar) return;
+
+    const apply = () => {
+        document.documentElement.style.setProperty('--exam-bar-h', bar.offsetHeight + 'px');
+    };
+    apply();
+
+    if (!examBarObserver) {
+        if (typeof ResizeObserver !== 'undefined') {
+            examBarObserver = new ResizeObserver(apply);
+            examBarObserver.observe(bar);
+        } else {
+            examBarObserver = true;
+        }
+        window.addEventListener('resize', apply);
+    }
 }
 
 // دالة الانتقال لسؤال محدد برقم المؤشر
@@ -1306,11 +1395,18 @@ function showQuestion(index) {
         if (navBtn) {
             if (idx === index) {
                 navBtn.classList.add('active');
+                // خلّي الرقم الحالي ظاهر في الشريط (مهم لو الأسئلة كتيرة على الموبايل)
+                try { navBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (e) {}
             } else {
                 navBtn.classList.remove('active');
             }
         }
     });
+
+    // رجّع الصفحة لأول السؤال الجديد فوراً من غير حركة (الهيدر ثابت فوق)
+    if (window.isExamRunning) {
+        try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch (e) {}
+    }
 
     // تحديث أزرار التنقل السريع (السابق / التالي)
     const prevBtn = document.getElementById('prev-q-btn');
@@ -1360,6 +1456,26 @@ function updateExamProgressCounters() {
 
     if (solvedBadge) solvedBadge.textContent = solvedCount;
     if (remainingBadge) remainingBadge.textContent = remainingCount;
+
+    // شريط التقدم
+    const progressFill = document.getElementById('exam-progress-fill');
+    if (progressFill) progressFill.style.width = (total > 0 ? Math.round((solvedCount / total) * 100) : 0) + '%';
+
+    // رسالة تشجيع حسب تقدم الطالب
+    const motivation = document.getElementById('exam-motivation');
+    if (motivation) {
+        let msg;
+        if (total > 0 && solvedCount >= total) {
+            msg = "ممتاز! جاوبت على كل الأسئلة ✅ راجع إجاباتك قبل التسليم";
+        } else if (solvedCount === 0) {
+            msg = "ابدأ بهدوء وتركيز… إنت مذاكر وقادر تحلها 💪";
+        } else if (solvedCount < total / 2) {
+            msg = "ماشي كويس! خد نفس وكمّل سؤال ورا التاني ✨";
+        } else {
+            msg = "قربت تخلّص! فاضل القليل، كمّل بنفس التركيز 🔥";
+        }
+        if (motivation.textContent !== msg) motivation.textContent = msg;
+    }
 }
 
 function autoSaveAnswer(questionKey, answerValue) {
@@ -1412,6 +1528,13 @@ function startTimer(targetEndTime) {
         let s = totalSecondsLeft % 60;
         if (display) {
             display.textContent = `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+        }
+
+        // تلوين التايمر: أصفر آخر 5 دقايق - أحمر آخر دقيقة
+        const timerBox = document.querySelector('.exam-square-timer-box');
+        if (timerBox) {
+            timerBox.classList.toggle('danger', totalSecondsLeft <= 60);
+            timerBox.classList.toggle('warn', totalSecondsLeft > 60 && totalSecondsLeft <= 300);
         }
     }
 
@@ -1471,6 +1594,14 @@ function confirmFinalSubmit() {
 // 📤 تصحيح وتسليم الإجابات (تظهر "قيد التصحيح ⏳" لحين إظهارها من الأدمن)
 // ==========================================
 function calculateAndSend(bypassValidation = false) {
+    // لو الصفحة اتفتحت بعد انتهاء الوقت مفيش عناصر معروضة، فبنقرأ الإجابات المحفوظة من المتصفح
+    let savedAnswersForSubmit = {};
+    try {
+        savedAnswersForSubmit = JSON.parse(localStorage.getItem('saved_exam_answers_' + currentActiveSubject) || '{}');
+    } catch (e) {
+        savedAnswersForSubmit = {};
+    }
+
     let studentAnswersText = {};
     let answersForAdmin = [];
     let mcqScoreObtained = 0;
@@ -1493,8 +1624,9 @@ function calculateAndSend(bypassValidation = false) {
         if (isChoice) {
             maxMcqScorePossible += points;
             let selected = document.querySelector(`input[name="q${qIndex}"]:checked`);
-            if (selected) {
-                studentValue = selected.value;
+            let chosenValue = selected ? selected.value : (savedAnswersForSubmit[`q${qIndex}`] || "");
+            if (chosenValue) {
+                studentValue = chosenValue;
                 solvedQuestionsCount++;
 
                 let correctText = (q.correctAnswer || "").toString().trim();
@@ -1520,8 +1652,9 @@ function calculateAndSend(bypassValidation = false) {
             }
         } else {
             let textarea = document.querySelector(`textarea[name="q${qIndex}"]`);
-            if (textarea && textarea.value.trim() !== "") {
-                studentValue = textarea.value.trim();
+            let essayValue = textarea ? textarea.value.trim() : String(savedAnswersForSubmit[`q${qIndex}`] || "").trim();
+            if (essayValue !== "") {
+                studentValue = essayValue;
                 solvedQuestionsCount++;
             } else {
                 studentValue = "لم يكتب إجابة";
