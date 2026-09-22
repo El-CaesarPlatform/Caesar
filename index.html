@@ -316,11 +316,13 @@
         /* ------------------ بانر عريض تحت اسم المنصة (صورة المعلمين / الإعلان) ------------------ */
         .hero-banner-wrap {
             width: 100%;
-            aspect-ratio: 2.05 / 1;
+            /* ارتفاع بيتأقلم مع طول الشاشة، فالصورة كلها تظهر من غير ما الطالب يعمل سكرول ليشوفها */
+            height: clamp(170px, 34vh, 320px);
             border-radius: 24px;
             overflow: hidden;
             margin-bottom: 22px;
             position: relative;
+            background: linear-gradient(135deg, rgba(0, 85, 255, 0.18), rgba(0, 210, 255, 0.1));
             border: 1px solid rgba(0, 210, 255, 0.35);
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35), 0 0 25px rgba(0, 210, 255, 0.15);
             transition: transform 0.35s ease, box-shadow 0.35s ease;
@@ -334,12 +336,14 @@
         .hero-banner-img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            /* contain (مش cover) عشان الصورة كلها تفضل ظاهرة من غير أي قص */
+            object-fit: contain;
             display: block;
         }
 
         /* عنصر نائب لحد ما تحط صورتك الحقيقية بدل السورس بتاع placeholder-banner.jpg */
         .hero-banner-wrap.is-placeholder {
+            aspect-ratio: 2.05 / 1;
             background: linear-gradient(135deg, rgba(0, 85, 255, 0.25), rgba(0, 210, 255, 0.18));
             display: flex;
             align-items: center;
@@ -843,13 +847,9 @@
 
         <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
 
-        <!-- 🖼️ بانر عريض (زي صورة المعلمين): استبدل src بصورتك الحقيقية واحذف class="is-placeholder" -->
-        <div class="hero-banner-wrap is-placeholder">
-            <img src="https://res.cloudinary.com/dbahe7lxz/image/upload/v1790061020/idraaak/twtwf8mo6cjlbzr7utj0.jpg" alt="بانر منصة القيصر" class="hero-banner-img" style="display:none;" onerror="this.style.display='none'">
-            <div class="hero-banner-placeholder-text">
-                <i class="fas fa-image"></i>
-                <span></span></span>
-            </div>
+        <!-- 🖼️ بانر عريض (زي صورة المعلمين) -->
+        <div class="hero-banner-wrap">
+            <img src="https://cdn.phototourl.com/free/2026-09-22-af183b9d-ee2e-4719-85a7-5e4a843f1a5d.jpg" alt="بانر منصة القيصر" class="hero-banner-img">
         </div>
     </div>
 

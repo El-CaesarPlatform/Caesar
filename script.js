@@ -194,6 +194,17 @@ function fmtPts(n) {
 }
 
 // صيغة الدرجة في الجدول: 8 -> "8.0" ، 4.5 -> "4.5"
+// تنسيق المدة اللي استغرقها الطالب في حل الامتحان (مثلاً "12 دقيقة و 30 ثانية")
+function formatDurationTaken(ms) {
+    if (ms === null || ms === undefined || isNaN(ms) || ms < 0) return '';
+    const totalSec = Math.round(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    if (m <= 0) return `${sec} ثانية`;
+    if (sec === 0) return `${m} دقيقة`;
+    return `${m} دقيقة و ${sec} ثانية`;
+}
+
 function fmtScoreText(n) {
     const v = Math.round((parseFloat(n) || 0) * 100) / 100;
     return Number.isInteger(v) ? `${v}.0` : String(v);
@@ -516,6 +527,8 @@ async function syncAccountWithFirebase() {
                     canReview: isApproved,
                     startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
                     endTime: docData.submittedAt || 'تم التسليم',
+                    durationTaken: docData.durationTaken || '',
+                    examId: docData.examCode || docData.id || '',
                     timestampMs: (docData.timestamp && typeof docData.timestamp.toMillis === 'function') ? docData.timestamp.toMillis() : 0,
                     answers: docData.answers || []
                 };
@@ -566,7 +579,7 @@ function renderAccountHistoryTable() {
     if (history.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" style="text-align: center; padding: 35px 15px; color: var(--text-sub);">
+                <td colspan="10" style="text-align: center; padding: 35px 15px; color: var(--text-sub);">
                     📭 لا توجد نتائج سابقة مسجلة حتى الآن.<br>
                     <span style="font-size: 0.82rem; color: #64748b;">ستظهر درجاتك هنا فور أداء وتسليم أي اختبار مخصص لك.</span>
                 </td>
@@ -586,7 +599,7 @@ function renderAccountHistoryTable() {
                 ${row.percentage}
             </td>
             <td style="font-weight: 800; color: ${isUnderReview ? '#f1c40f' : '#2ecc71'};">
-                ${row.score}
+                ${isUnderReview ? '⏳' : '🏆'} ${row.score}
             </td>
             <td>${row.solvedQuestions}</td>
             <td>
@@ -596,6 +609,7 @@ function renderAccountHistoryTable() {
             </td>
             <td style="font-size: 0.8rem; color: #94a3b8;">${row.startTime || 'غير محدد'}</td>
             <td style="font-size: 0.8rem; color: #94a3b8;">${row.endTime || 'غير محدد'}</td>
+            <td style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: 700;">${row.durationTaken || '—'}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1844,6 +1858,18 @@ function calculateAndSend(bypassValidation = false) {
         hour12: true
     });
 
+    // 🕒 وقت البدء الحقيقي (محفوظ لحظة ما الطالب بدأ الامتحان فعلياً) عشان نحسب منه المدة اللي استغرقها
+    let realStartMs = null;
+    try {
+        const runningSession = JSON.parse(localStorage.getItem('active_running_exam_session') || 'null');
+        if (runningSession && runningSession.startTime) realStartMs = runningSession.startTime;
+    } catch (e) {}
+    const realEndMs = Date.now();
+    const durationTaken = realStartMs ? formatDurationTaken(realEndMs - realStartMs) : '';
+    const timeFormatOpts = { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+    const realStartFormatted = realStartMs ? new Date(realStartMs).toLocaleString('ar-EG', timeFormatOpts) : currentFormattedTime;
+    const realEndFormatted = new Date(realEndMs).toLocaleString('ar-EG', timeFormatOpts);
+
     const serialGenerated = Math.floor(10000 + Math.random() * 90000).toString();
 
     // 🔒 حفظ النتيجة محلياً كـ "قيد التصحيح ⏳" وحجب الإجابات لحين تفعيلها من الأدمن
@@ -1860,8 +1886,10 @@ function calculateAndSend(bypassValidation = false) {
         maxScoreNum: totalExamPointsPossible || 10,
         solvedQuestions: solvedQuestionsCount,
         canReview: releaseNow,
-        startTime: currentFormattedTime,
-        endTime: currentFormattedTime,
+        startTime: realStartFormatted,
+        endTime: realEndFormatted,
+        durationTaken: durationTaken,
+        examId: currentActiveSubject,
         timestampMs: Date.now(),
         answers: answersForAdmin
     };
@@ -1895,6 +1923,8 @@ function calculateAndSend(bypassValidation = false) {
             wrongCount: wrongCount,
             serial: serialGenerated,
             answers: answersForAdmin,
+            startTimeFormatted: realStartFormatted,
+            durationTaken: durationTaken,
             hasSubmitted: true,
             isSubmitted: true,
             hasEssay: hasEssay,
@@ -2061,6 +2091,26 @@ async function deleteOldExamsFromDB(daysOld = 30) {
 // ==========================================
 let studentUnitsCache = [];
 let examLockedIdsCache = new Set();
+let finishedExamStatsCache = new Map();
+
+// نتائج الامتحانات المتاحة للطالب (محلياً + احتياطي من الأرشيف لو فتح من جهاز تاني) - بنجيبها مرة واحدة بس
+async function loadFinishedExamStatsCache() {
+    finishedExamStatsCache = new Map();
+    getStoredHistory().forEach(r => { if (r.examId) finishedExamStatsCache.set(r.examId, r); });
+
+    if (typeof db === 'undefined') return;
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    if (!code) return;
+    try {
+        const snap = await db.collection("results_archive").where("studentCode", "==", code).get();
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.examId && !finishedExamStatsCache.has(data.examId)) finishedExamStatsCache.set(data.examId, data);
+        });
+    } catch (e) {
+        console.warn("تعذر تحميل نتائج الامتحانات المحفوظة:", e);
+    }
+}
 let unitsCountdownTimer = null;
 
 // جلب أقفال إعادة الامتحان الخاصة بالطالب (امتحانات سبق له تسليمها فعلاً)
@@ -2194,7 +2244,7 @@ async function renderUnitsSection() {
 
     // نستنى تحميل الامتحانات الأول عشان نعرف أنهي امتحان متاح للطالب
     try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
-    await loadExamLocksCache();
+    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
 
     try {
         const snap = await db.collection("units").get();
@@ -2232,7 +2282,7 @@ async function renderUnitsSection() {
 
                     if (it.type === 'exam') {
                         const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
-                        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId);
+                        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId) || finishedExamStatsCache.has(it.examId);
                         const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
                         const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
                         const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
@@ -2249,6 +2299,23 @@ async function renderUnitsSection() {
                             label = 'تم التسليم ✅';
                             disabled = true;
                             rowExtraClass = ' unit-row-done';
+
+                            const stats = finishedExamStatsCache.get(it.examId);
+                            if (stats) {
+                                const released = stats.canReview === true;
+                                const scoreChip = released
+                                    ? `<div class="exam-result-chip score">🏆 <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
+                                    : `<div class="exam-result-chip pending">⏳ <b>قيد التصحيح</b></div>`;
+                                const metaChips = [];
+                                if (stats.startTime) metaChips.push(`<span>🟢 بدأ: ${escapeHtml(stats.startTime)}</span>`);
+                                if (stats.endTime) metaChips.push(`<span>🏁 سلّم: ${escapeHtml(stats.endTime)}</span>`);
+                                if (stats.durationTaken) metaChips.push(`<span>⏱ المدة: ${escapeHtml(stats.durationTaken)}</span>`);
+                                detailsHtml += `
+                                    <div class="exam-result-panel">
+                                        ${scoreChip}
+                                        ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
+                                    </div>`;
+                            }
                         } else if (isHardClosed) {
                             label = '⚠️ أول إنذار';
                             disabled = true;

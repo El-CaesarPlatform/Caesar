@@ -450,6 +450,45 @@
         .unit-row-done { opacity: 0.75; }
         .unit-row-done .unit-row-btn { background: #14532d; }
 
+        /* لوحة نتيجة الامتحان (بعد التسليم): الدرجة + وقت البدء والتسليم + المدة */
+        .exam-result-panel {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.12), rgba(0, 85, 255, 0.10));
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        }
+
+        .exam-result-chip {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #e0f7fc;
+        }
+        .exam-result-chip b { color: var(--accent-cyan); font-size: 1.1rem; }
+        .exam-result-chip.pending b { color: var(--accent-gold); }
+
+        .exam-result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px 16px;
+            margin-top: 7px;
+            padding-top: 7px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+        .exam-result-meta span {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #b8c4d0;
+        }
+
+        @media (max-width: 600px) {
+            .exam-result-panel { padding: 10px 12px; }
+            .exam-result-chip { font-size: 0.92rem; }
+            .exam-result-meta { gap: 4px 12px; }
+            .exam-result-meta span { font-size: 0.74rem; }
+        }
+
         .unit-row-locked { border-bottom-color: #ff0055; background: rgba(255, 0, 85, 0.05); }
         .unit-row-locked .unit-row-btn { background: #7f1d1d; }
 
@@ -1547,6 +1586,7 @@
                                 <th>الاجابات</th>
                                 <th>وقت بدأ الامتحان</th>
                                 <th>وقت انهاء الامتحان</th>
+                                <th>المدة</th>
                             </tr>
                         </thead>
                         <tbody id="student-history-tbody">
