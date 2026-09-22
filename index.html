@@ -39,6 +39,9 @@
             padding: 15px 10px;
         }
 
+        /* مساحة فوق المحتوى عشان شريط تسجيل الدخول الثابت متغطيش عليه */
+        body { padding-top: 76px; }
+
         /* ------------------ إشعار الأمان الأنيق ------------------ */
         .welcome-toast {
             position: fixed;
@@ -310,34 +313,134 @@
             -webkit-background-clip: text;
         }
 
-        /* ------------------ زر الدخول للمنصة التفاعلي (CTA الرئيسي) ------------------ */
-        .main-enter-btn {
+        /* ------------------ بانر عريض تحت اسم المنصة (صورة المعلمين / الإعلان) ------------------ */
+        .hero-banner-wrap {
             width: 100%;
-            max-width: 440px;
-            padding: 16px 25px;
-            background: linear-gradient(135deg, #00d2ff 0%, #0055ff 100%);
-            border: none;
-            border-radius: 20px;
-            color: white;
-            font-size: 1.25rem;
-            font-weight: 900;
-            cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.4);
+            aspect-ratio: 2.05 / 1;
+            border-radius: 24px;
+            overflow: hidden;
+            margin-bottom: 22px;
+            position: relative;
+            border: 1px solid rgba(0, 210, 255, 0.35);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35), 0 0 25px rgba(0, 210, 255, 0.15);
+            transition: transform 0.35s ease, box-shadow 0.35s ease;
+        }
+
+        .hero-banner-wrap:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.4), 0 0 35px rgba(0, 210, 255, 0.3);
+        }
+
+        .hero-banner-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* عنصر نائب لحد ما تحط صورتك الحقيقية بدل السورس بتاع placeholder-banner.jpg */
+        .hero-banner-wrap.is-placeholder {
+            background: linear-gradient(135deg, rgba(0, 85, 255, 0.25), rgba(0, 210, 255, 0.18));
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            margin-bottom: 25px;
-            animation: pulseBtn 2s infinite ease-in-out;
         }
 
-        .main-enter-btn:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 15px 40px rgba(0, 210, 255, 0.6);
-            background: linear-gradient(135deg, #0055ff 0%, #00d2ff 100%);
+        .hero-banner-placeholder-text {
+            text-align: center;
+            color: #e0f7fc;
+            padding: 16px;
         }
 
+        .hero-banner-placeholder-text i {
+            font-size: 2.2rem;
+            color: #00d2ff;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .hero-banner-placeholder-text span {
+            display: block;
+            font-weight: 800;
+            font-size: 0.95rem;
+        }
+
+        /* ------------------ شريط تسجيل الدخول الثابت أعلى الصفحة ------------------ */
+        .top-mini-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 16px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            background: rgba(10, 20, 30, 0.7);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(0, 210, 255, 0.22);
+        }
+
+        .top-mini-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-weight: 900;
+            font-size: 1.05rem;
+            white-space: nowrap;
+        }
+
+        .top-mini-brand img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #00d2ff;
+        }
+
+        .top-mini-brand span { color: #00d2ff; }
+
+        .top-login-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #00d2ff 0%, #0055ff 100%);
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            min-height: 42px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 800;
+            font-size: 0.92rem;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0, 210, 255, 0.4);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .top-login-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(0, 210, 255, 0.5);
+        }
+
+        @media (min-width: 480px) {
+            .top-login-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 22px rgba(0, 210, 255, 0.55);
+            }
+        }
+
+        @media (max-width: 360px) {
+            .top-mini-brand { font-size: 0.95rem; }
+            .top-login-btn { padding: 9px 14px; font-size: 0.85rem; }
+        }
+
+        /* ------------------ زر الدخول للمنصة التفاعلي (CTA الرئيسي) ------------------ */
         @keyframes pulseBtn {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.02); }
@@ -671,11 +774,6 @@
                 border-radius: 18px;
             }
             .news-text { font-size: 0.88rem; }
-            .main-enter-btn {
-                padding: 14px 20px;
-                font-size: 1.1rem;
-                border-radius: 16px;
-            }
             .login-container { 
                 padding: 25px 18px; 
                 border-radius: 22px;
@@ -696,6 +794,18 @@
     </style>
 </head>
 <body>
+
+<!-- 🔝 شريط تسجيل الدخول الثابت (ظاهر دايماً فوق، سهل الوصول له من الموبايل) -->
+<header class="top-mini-nav">
+    <div class="top-mini-brand">
+        <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار القيصر">
+        <span>القيصر</span>
+    </div>
+    <button id="top-login-btn" class="top-login-btn">
+        <i class="fas fa-right-to-bracket"></i>
+        <span>تسجيل الدخول</span>
+    </button>
+</header>
 
 <!-- إشعار الترحيب بالأمان (Toast) -->
 <div id="welcome-toast" class="welcome-toast">
@@ -733,11 +843,14 @@
 
         <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
 
-        <!-- 🔥 زر "ادخل للمنصة" الرئيسي بالقمة 🔥 -->
-        <button id="open-login-btn" class="main-enter-btn">
-            <i class="fas fa-right-to-bracket"></i>
-            <span>ادخل للمنصة الآن</span>
-        </button>
+        <!-- 🖼️ بانر عريض (زي صورة المعلمين): استبدل src بصورتك الحقيقية واحذف class="is-placeholder" -->
+        <div class="hero-banner-wrap is-placeholder">
+            <img src="https://res.cloudinary.com/dbahe7lxz/image/upload/v1790061020/idraaak/twtwf8mo6cjlbzr7utj0.jpg" alt="بانر منصة القيصر" class="hero-banner-img" style="display:none;" onerror="this.style.display='none'">
+            <div class="hero-banner-placeholder-text">
+                <i class="fas fa-image"></i>
+                <span></span></span>
+            </div>
+        </div>
     </div>
 
     <!-- ------------------ الأقسام الإضافية بتصميم ألوان متناسق ومميز ------------------ -->
@@ -856,13 +969,16 @@
     // ==========================================
     // 2. التحكم بظهور نافذة (Modal) تسجيل الدخول
     // ==========================================
-    const openLoginBtn = document.getElementById("open-login-btn");
     const closeLoginModalBtn = document.getElementById("close-modal-btn");
     const loginModal = document.getElementById("login-modal");
 
-    openLoginBtn.addEventListener("click", () => {
-        loginModal.classList.add("active");
-    });
+    // زر تسجيل الدخول في الشريط الثابت أعلى الصفحة: نفس نافذة الدخول
+    const topLoginBtn = document.getElementById("top-login-btn");
+    if (topLoginBtn) {
+        topLoginBtn.addEventListener("click", () => {
+            loginModal.classList.add("active");
+        });
+    }
 
     closeLoginModalBtn.addEventListener("click", () => {
         loginModal.classList.remove("active");
@@ -964,6 +1080,7 @@
         const studentPhone = userData.phone || userData.studentPhone || userData.mobile || "غير متاح";
         const parentPhone = userData.parentPhone || userData.guardianPhone || "غير متاح";
 
+        // تخزين البيانات الأساسية القديمة (كما كانت)
         localStorage.setItem("student_doc_id", docId);
         localStorage.setItem("student_fullname", name);
         localStorage.setItem("student_stage", stage); 
@@ -979,6 +1096,9 @@
             stage: stage
         };
         localStorage.setItem("currentStudent", JSON.stringify(fullStudentObj));
+        
+        // 🔥 الكود الذي تم إضافته لتشغيل صفحة حسابي 🔥
+        localStorage.setItem("studentData", JSON.stringify(fullStudentObj));
 
         const splash = document.getElementById("splash-screen");
         const splashSubtext = document.getElementById("splash-user-welcome");

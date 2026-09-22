@@ -186,41 +186,98 @@ function cleanStaleExamStorage(activeExamIds = []) {
 }
 
 // دالة توليد قالب مراجعة الأسئلة مع إجابة الطالب والإجابة النموذجية
-function generateQuestionsReviewHtml(answers) {
+// تنسيق الدرجات (0.5 / 1 / 2.25)
+function fmtPts(n) {
+    const v = parseFloat(n);
+    if (isNaN(v)) return "0";
+    return String(Math.round(v * 100) / 100);
+}
+
+// صيغة الدرجة في الجدول: 8 -> "8.0" ، 4.5 -> "4.5"
+function fmtScoreText(n) {
+    const v = Math.round((parseFloat(n) || 0) * 100) / 100;
+    return Number.isInteger(v) ? `${v}.0` : String(v);
+}
+
+// تقييم إجابة واحدة: pending (مقالي لسه متصححش) / correct / partial / wrong
+function getAnswerGrade(ans) {
+    const points = parseFloat(ans.points) || 1;
+    const isEssay = (ans.type === "essay");
+    const hasEarned = (ans.earnedPoints !== undefined && ans.earnedPoints !== null && ans.earnedPoints !== "");
+
+    if (hasEarned) {
+        const e = Math.min(parseFloat(ans.earnedPoints) || 0, points);
+        return { state: e >= points ? 'correct' : (e > 0 ? 'partial' : 'wrong'), earned: e, points: points };
+    }
+    if (ans.isCorrect === true) return { state: 'correct', earned: points, points: points };
+    if (isEssay) return { state: 'pending', earned: null, points: points };
+    return { state: 'wrong', earned: 0, points: points };
+}
+
+// عرض الأسئلة وإجابات الطالب. released=false: الإجابات ظاهرة بس من غير صح/غلط ولا درجات
+function generateQuestionsReviewHtml(answers, released = true) {
     if (!answers || !Array.isArray(answers) || answers.length === 0) return '';
-    
+
     let html = `
         <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
             <h5 style="color: #00d2ff; font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; text-align: right; display: flex; align-items: center; gap: 8px;">
-                📝 تفاصيل الأسئلة ونموذج الإجابة:
+                ${released ? '📝 تفاصيل الأسئلة ونموذج الإجابة:' : '📝 إجاباتك اللي سلّمتها:'}
             </h5>
+            ${released ? '' : `<p style="color:#f1c40f; font-size:0.85rem; margin: -6px 0 14px; text-align:right;">🔒 الصح والغلط والدرجات هتظهر بعد ما المعلم يعتمد النتيجة.</p>`}
     `;
 
     answers.forEach((item, index) => {
         const qText = item.question || `سؤال ${index + 1}`;
         const stAns = item.studentAnswer || "لم يحل";
-        const crAns = item.correctAnswer || "غير محدد";
-        const isCorrect = item.isCorrect === true;
         const qType = item.type || "choice";
+        const isEssay = (qType === "essay");
+        const crAns = isEssay ? (item.modelAnswer || "") : (item.correctAnswer || "");
 
+        // قبل اعتماد النتيجة: عرض محايد من غير أي إشارة للصح والغلط
+        if (!released) {
+            html += `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid #64748b; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #fff; font-size: 0.98rem; line-height: 1.6;">س${index + 1}: ${escapeHtml(qText)}</strong>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; white-space: pre-wrap;">
+                        <span style="color: #cbd5e1; font-size: 0.9rem;">إجابتك: <strong style="color: #fff;">${escapeHtml(stAns)}</strong></span>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const g = getAnswerGrade(item);
         let boxBg, borderColor, icon, statusText;
 
-        if (qType === "essay" && item.isCorrect === undefined) {
+        if (g.state === 'pending') {
             boxBg = "rgba(241, 196, 15, 0.06)";
             borderColor = "#f1c40f";
             icon = "✍️";
             statusText = "سؤال مقالي (قيد المراجعة)";
-        } else if (isCorrect) {
+        } else if (g.state === 'correct') {
             boxBg = "rgba(46, 204, 113, 0.08)";
             borderColor = "#2ecc71";
             icon = "✅";
             statusText = "إجابة صحيحة";
+        } else if (g.state === 'partial') {
+            boxBg = "rgba(241, 196, 15, 0.08)";
+            borderColor = "#f1c40f";
+            icon = "🟡";
+            statusText = "درجة جزئية";
         } else {
             boxBg = "rgba(231, 76, 60, 0.08)";
             borderColor = "#e74c3c";
             icon = "❌";
             statusText = "إجابة خاطئة";
         }
+
+        const pointsBadge = (g.state === 'pending')
+            ? ''
+            : `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;">🎯 ${fmtPts(g.earned)} من ${fmtPts(g.points)}</span>`;
+
+        const showCorrect = (isEssay ? !!crAns : (g.state !== 'correct' && !!crAns));
 
         html += `
             <div style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${borderColor}; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
@@ -232,18 +289,21 @@ function generateQuestionsReviewHtml(answers) {
                 
                 <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                        <span style="color: #cbd5e1; font-size: 0.9rem;">
+                        <span style="color: #cbd5e1; font-size: 0.9rem; white-space: pre-wrap;">
                             إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>
                         </span>
-                        <span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;">
-                            ${icon} ${statusText}
+                        <span style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${pointsBadge}
+                            <span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;">
+                                ${icon} ${statusText}
+                            </span>
                         </span>
                     </div>
 
-                    ${(!isCorrect || qType === "essay") ? `
-                        <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px;">
+                    ${showCorrect ? `
+                        <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px; white-space: pre-wrap;">
                             <span style="color: #cbd5e1; font-size: 0.9rem;">
-                                الإجابة النموذجية الصحيحة: <strong style="color: #00d2ff; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${escapeHtml(crAns)}</strong>
+                                ${isEssay ? 'الإجابة النموذجية' : 'الإجابة الصحيحة'}: <strong style="color: #00d2ff; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${escapeHtml(crAns)}</strong>
                             </span>
                         </div>
                     ` : ''}
@@ -449,7 +509,9 @@ async function syncAccountWithFirebase() {
                     examName: docData.examName || docData.examTitle || docData.title || "اختبار أونلاين",
                     totalQuestions: totalQuestions,
                     percentage: isApproved ? `% ${percentage}` : '⏳ قيد التصحيح',
-                    score: isApproved ? `${score}.0 من ${maxScore}` : 'قيد التصحيح ⏳',
+                    score: isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح ⏳',
+                    scoreNum: Number(score) || 0,
+                    maxScoreNum: Number(maxScore) || 10,
                     solvedQuestions: solvedCount,
                     canReview: isApproved,
                     startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
@@ -479,7 +541,7 @@ async function syncAccountWithFirebase() {
         liveRecords.forEach(r => {
             const a = archiveMap.get(getHistoryRecordKey(r));
             if (!a || a.score !== r.score || a.percentage !== r.percentage || a.canReview !== r.canReview ||
-                (a.answers || []).length !== (r.answers || []).length) {
+                JSON.stringify(a.answers || []) !== JSON.stringify(r.answers || [])) {
                 archiveHistoryRecord(r);
             }
         });
@@ -528,7 +590,7 @@ function renderAccountHistoryTable() {
             </td>
             <td>${row.solvedQuestions}</td>
             <td>
-                ${!isUnderReview 
+                ${(row.answers && row.answers.length > 0)
                     ? `<button class="tag-answers-btn" onclick="openAnswersReviewModal('${row.id || row.serial}')">عرض الاجابات</button>` 
                     : `<span class="tag-answers-disabled" style="color: #ff0055; font-weight: 700; font-size: 0.82rem;">--الاجابات غير متاحة--</span>`}
             </td>
@@ -543,10 +605,12 @@ function openAnswersReviewModal(recordId) {
     const history = getStoredHistory();
     const item = history.find(h => (h.id === recordId || h.serial === recordId));
     
-    if (!item || !item.canReview || !item.answers || item.answers.length === 0) {
-        showCustomToast("🔒 الإجابات غير متاحة حالياً لحين اعتمادها من المعلم.", "warning");
+    if (!item || !item.answers || item.answers.length === 0) {
+        showCustomToast("🔒 الإجابات غير متاحة لهذا الامتحان.", "warning");
         return;
     }
+
+    const released = item.canReview === true;
 
     let reviewModal = document.getElementById('answers-review-modal');
     if (!reviewModal) {
@@ -570,18 +634,9 @@ function openAnswersReviewModal(recordId) {
         document.body.appendChild(reviewModal);
     }
 
-    let answersHtml = '';
-    item.answers.forEach((ans, idx) => {
-        const isCorr = ans.isCorrect === true;
-        const color = isCorr ? '#2ecc71' : '#e74c3c';
-        answersHtml += `
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${color}; padding: 12px; margin-bottom: 10px; border-radius: 10px; text-align: right;">
-                <strong style="color: #fff; font-size: 0.95rem;">س${idx + 1}: ${escapeHtml(ans.question)}</strong>
-                <div style="margin-top: 6px; font-size: 0.88rem; color: #cbd5e1;">إجابتك: <span style="color:${color}; font-weight:bold;">${escapeHtml(ans.studentAnswer)}</span></div>
-                ${!isCorr ? `<div style="font-size: 0.88rem; color: #00f2fe; margin-top: 4px;">الإجابة الصحيحة: ${escapeHtml(ans.correctAnswer)}</div>` : ''}
-            </div>
-        `;
-    });
+    const scoreBanner = released
+        ? `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.25); border-radius: 12px; color:#fff; font-weight:800;">🏆 درجتك: <span style="color:#2ecc71;">${escapeHtml(item.score)}</span></div>`
+        : `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.3); border-radius: 12px; color:#f1c40f; font-weight:800;">⏳ النتيجة قيد التصحيح</div>`;
 
     reviewModal.innerHTML = `
         <div style="background: #0f1422; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
@@ -590,7 +645,8 @@ function openAnswersReviewModal(recordId) {
                 <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;">✕</button>
             </div>
             <div style="padding: 18px; overflow-y: auto; flex: 1;">
-                ${answersHtml}
+                ${scoreBanner}
+                ${generateQuestionsReviewHtml(item.answers, released)}
             </div>
             <div style="padding: 12px; background: #141c2c; text-align: center;">
                 <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="padding: 8px 24px; background: #0088ff; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">إغلاق</button>
@@ -613,6 +669,8 @@ function updateProfileUI() {
 // ==========================================
 // 🔍 دالة فحص استحقاق الطالب للامتحان
 // ==========================================
+// false = صف الامتحان مش شرط (الوحدة هي اللي بتحدد مين يشوف الامتحان). خليها true لو عايز ترجّع الشرط القديم.
+const ENFORCE_EXAM_GRADE = false;
 function canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone) {
     const cleanCode = (studentCode || "").toString().trim().toLowerCase();
     const cleanName = normalizeArabicText(studentName);
@@ -642,7 +700,8 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
     }
 
     if (targetType === 'all' || targetType === 'عام' || !targetType) {
-        if (exam.grade && exam.grade !== "عام" && exam.grade !== "الكل" && studentStage && studentStage !== "غير محدد") {
+        // الامتحانات بقت بتتفتح من جوه الوحدات، والوحدة نفسها هي اللي بتحدد الصف. فمبنمنعش الامتحان بسبب صفه.
+        if (ENFORCE_EXAM_GRADE && exam.grade && exam.grade !== "عام" && exam.grade !== "الكل" && studentStage && studentStage !== "غير محدد") {
             return exam.grade === studentStage;
         }
         return true;
@@ -702,9 +761,44 @@ window.onload = function() {
 
     createConfirmSubmitModal();
     setupAntiCheatListeners();
-    loadAssignedExam();
+    updateStudentLastActive();
+    window.__examsReady = loadAssignedExam();
     checkAndResumeRunningExam();
+
+    // التبويب الافتراضي: المحتوى التعليمي (أو حسابي لو الطالب لسه مسلّم امتحان وضغط "روح لحسابي")
+    try {
+        let nextTab = sessionStorage.getItem('open_tab_after_reload') || 'units';
+        sessionStorage.removeItem('open_tab_after_reload');
+        if (!window.isExamRunning) switchTab(nextTab);
+    } catch (e) {}
 };
+
+// 🕒 تسجيل آخر نشاط للطالب (بيظهر للأدمن) - مرة كل 5 دقايق بالكتير عشان ميستهلكش عمليات كتابة
+async function updateStudentLastActive() {
+    try {
+        if (typeof db === 'undefined') return;
+        const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+        if (!code) return;
+
+        const pingKey = 'last_active_ping_' + code.toLowerCase();
+        if (Date.now() - Number(localStorage.getItem(pingKey) || 0) < 5 * 60 * 1000) return;
+
+        const [byStudentCode, byCode] = await Promise.all([
+            db.collection("students").where("studentCode", "==", code).get(),
+            db.collection("students").where("code", "==", code).get()
+        ]);
+
+        const refs = new Map();
+        [byStudentCode, byCode].forEach(snap => snap.forEach(d => refs.set(d.id, d.ref)));
+        if (refs.size === 0) return;
+
+        const stamp = firebase.firestore.FieldValue.serverTimestamp();
+        await Promise.all(Array.from(refs.values()).map(ref => ref.update({ lastActive: stamp }).catch(() => {})));
+        localStorage.setItem(pingKey, String(Date.now()));
+    } catch (e) {
+        console.warn("تعذر تسجيل آخر نشاط:", e);
+    }
+}
 
 // 🚨 نافذة تأكيد التسليم المنبثقة
 function createConfirmSubmitModal() {
@@ -799,18 +893,35 @@ async function loadAssignedExam() {
         const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
 
         if (snapshot.empty) {
+            window.__allExamsRaw = [];
             examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'>📭 لا يوجد امتحان منشور حالياً.</p>";
             return;
         }
 
         let allExams = [];
         snapshot.forEach(doc => allExams.push({ id: doc.id, ...doc.data() }));
+        window.__allExamsRaw = allExams;
 
         const now = Date.now();
 
         const accessibleExams = allExams.filter(exam => {
             if (exam.isActive === false || exam.status === 'archived' || exam.status === 'expired' || exam.isOld === true) {
                 return false;
+            }
+
+            // المسودات مخفية عن الطلاب
+            if (exam.isPublished === false || exam.status === 'draft') return false;
+
+            // لسه ماوصلش موعد فتح الامتحان
+            if (exam.scheduledAt) {
+                const openTime = new Date(exam.scheduledAt).getTime();
+                if (!isNaN(openTime) && now < openTime) return false;
+            }
+
+            // موعد غلق الامتحان عدّى (والأدمن بيمسحه تلقائياً)
+            if (exam.closesAt) {
+                const closeTime = new Date(exam.closesAt).getTime();
+                if (!isNaN(closeTime) && now >= closeTime) return false;
             }
 
             if (exam.expiryDate) {
@@ -858,6 +969,7 @@ async function loadAssignedExam() {
                     imageUrl: q.imageUrl || q.image || "",
                     options: q.options || [],
                     correctAnswer: correctAns,
+                    modelAnswer: q.modelAnswer || "",
                     points: q.points || 1
                 };
             });
@@ -1054,13 +1166,13 @@ async function checkStudentResult() {
                                 
                                 <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
                                     <span style="font-size: 1.1rem; color: #fff;">الدرجة: </span>
-                                    <span style="color:${scoreColor}; font-weight:bold; font-size:1.6rem;">${score}</span> 
-                                    <span style="color:#fff; font-size:1.2rem;"> / ${maxScore}</span>
+                                    <span style="color:${scoreColor}; font-weight:bold; font-size:1.6rem;">${fmtPts(score)}</span> 
+                                    <span style="color:#fff; font-size:1.2rem;"> / ${fmtPts(maxScore)}</span>
                                     <div style="margin-top: 10px; font-size: 1.25rem; color: ${scoreColor}; font-weight: bold;">النسبة المئوية: %${percentage}</div>
                                 </div>
 
                                 <!-- 📝 إظهار الأسئلة وإجابة الطالب والنموذج الصحيح -->
-                                ${generateQuestionsReviewHtml(docData.answers)}
+                                ${generateQuestionsReviewHtml(docData.answers, true)}
                             </div>
                         `;
                     } else {
@@ -1071,8 +1183,9 @@ async function checkStudentResult() {
                                 <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
                                 <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📅 وقت التسليم:</strong> ${submittedDate}</p>
                                 <p style="color: #2ecc71; font-weight: bold; margin-top: 10px;">
-                                    📩 تم حفظ إجاباتك بنجاح، وستظهر الدرجة ونموذج الإجابات هنا فور اعتمادها من المعلم.
+                                    📩 تم حفظ إجاباتك بنجاح، وستظهر الدرجة والصح والغلط هنا فور اعتمادها من المعلم.
                                 </p>
+                                ${generateQuestionsReviewHtml(docData.answers, false)}
                             </div>
                         `;
                     }
@@ -1106,6 +1219,7 @@ function switchTab(tab) {
 
     const tabs = {
         'exams': { btn: document.getElementById('tab-btn-exams'), sec: document.getElementById('exams-section') },
+        'units': { btn: document.getElementById('tab-btn-units'), sec: document.getElementById('units-section') },
         'results': { btn: document.getElementById('tab-btn-results'), sec: document.getElementById('results-section') },
         'account': { btn: document.getElementById('tab-btn-account'), sec: document.getElementById('account-section') }
     };
@@ -1127,6 +1241,10 @@ function switchTab(tab) {
         updateProfileUI();
         syncAccountWithFirebase();
     }
+
+    if (tab === 'units') {
+        renderUnitsSection();
+    }
 }
 
 async function resetPortalToStep1(subjectKey, type) {
@@ -1137,6 +1255,21 @@ async function resetPortalToStep1(subjectKey, type) {
 
     if (typeof db !== 'undefined' && (studentCode || studentFullName)) {
         const uniqueDocId = getUniqueDocId(studentCode || studentFullName, cleanSubjectKey);
+
+        // 🔒 قفل إعادة الامتحان: بيتسجل مرة واحدة عند التسليم ومبيتشالش إلا لو المعلم ضغط "إعادة الامتحان" من لوحة الأدمن.
+        // فحتى لو المعلم مسح إجابات الطالب من قايمة الطلاب، الامتحان يفضل مقفول له.
+        try {
+            const lockSnap = await db.collection("exam_locks").doc(uniqueDocId).get();
+            if (lockSnap.exists) {
+                localStorage.setItem('finished_' + cleanSubjectKey, (dynamicExamsDatabase[cleanSubjectKey]?.version || 1).toString());
+                showCustomToast("⚠️ عذراً، لقد قمت بأداء هذا الاختبار مسبقاً!", "error");
+                updateExamButtonsStatus();
+                renderUnitsSection();
+                return;
+            }
+        } catch (e) {
+            console.warn("تعذر فحص قفل الامتحان:", e);
+        }
 
         try {
             const docSnapshot = await db.collection("students").doc(uniqueDocId).get();
@@ -1189,6 +1322,7 @@ function startExamActual() {
     if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
     if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
     if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
+    if (document.getElementById('units-section')) document.getElementById('units-section').style.display = 'none';
 
     window.isExamRunning = true;
     document.body.classList.add('exam-mode');
@@ -1250,6 +1384,7 @@ function checkAndResumeRunningExam() {
         if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
         if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
         if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
+        if (document.getElementById('units-section')) document.getElementById('units-section').style.display = 'none';
 
         window.isExamRunning = true;
         document.body.classList.add('exam-mode');
@@ -1668,11 +1803,17 @@ function calculateAndSend(bypassValidation = false) {
             question: q.question,
             studentAnswer: studentValue,
             correctAnswer: q.correctAnswer || "",
+            modelAnswer: isChoice ? "" : (q.modelAnswer || ""),
             isCorrect: isCorrect,
             type: isChoice ? "choice" : "essay",
             points: points
         });
     });
+
+    // لو الامتحان كله اختيارات: الدرجة بتظهر للطالب علطول. لو فيه مقالي: قيد التصحيح لحد ما المعلم يعتمد
+    const hasEssay = answersForAdmin.some(a => a.type === "essay");
+    const releaseNow = !hasEssay;
+    const finalPercent = totalExamPointsPossible > 0 ? Math.round((mcqScoreObtained / totalExamPointsPossible) * 100) : 0;
 
     clearInterval(timerInterval);
     window.isExamRunning = false;
@@ -1713,10 +1854,12 @@ function calculateAndSend(bypassValidation = false) {
         serial: serialGenerated,
         examName: currentExamTitle,
         totalQuestions: activeQuestionsList.length,
-        percentage: '⏳ قيد التصحيح',
-        score: 'قيد التصحيح ⏳',
+        percentage: releaseNow ? `% ${finalPercent}` : '⏳ قيد التصحيح',
+        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'قيد التصحيح ⏳',
+        scoreNum: mcqScoreObtained,
+        maxScoreNum: totalExamPointsPossible || 10,
         solvedQuestions: solvedQuestionsCount,
-        canReview: false,
+        canReview: releaseNow,
         startTime: currentFormattedTime,
         endTime: currentFormattedTime,
         timestampMs: Date.now(),
@@ -1754,10 +1897,12 @@ function calculateAndSend(bypassValidation = false) {
             answers: answersForAdmin,
             hasSubmitted: true,
             isSubmitted: true,
-            showScore: false,      // تظل "قيد التصحيح" حتى تظهرها أنت من لوحة الأدمن
-            showResult: false,
-            isResultVisible: false,
+            hasEssay: hasEssay,
+            showScore: releaseNow,      // اختيارات فقط: الدرجة تظهر علطول | فيه مقالي: قيد التصحيح لحد اعتماد المعلم
+            showResult: releaseNow,
+            isResultVisible: releaseNow,
             submittedAt: currentFormattedTime,
+            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).then(() => {
             localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
@@ -1767,11 +1912,12 @@ function calculateAndSend(bypassValidation = false) {
             // نسخة دائمة من النتيجة لا يمسحها الأدمن
             archiveHistoryRecord(newHistoryRecord);
 
-            showCustomToast("🎉 تم تسليم الامتحان بنجاح! نتيجتك قيد التصحيح.", "success");
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 2500);
+            showSubmissionResultModal({
+                examTitle: currentExamTitle,
+                released: releaseNow,
+                scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
+                percent: finalPercent
+            });
 
         }).catch((error) => {
             console.error("خطأ أثناء تسليم الامتحان: ", error);
@@ -1785,9 +1931,71 @@ function calculateAndSend(bypassValidation = false) {
         localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
         localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
         localStorage.removeItem('active_running_exam_session');
-        showCustomToast("🎉 تم تسليم الامتحان بنجاح! نتيجتك قيد التصحيح.", "success");
-        setTimeout(() => { window.location.reload(); }, 2000);
+        showSubmissionResultModal({
+            examTitle: currentExamTitle,
+            released: releaseNow,
+            scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
+            percent: finalPercent
+        });
     }
+}
+
+// 🏆 نافذة النتيجة بعد التسليم: الدرجة علطول لو اختيارات، أو "قيد التصحيح" لو فيه مقالي
+function showSubmissionResultModal(info) {
+    const old = document.getElementById('submission-result-modal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'submission-result-modal';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9); backdrop-filter: blur(8px);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 100000; padding: 15px; direction: rtl; font-family: 'Cairo', sans-serif;
+    `;
+
+    const pct = info.percent || 0;
+    const color = pct >= 85 ? '#2ecc71' : (pct >= 50 ? '#f1c40f' : '#e74c3c');
+    const cheer = pct >= 85 ? 'ممتاز! استمر 🔥' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن 💪' : 'متزعلش، راجع إجاباتك وهتتحسن ✨');
+
+    const body = info.released
+        ? `
+            <div style="font-size: 3rem; margin-bottom: 6px;">🎉</div>
+            <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
+            <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
+            <div style="background: rgba(0,0,0,0.35); border: 1px solid ${color}; border-radius: 16px; padding: 16px; margin-bottom: 14px;">
+                <div style="color:#cbd5e1; font-size: 0.95rem;">درجتك</div>
+                <div style="color:${color}; font-size: 2rem; font-weight: 900;">${escapeHtml(info.scoreText)}</div>
+                <div style="color:${color}; font-weight: 800;">%${pct}</div>
+            </div>
+            <p style="color:#cbd5e1; margin: 0 0 6px; font-weight: 700;">${cheer}</p>
+            <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.85rem;">تقدر تشوف درجتك وإجاباتك في أي وقت من <strong>حسابي</strong>.</p>`
+        : `
+            <div style="font-size: 3rem; margin-bottom: 6px;">✅</div>
+            <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
+            <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
+            <div style="background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.4); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
+                <div style="color:#f1c40f; font-size: 1.4rem; font-weight: 900;">⏳ قيد التصحيح</div>
+                <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">الامتحان فيه أسئلة مقالية والمعلم هيراجعها. إجاباتك محفوظة وتقدر تشوفها من <strong>حسابي</strong> (من غير ما يبان الصح والغلط لحد ما النتيجة تتعتمد).</p>
+            </div>`;
+
+    overlay.innerHTML = `
+        <div style="background: #1e1e38; padding: 26px; border-radius: 20px; max-width: 420px; width: 95%; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
+            ${body}
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="closeSubmissionResultModal('account')" style="padding: 11px 20px; background: linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">📊 روح لحسابي</button>
+                <button onclick="closeSubmissionResultModal()" style="padding: 11px 20px; background:#334155; color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">تمام</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function closeSubmissionResultModal(openTab) {
+    try {
+        if (openTab) sessionStorage.setItem('open_tab_after_reload', openTab);
+    } catch (e) {}
+    window.location.reload();
 }
 
 // ==========================================
@@ -1845,5 +2053,307 @@ async function deleteOldExamsFromDB(daysOld = 30) {
         }
     } catch (e) {
         console.error("خطأ أثناء حذف الامتحانات القديمة:", e);
+    }
+}
+
+// ==========================================
+// 📚 الوحدات والمحتوى التعليمي (ملفات + فيديوهات + امتحانات)
+// ==========================================
+let studentUnitsCache = [];
+let examLockedIdsCache = new Set();
+let unitsCountdownTimer = null;
+
+// جلب أقفال إعادة الامتحان الخاصة بالطالب (امتحانات سبق له تسليمها فعلاً)
+async function loadExamLocksCache() {
+    examLockedIdsCache = new Set();
+    if (typeof db === 'undefined') return;
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    if (!code) return;
+    try {
+        const snap = await db.collection("exam_locks").where("studentCode", "==", code).get();
+        snap.forEach(d => { const ex = d.data().examId; if (ex) examLockedIdsCache.add(ex); });
+    } catch (e) {
+        console.warn("تعذر تحميل أقفال الامتحانات:", e);
+    }
+}
+
+// عداد تنازلي لموعد غلق الامتحان (يظهر للطالب فاضل كام يوم/ساعة/دقيقة)
+function formatCountdown(ms) {
+    if (ms <= 0) return null;
+    const totalMin = Math.floor(ms / 60000);
+    const days = Math.floor(totalMin / (60 * 24));
+    const hours = Math.floor((totalMin % (60 * 24)) / 60);
+    const mins = totalMin % 60;
+    if (days > 0) return `${days} يوم${hours > 0 ? ' و ' + hours + ' ساعة' : ''}`;
+    if (hours > 0) return `${hours} ساعة${mins > 0 ? ' و ' + mins + ' دقيقة' : ''}`;
+    return `${Math.max(mins, 1)} دقيقة`;
+}
+
+function tickUnitCountdowns() {
+    document.querySelectorAll('.unit-countdown[data-closes-at]').forEach(el => {
+        const closesAt = Number(el.getAttribute('data-closes-at'));
+        const left = closesAt - Date.now();
+        const text = formatCountdown(left);
+        if (!text) {
+            el.textContent = '🔒 قفل الامتحان الآن';
+            el.classList.add('closed-now');
+            renderUnitsSection();
+        } else {
+            el.textContent = '⏳ يُقفل الامتحان خلال: ' + text;
+        }
+    });
+}
+
+// تحويل رابط الفيديو لرابط قابل للتضمين (يوتيوب / درايف / فيميو)
+function toEmbedUrl(url) {
+    try {
+        const u = new URL(url);
+        const host = u.hostname.replace(/^www\./, '');
+
+        if (host === 'youtu.be') {
+            const id = u.pathname.slice(1);
+            return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
+        }
+        if (host.endsWith('youtube.com')) {
+            if (u.pathname.startsWith('/embed/')) return `https://www.youtube.com${u.pathname}?rel=0`;
+            if (u.pathname.startsWith('/shorts/')) return `https://www.youtube.com/embed/${u.pathname.split('/')[2]}?rel=0`;
+            const v = u.searchParams.get('v');
+            return v ? `https://www.youtube.com/embed/${v}?rel=0` : null;
+        }
+        if (host === 'drive.google.com') {
+            const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+            if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+            const idParam = u.searchParams.get('id');
+            if (idParam) return `https://drive.google.com/file/d/${idParam}/preview`;
+        }
+        if (host === 'vimeo.com') {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id && /^\d+$/.test(id)) return `https://player.vimeo.com/video/${id}`;
+        }
+    } catch (e) {}
+    return null;
+}
+
+function openVideoModal(title, url) {
+    const embed = toEmbedUrl(url);
+    if (!embed) {
+        window.open(url, '_blank', 'noopener');
+        return;
+    }
+
+    let modal = document.getElementById('video-modal');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'video-modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.93); z-index: 100000; display: flex;
+        justify-content: center; align-items: center; padding: 14px; direction: rtl;
+    `;
+    modal.innerHTML = `
+        <div style="width: 100%; max-width: 900px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                <strong style="color:#fff; font-size: 1.05rem;">🎬 ${escapeHtml(title)}</strong>
+                <button onclick="closeVideoModal()" style="background:#e74c3c; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; cursor:pointer; font-family:inherit;">✕ إغلاق</button>
+            </div>
+            <div style="position: relative; width: 100%; padding-top: 56.25%; background:#000; border-radius: 14px; overflow: hidden;">
+                <iframe src="${embed}" style="position:absolute; inset:0; width:100%; height:100%; border:0;" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+            </div>
+            <div style="text-align:center; margin-top:10px;">
+                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:#94a3b8; font-size:0.85rem;">لو الفيديو مش شغال اضغط هنا لفتحه في صفحة جديدة</a>
+            </div>
+        </div>
+    `;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
+    document.body.appendChild(modal);
+}
+
+function closeVideoModal() {
+    const modal = document.getElementById('video-modal');
+    if (modal) modal.remove();   // حذف العنصر بيوقف الفيديو
+}
+
+function toggleUnitAccordion(unitId) {
+    const acc = document.getElementById('unit-acc-' + unitId);
+    if (acc) acc.classList.toggle('open');
+}
+
+async function renderUnitsSection() {
+    const box = document.getElementById('units-list');
+    if (!box) return;
+
+    clearInterval(unitsCountdownTimer);
+
+    if (typeof db === 'undefined') {
+        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'>❌ تعذر الاتصال بقاعدة البيانات.</p>";
+        return;
+    }
+
+    box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'>⏳ جاري تحميل المحتوى...</p>";
+
+    // نستنى تحميل الامتحانات الأول عشان نعرف أنهي امتحان متاح للطالب
+    try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
+    await loadExamLocksCache();
+
+    try {
+        const snap = await db.collection("units").get();
+        const stage = localStorage.getItem("student_stage") || "";
+
+        let units = [];
+        snap.forEach(d => units.push({ id: d.id, ...d.data() }));
+        units = units
+            .filter(u => u.isPublished !== false)
+            .filter(u => !u.grade || u.grade === 'الكل' || u.grade === 'كل الصفوف' || !stage || u.grade === stage)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        studentUnitsCache = units;
+
+        if (units.length === 0) {
+            box.innerHTML = "<p style='text-align:center;color:#cbd5e1;padding:25px;'>📭 لا يوجد محتوى منشور حالياً.</p>";
+            return;
+        }
+
+        const icons = { file: '📄', video: '▶️', exam: '📝' };
+        const btnText = { file: 'فتح الملف', video: 'مشاهدة', exam: 'ابدأ الامتحان' };
+
+        box.innerHTML = units.map((unit, idx) => {
+            const items = Array.isArray(unit.items) ? unit.items : [];
+
+            const rows = items.length === 0
+                ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
+                : items.map(it => {
+                    let label = btnText[it.type] || 'فتح';
+                    let disabled = false;
+
+                    let reasonHtml = '';
+                    let detailsHtml = '';
+                    let rowExtraClass = '';
+
+                    if (it.type === 'exam') {
+                        const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
+                        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId);
+                        const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
+                        const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
+                        const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
+
+                        const statParts = [];
+                        if (it.desc) statParts.push(`📝 ${escapeHtml(it.desc)}`);
+                        if (examObj) {
+                            statParts.push(`❓ عدد الأسئلة: ${(examObj.questions || []).length} سؤال`);
+                            statParts.push(`⏱ مدة الامتحان: ${examObj.duration || 30} دقيقة`);
+                        }
+                        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
+
+                        if (hasSubmitted) {
+                            label = 'تم التسليم ✅';
+                            disabled = true;
+                            rowExtraClass = ' unit-row-done';
+                        } else if (isHardClosed) {
+                            label = '⚠️ أول إنذار';
+                            disabled = true;
+                            rowExtraClass = ' unit-row-locked';
+                            reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;">🔒 الامتحان اتقفل ولم تقم بحله</div>`;
+                        } else if (!available) {
+                            label = 'غير متاح حالياً';
+                            disabled = true;
+                            const why = getExamUnavailableReason(it.examId);
+                            if (why) reasonHtml = `<div class="unit-row-sub">${escapeHtml(why)}</div>`;
+                        } else if (!isNaN(closeTs) && closeTs > Date.now()) {
+                            detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}">⏳ يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
+                        }
+                    } else if (it.type === 'video') {
+                        const viewKey = 'video_views_' + it.id;
+                        const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
+                        const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
+
+                        const statParts = [];
+                        if (it.desc) statParts.push(`📝 ${escapeHtml(it.desc)}`);
+                        if (it.durationMin) statParts.push(`⏱ مدة الفيديو: ${it.durationMin} دقيقة`);
+                        if (remaining !== null) statParts.push(`👁 المشاهدات المتبقية لك: ${remaining}`);
+                        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
+
+                        if (remaining === 0) { label = 'انتهت مرات المشاهدة'; disabled = true; }
+                    }
+
+                    return `
+                        <div class="unit-row unit-row-${it.type}${rowExtraClass}">
+                            <div class="unit-row-icon">${icons[it.type] || '📌'}</div>
+                            <div class="unit-row-main">
+                                <div class="unit-row-title">${escapeHtml(it.title)}${reasonHtml}</div>
+                                ${detailsHtml}
+                            </div>
+                            <button class="unit-row-btn" ${disabled ? 'disabled' : ''} onclick="openUnitItem('${unit.id}', '${it.id}')">${label}</button>
+                        </div>
+                    `;
+                }).join('');
+
+            return `
+                <div class="unit-acc ${idx === 0 ? 'open' : ''}" id="unit-acc-${unit.id}">
+                    <button class="unit-acc-head" onclick="toggleUnitAccordion('${unit.id}')">
+                        <span class="unit-acc-chevron">⌄</span>
+                        <span class="unit-acc-title">${escapeHtml(unit.title)}</span>
+                        <span class="unit-acc-count">${items.length}</span>
+                    </button>
+                    <div class="unit-acc-body">${rows}</div>
+                </div>
+            `;
+        }).join('');
+
+        clearInterval(unitsCountdownTimer);
+        unitsCountdownTimer = setInterval(tickUnitCountdowns, 30000);
+    } catch (err) {
+        console.error("خطأ في تحميل الوحدات:", err);
+        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'>❌ تعذر تحميل المحتوى. حاول مرة أخرى.</p>";
+    }
+}
+
+// ليه الامتحان مش متاح؟ (بيظهر تحت اسم الامتحان في الوحدة)
+function getExamUnavailableReason(examId) {
+    const list = window.__allExamsRaw;
+    if (!Array.isArray(list)) return "";
+    const exam = list.find(e => e.id === examId);
+    if (!exam) return "الامتحان ده اتمسح أو انتهى موعده";
+
+    const now = Date.now();
+    if (exam.isPublished === false || exam.status === 'draft') return "الامتحان لسه مسودة ومتنشرش (انشره من لوحة الأدمن)";
+    if (exam.scheduledAt) {
+        const t = new Date(exam.scheduledAt).getTime();
+        if (!isNaN(t) && now < t) return "هيفتح يوم " + new Date(t).toLocaleString('ar-EG');
+    }
+    if (exam.closesAt) {
+        const t = new Date(exam.closesAt).getTime();
+        if (!isNaN(t) && now >= t) return "انتهى موعد الامتحان";
+    }
+    if (exam.isActive === false || exam.status === 'archived' || exam.status === 'expired' || exam.isOld === true) return "الامتحان مقفول";
+
+    const stage = localStorage.getItem("student_stage") || "";
+    const code = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
+    const name = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
+    const phone = localStorage.getItem("student_phone") || "";
+    if (!canStudentAccessExam(exam, code, stage, name, phone)) return "الامتحان ده مخصص لطلاب تانيين";
+    return "";
+}
+
+function openUnitItem(unitId, itemId) {
+    const unit = studentUnitsCache.find(u => u.id === unitId);
+    if (!unit) return;
+    const it = (unit.items || []).find(x => x.id === itemId);
+    if (!it) return;
+
+    if (it.type === 'file') {
+        window.open(it.url, '_blank', 'noopener');
+    } else if (it.type === 'video') {
+        const viewKey = 'video_views_' + it.id;
+        const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
+        if (it.maxViews && watched >= it.maxViews) {
+            showCustomToast("🔒 خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
+            return;
+        }
+        localStorage.setItem(viewKey, String(watched + 1));
+        openVideoModal(it.title, it.url);
+        renderUnitsSection();
+    } else if (it.type === 'exam') {
+        resetPortalToStep1(it.examId, 'exam');
     }
 }

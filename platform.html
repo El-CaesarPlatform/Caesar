@@ -307,6 +307,162 @@
             min-height: 52px;
         }
 
+        /* ================= المحتوى التعليمي (الوحدات) ================= */
+        #units-list { max-width: 900px; }
+
+        .unit-acc {
+            margin-bottom: 18px;
+            border-radius: 20px;
+            background: rgba(20, 26, 40, 0.75);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .unit-acc-head {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-main);
+            cursor: pointer;
+            font-family: inherit;
+            text-align: right;
+            transition: background 0.25s ease;
+        }
+
+        .unit-acc.open .unit-acc-head {
+            background: linear-gradient(90deg, rgba(0, 136, 255, 0.18), rgba(157, 78, 221, 0.18));
+        }
+
+        .unit-acc-title { flex: 1; font-size: 1.2rem; font-weight: 800; }
+
+        .unit-acc-count {
+            min-width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(0, 242, 254, 0.14);
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+        }
+
+        .unit-acc-chevron {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.14);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .unit-acc.open .unit-acc-chevron { transform: rotate(180deg); }
+
+        .unit-acc-body { display: none; padding: 14px 14px 8px; }
+        .unit-acc.open .unit-acc-body { display: block; }
+
+        .unit-row {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 16px;
+            margin-bottom: 10px;
+            background: rgba(8, 11, 20, 0.85);
+            border-radius: 14px;
+            border-bottom: 3px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .unit-row-video { border-bottom-color: #ff4d6d; }
+        .unit-row-exam { border-bottom-color: var(--accent-gold); }
+        .unit-row-file { border-bottom-color: #64748b; }
+
+        .unit-row-icon {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .unit-row-title { flex: 1; font-weight: 700; font-size: 1rem; line-height: 1.6; color: #e5e7eb; }
+
+        .unit-row-btn {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #57534e;
+            color: #fff;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .unit-row-btn:hover:not(:disabled) { background: var(--primary-blue); transform: translateY(-1px); }
+        .unit-row-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .unit-row-exam .unit-row-btn:not(:disabled) { background: #b7791f; }
+        .unit-row-exam .unit-row-btn:hover:not(:disabled) { background: var(--accent-gold); color: #000; }
+
+        .unit-row-sub { margin-top: 3px; font-size: 0.78rem; font-weight: 600; color: #f1c40f; }
+
+        .unit-row-main { flex: 1; min-width: 0; }
+
+        .unit-row-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 14px;
+            margin-top: 5px;
+        }
+        .unit-row-stats span {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .unit-countdown {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: rgba(255, 190, 11, 0.12);
+            border: 1px solid rgba(255, 190, 11, 0.35);
+            color: var(--accent-gold);
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+        .unit-countdown.closed-now { background: rgba(255, 0, 85, 0.12); border-color: rgba(255, 0, 85, 0.4); color: #ff4d6d; }
+
+        .unit-row-done { opacity: 0.75; }
+        .unit-row-done .unit-row-btn { background: #14532d; }
+
+        .unit-row-locked { border-bottom-color: #ff0055; background: rgba(255, 0, 85, 0.05); }
+        .unit-row-locked .unit-row-btn { background: #7f1d1d; }
+
+        .unit-row-empty { text-align: center; color: var(--text-sub); padding: 14px; font-size: 0.9rem; }
+
+        @media (max-width: 600px) {
+            .unit-acc-head { padding: 13px 14px; }
+            .unit-acc-title { font-size: 1.05rem; }
+            .unit-row { padding: 11px 12px; gap: 10px; flex-wrap: wrap; }
+            .unit-row-title { font-size: 0.93rem; min-width: 55%; }
+            .unit-row-btn { padding: 7px 12px; font-size: 0.82rem; }
+        }
+
         /* كشف النتائج */
         .result-inputs-box {
             background: linear-gradient(145deg, rgba(21, 30, 47, 0.92), rgba(9, 14, 25, 0.96));
@@ -1273,22 +1429,12 @@
         </div>
 
         <ul class="sidebar-menu">
-            <li class="active" id="tab-btn-exams" onclick="switchTab('exams')">
+            <li class="active" id="tab-btn-units" onclick="switchTab('units')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
-                الاختبارات المتاحة
-            </li>
-            <li id="tab-btn-results" onclick="switchTab('results')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-                كشف النتائج
+                المحتوى التعليمي
             </li>
             <li id="tab-btn-account" onclick="switchTab('account')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1305,15 +1451,23 @@
 <div class="main-content">
 
     <!-- 1. قسم الاختبارات المتاحة -->
-    <div id="exams-section">
+    <!-- قسم الاختبارات: مخفي دايماً. الامتحانات دلوقتي بتتفتح من جوه الوحدات في "المحتوى التعليمي" -->
+    <div id="exams-section" style="display: none !important;">
         <h2 class="section-title">📚 الاختبارات التفاعلية</h2>
         <div class="grid-container" id="assigned-exam-grid">
             <p style="text-align: center; color: var(--text-sub); grid-column: 1/-1;">جاري تحميل الامتحانات المخصصة لك...</p>
         </div>
     </div>
 
+    <!-- قسم المحتوى التعليمي (وحدات: ملفات + فيديوهات + امتحانات) -->
+    <div id="units-section">
+        <h2 class="section-title">📚 المحتوى التعليمي</h2>
+        <div id="units-list"></div>
+    </div>
+
     <!-- 2. قسم كشف النتائج -->
-    <div id="results-section" style="display: none;">
+    <!-- قسم كشف النتائج: مخفي دايماً (النتائج بتظهر للطالب في "حسابي") -->
+    <div id="results-section" style="display: none !important;">
         <h2 class="section-title">📊 الاستعلام عن حالة الامتحان</h2>
 
         <div class="result-inputs-box">
