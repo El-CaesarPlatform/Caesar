@@ -3,6 +3,8 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
+// ==========================================
 // 💥 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -37,13 +39,12 @@ let currentActiveSubject = "";
 let currentActiveType = "exam";
 let activeQuestionsList = [];
 let currentSubjectVersion = 1;
-let currentQuestionIndex = 0; // متغير مؤشر السؤال المعروض حالياً
+let currentQuestionIndex = 0;
 
 window.isExamRunning = false;
 let dynamicExamsDatabase = {};
 const homeworksDatabase = {};
 
-// دالة توحيد النصوص العربية لتجنب أخطاء الإملاء
 function normalizeArabicText(text) {
     if (!text) return "";
     return text.toString().trim().toLowerCase()
@@ -53,14 +54,12 @@ function normalizeArabicText(text) {
         .replace(/\s+/g, " ");
 }
 
-// دالة إنشاء معرف المستند الموحد في Firebase
 function getUniqueDocId(identifier, subjectKey) {
     const cleanId = (identifier || "").toString().trim().replace(/[/\\.#$\[\]\s]/g, '_');
     const cleanSub = (subjectKey || "").toString().trim().replace(/[/\\.#$\[\]\s]/g, '_');
     return `${cleanId}_${cleanSub}`;
 }
 
-// دالة تنظيف الرموز الخاصة في نصوص الـ HTML
 function escapeHtml(str) {
     if (!str) return '';
     return str.toString()
@@ -134,7 +133,6 @@ function isExamFinished(subjectKey, type) {
     return savedVer && savedVer === currentVer;
 }
 
-// هل فيه جلسة امتحان شغالة (أو لسه متسلمتش) للامتحان ده؟ لو آه: إجابات الطالب ممنوع تتمسح
 function isExamSessionActive(subjectKey) {
     if (window.isExamRunning && currentActiveSubject === subjectKey) return true;
     try {
@@ -145,7 +143,6 @@ function isExamSessionActive(subjectKey) {
     }
 }
 
-// حفظ لقطة من كل الإجابات الظاهرة في الصفحة (احتياط قبل الريفريش أو قفل الصفحة)
 function saveAllAnswersFromDOM() {
     if (!window.isExamRunning || !currentActiveSubject || !activeQuestionsList || activeQuestionsList.length === 0) return;
     try {
@@ -166,7 +163,6 @@ function saveAllAnswersFromDOM() {
     }
 }
 
-// دالة تنظيف مخزن المتصفح من بقايا الامتحانات القديمة غير النشطة
 function cleanStaleExamStorage(activeExamIds = []) {
     try {
         const keysToRemove = [];
@@ -185,16 +181,12 @@ function cleanStaleExamStorage(activeExamIds = []) {
     }
 }
 
-// دالة توليد قالب مراجعة الأسئلة مع إجابة الطالب والإجابة النموذجية
-// تنسيق الدرجات (0.5 / 1 / 2.25)
 function fmtPts(n) {
     const v = parseFloat(n);
     if (isNaN(v)) return "0";
     return String(Math.round(v * 100) / 100);
 }
 
-// صيغة الدرجة في الجدول: 8 -> "8.0" ، 4.5 -> "4.5"
-// تنسيق المدة اللي استغرقها الطالب في حل الامتحان (مثلاً "12 دقيقة و 30 ثانية")
 function formatDurationTaken(ms) {
     if (ms === null || ms === undefined || isNaN(ms) || ms < 0) return '';
     const totalSec = Math.round(ms / 1000);
@@ -210,7 +202,6 @@ function fmtScoreText(n) {
     return Number.isInteger(v) ? `${v}.0` : String(v);
 }
 
-// تقييم إجابة واحدة: pending (مقالي لسه متصححش) / correct / partial / wrong
 function getAnswerGrade(ans) {
     const points = parseFloat(ans.points) || 1;
     const isEssay = (ans.type === "essay");
@@ -225,7 +216,6 @@ function getAnswerGrade(ans) {
     return { state: 'wrong', earned: 0, points: points };
 }
 
-// عرض الأسئلة وإجابات الطالب. released=false: الإجابات ظاهرة بس من غير صح/غلط ولا درجات
 function generateQuestionsReviewHtml(answers, released = true) {
     if (!answers || !Array.isArray(answers) || answers.length === 0) return '';
 
@@ -244,7 +234,6 @@ function generateQuestionsReviewHtml(answers, released = true) {
         const isEssay = (qType === "essay");
         const crAns = isEssay ? (item.modelAnswer || "") : (item.correctAnswer || "");
 
-        // قبل اعتماد النتيجة: عرض محايد من غير أي إشارة للصح والغلط
         if (!released) {
             html += `
                 <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid #64748b; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
@@ -330,20 +319,18 @@ function generateQuestionsReviewHtml(answers, released = true) {
 // ==========================================
 // 💾 نظام مزامنة "حسابي" مع النتائج الحقيقية فقط
 // ==========================================
-// معرّف صاحب السجل (كود الطالب الحالي) عشان نتايج طالب متظهرش عند طالب تاني على نفس المتصفح
 function getHistoryOwner() {
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").toString().trim().toLowerCase();
     if (code) return code;
     return normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
 }
 
-// كل السجلات المحفوظة في المتصفح (لكل الطلاب اللي استخدموه) بعد تنظيف السجلات الوهمية
 function getAllStoredHistory() {
     try {
         let history = JSON.parse(localStorage.getItem('alqeisar_exam_history') || '[]');
         history = history.filter(item => {
             if (!item || !item.examName) return false;
-            if (!item.owner) return false; // سجل قديم مش معروف صاحبه
+            if (!item.owner) return false;
             const s = String(item.serial || '');
             if (['11028', '83978', '84457'].includes(s)) return false;
             if (item.id && item.id.startsWith('init_')) return false;
@@ -357,14 +344,12 @@ function getAllStoredHistory() {
     }
 }
 
-// سجلات الطالب الحالي فقط
 function getStoredHistory() {
     const owner = getHistoryOwner();
     if (!owner) return [];
     return getAllStoredHistory().filter(item => item.owner === owner);
 }
 
-// حفظ سجلات الطالب الحالي مع الإبقاء على سجلات باقي الطلاب زي ما هي
 function saveStoredHistory(currentList) {
     const owner = getHistoryOwner();
     if (!owner) return;
@@ -373,10 +358,6 @@ function saveStoredHistory(currentList) {
     localStorage.setItem('alqeisar_exam_history', JSON.stringify(others.concat(mine)));
 }
 
-// ==========================================
-// 🗄️ حفظ دائم لنتائج الطالب (لا يتأثر بالمسح من لوحة الأدمن)
-// ==========================================
-// مفتاح فريد لكل محاولة (الرقم التسلسلي أو معرف المستند)
 function getHistoryRecordKey(r) {
     return String((r && (r.key || r.serial || r.id)) || '');
 }
@@ -389,7 +370,6 @@ function getHistoryRecordTime(r) {
     return 0;
 }
 
-// دمج (المحفوظ محلياً + الأرشيف + النتائج الحية من السيرفر) بدون فقدان أي امتحان اتحذف من الأدمن
 function mergeHistoryRecords(localList, archiveList, liveList) {
     const map = new Map();
 
@@ -415,7 +395,6 @@ function mergeHistoryRecords(localList, archiveList, liveList) {
     return Array.from(map.values()).sort((a, b) => getHistoryRecordTime(b) - getHistoryRecordTime(a));
 }
 
-// حفظ نسخة من نتيجة الطالب في مجموعة منفصلة (results_archive) لا يمسحها الأدمن
 async function archiveHistoryRecord(record) {
     if (typeof db === 'undefined' || !record) return;
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
@@ -458,7 +437,6 @@ async function fetchArchivedHistory(studentCode) {
     }
 }
 
-// مزامنة دقيقة مع Firebase لجلب نتائج الطالب الفعلية فقط والتحقق من موافقة الأدمن
 async function syncAccountWithFirebase() {
     const studentCode = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
     const studentName = normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
@@ -486,7 +464,6 @@ async function syncAccountWithFirebase() {
                 }
             });
 
-            // احتياطي بالاسم: اسم مطابق تماماً، وبشرط ألا يكون المستند مسجّلاً بكود طالب آخر
             if (realSubmissions.length === 0 && studentName) {
                 const allSnap = await db.collection("students").get();
                 allSnap.forEach(doc => {
@@ -543,13 +520,11 @@ async function syncAccountWithFirebase() {
             archiveRecords = [];
         }
 
-        // دمج بدل الاستبدال: أي امتحان اتسلّم قبل كده يفضل موجود حتى لو اتمسح من لوحة الأدمن
         const mergedHistory = mergeHistoryRecords(getStoredHistory(), archiveRecords, liveRecords);
         if (mergedHistory.length > 0) {
             saveStoredHistory(mergedHistory);
         }
 
-        // تحديث نسخة الأرشيف لو النتيجة اتغيرت (مثلاً الأدمن اعتمد الدرجة)
         const archiveMap = new Map(archiveRecords.map(r => [getHistoryRecordKey(r), r]));
         liveRecords.forEach(r => {
             const a = archiveMap.get(getHistoryRecordKey(r));
@@ -680,10 +655,6 @@ function updateProfileUI() {
     if (document.getElementById("user-display-name")) document.getElementById("user-display-name").textContent = "أهلاً: " + studentName;
 }
 
-// ==========================================
-// 🔍 دالة فحص استحقاق الطالب للامتحان
-// ==========================================
-// false = صف الامتحان مش شرط (الوحدة هي اللي بتحدد مين يشوف الامتحان). خليها true لو عايز ترجّع الشرط القديم.
 const ENFORCE_EXAM_GRADE = false;
 function canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone) {
     const cleanCode = (studentCode || "").toString().trim().toLowerCase();
@@ -714,7 +685,6 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
     }
 
     if (targetType === 'all' || targetType === 'عام' || !targetType) {
-        // الامتحانات بقت بتتفتح من جوه الوحدات، والوحدة نفسها هي اللي بتحدد الصف. فمبنمنعش الامتحان بسبب صفه.
         if (ENFORCE_EXAM_GRADE && exam.grade && exam.grade !== "عام" && exam.grade !== "الكل" && studentStage && studentStage !== "غير محدد") {
             return exam.grade === studentStage;
         }
@@ -724,9 +694,6 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
     return false;
 }
 
-// ==========================================
-// 🚀 عند تحميل الصفحة والتجهيز
-// ==========================================
 window.onload = function() {
     let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
     let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
@@ -779,7 +746,6 @@ window.onload = function() {
     window.__examsReady = loadAssignedExam();
     checkAndResumeRunningExam();
 
-    // التبويب الافتراضي: المحتوى التعليمي (أو حسابي لو الطالب لسه مسلّم امتحان وضغط "روح لحسابي")
     try {
         let nextTab = sessionStorage.getItem('open_tab_after_reload') || 'units';
         sessionStorage.removeItem('open_tab_after_reload');
@@ -787,7 +753,6 @@ window.onload = function() {
     } catch (e) {}
 };
 
-// 🕒 تسجيل آخر نشاط للطالب (بيظهر للأدمن) - مرة كل 5 دقايق بالكتير عشان ميستهلكش عمليات كتابة
 async function updateStudentLastActive() {
     try {
         if (typeof db === 'undefined') return;
@@ -814,7 +779,6 @@ async function updateStudentLastActive() {
     }
 }
 
-// 🚨 نافذة تأكيد التسليم المنبثقة
 function createConfirmSubmitModal() {
     if (document.getElementById('submit-confirm-modal')) return;
     const modal = document.createElement('div');
@@ -849,10 +813,8 @@ function createConfirmSubmitModal() {
 }
 
 function setupAntiCheatListeners() {
-    // حفظ الإجابات فوراً قبل أي ريفريش أو قفل أو خروج من الصفحة
     window.addEventListener('pagehide', saveAllAnswersFromDOM);
 
-    // حفظ تلقائي احتياطي لأي اختيار/كتابة (شغال حتى لو نص الاختيار فيه علامات تنصيص)
     document.addEventListener('change', function (e) {
         const t = e.target;
         if (window.isExamRunning && t && t.type === 'radio' && /^q\d+$/.test(t.name) && t.closest('.single-question-card')) {
@@ -883,9 +845,6 @@ function setupAntiCheatListeners() {
     });
 }
 
-// ==========================================
-// 📚 جلب وعرض الاختبارات المخصصة
-// ==========================================
 async function loadAssignedExam() {
     const examsGrid = document.getElementById('assigned-exam-grid');
     const studentStage = localStorage.getItem("student_stage") || "";
@@ -923,16 +882,13 @@ async function loadAssignedExam() {
                 return false;
             }
 
-            // المسودات مخفية عن الطلاب
             if (exam.isPublished === false || exam.status === 'draft') return false;
 
-            // لسه ماوصلش موعد فتح الامتحان
             if (exam.scheduledAt) {
                 const openTime = new Date(exam.scheduledAt).getTime();
                 if (!isNaN(openTime) && now < openTime) return false;
             }
 
-            // موعد غلق الامتحان عدّى (والأدمن بيمسحه تلقائياً)
             if (exam.closesAt) {
                 const closeTime = new Date(exam.closesAt).getTime();
                 if (!isNaN(closeTime) && now >= closeTime) return false;
@@ -1047,7 +1003,6 @@ async function updateExamButtonsStatus() {
                             isSubmittedInDB = true;
                         } else {
                             isSubmittedInDB = false;
-                            // مهم: متمسحش إجابات الطالب لو الامتحان شغال دلوقتي (ريفريش بالغلط)
                             if (!isExamSessionActive(subjectKey)) {
                                 localStorage.removeItem('finished_' + subjectKey);
                                 localStorage.removeItem('saved_exam_answers_' + subjectKey);
@@ -1076,9 +1031,6 @@ async function updateExamButtonsStatus() {
     }
 }
 
-// ==========================================
-// 🔍 الاستعلام عن النتائج في كشف النتائج
-// ==========================================
 async function checkStudentResult() {
     const studentNameInput = document.getElementById("search-student-name");
     const studentCodeInput = document.getElementById("search-student-code");
@@ -1185,7 +1137,6 @@ async function checkStudentResult() {
                                     <div style="margin-top: 10px; font-size: 1.25rem; color: ${scoreColor}; font-weight: bold;">النسبة المئوية: %${percentage}</div>
                                 </div>
 
-                                <!-- 📝 إظهار الأسئلة وإجابة الطالب والنموذج الصحيح -->
                                 ${generateQuestionsReviewHtml(docData.answers, true)}
                             </div>
                         `;
@@ -1222,9 +1173,6 @@ async function checkStudentResult() {
     `;
 }
 
-// ==========================================
-// 🔄 التنقل بين التبويبات الثلاثة
-// ==========================================
 function switchTab(tab) {
     if (window.isExamRunning) {
         showCustomToast("⚠️ عذراً! لا يمكنك التنقل بين الأقسام أثناء أداء الامتحان.", "warning");
@@ -1232,6 +1180,7 @@ function switchTab(tab) {
     }
 
     const tabs = {
+        'courses': { btn: document.getElementById('tab-btn-courses'), sec: document.getElementById('courses-section') },
         'exams': { btn: document.getElementById('tab-btn-exams'), sec: document.getElementById('exams-section') },
         'units': { btn: document.getElementById('tab-btn-units'), sec: document.getElementById('units-section') },
         'results': { btn: document.getElementById('tab-btn-results'), sec: document.getElementById('results-section') },
@@ -1254,11 +1203,44 @@ function switchTab(tab) {
     if (tab === 'account') {
         updateProfileUI();
         syncAccountWithFirebase();
+        renderStudentPerformanceSummary();
+        renderSubscriptionsSection();
     }
 
     if (tab === 'units') {
         renderUnitsSection();
     }
+    if (tab === 'courses') renderCoursesSection();
+}
+
+// ✅ متوسّط النتائج بتصميم احترافي وألوان
+function renderStudentPerformanceSummary() {
+    const box = document.getElementById('student-performance-summary'); if (!box) return;
+    const rows = getStoredHistory().filter(r => r.canReview && Number(r.maxScoreNum) > 0);
+    if (!rows.length) {
+        box.style.display = 'block';
+        box.innerHTML = '📊 <b>متوسط نتائجك:</b> لم تُعتمد أي نتيجة بعد.';
+        return;
+    }
+    const avg = Math.round(rows.reduce((s, r) => s + (Number(r.scoreNum || 0) / Number(r.maxScoreNum || 1) * 100), 0) / rows.length);
+    const best = Math.max(...rows.map(r => Math.round(Number(r.scoreNum || 0) / Number(r.maxScoreNum || 1) * 100)));
+    let level, color, emoji;
+    if (avg >= 90)      { level = 'عاش يا وحش! ممتاز 🌟'; color = '#00f5d4'; emoji = '🏆'; }
+    else if (avg >= 85) { level = 'عاش يا بطل! ممتاز';    color = '#2ecc71'; emoji = '🥇'; }
+    else if (avg >= 75) { level = 'كويس جداً، استمر';      color = '#3498db'; emoji = '🥈'; }
+    else if (avg >= 60) { level = 'كويس، محتاج مراجعة';    color = '#f1c40f'; emoji = '🥉'; }
+    else                { level = 'محتاج مراجعة جادة 💪';  color = '#e74c3c'; emoji = '📚'; }
+
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-around;text-align:center;">
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">📊 متوسط نتائجك</div><div style="color:${color};font-size:2.2rem;font-weight:900;">${avg}%</div></div>
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">🏆 أعلى نتيجة</div><div style="color:#00f2fe;font-size:2.2rem;font-weight:900;">${best}%</div></div>
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">📝 عدد الامتحانات</div><div style="color:#fff;font-size:2.2rem;font-weight:900;">${rows.length}</div></div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;color:${color};font-weight:900;font-size:1.1rem;text-align:center;">
+        ${emoji} ${level}
+      </div>`;
 }
 
 async function resetPortalToStep1(subjectKey, type) {
@@ -1270,8 +1252,6 @@ async function resetPortalToStep1(subjectKey, type) {
     if (typeof db !== 'undefined' && (studentCode || studentFullName)) {
         const uniqueDocId = getUniqueDocId(studentCode || studentFullName, cleanSubjectKey);
 
-        // 🔒 قفل إعادة الامتحان: بيتسجل مرة واحدة عند التسليم ومبيتشالش إلا لو المعلم ضغط "إعادة الامتحان" من لوحة الأدمن.
-        // فحتى لو المعلم مسح إجابات الطالب من قايمة الطلاب، الامتحان يفضل مقفول له.
         try {
             const lockSnap = await db.collection("exam_locks").doc(uniqueDocId).get();
             if (lockSnap.exists) {
@@ -1337,10 +1317,11 @@ function startExamActual() {
     if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
     if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
     if (document.getElementById('units-section')) document.getElementById('units-section').style.display = 'none';
+    if (document.getElementById('courses-section')) document.getElementById('courses-section').style.display = 'none';
 
     window.isExamRunning = true;
     document.body.classList.add('exam-mode');
-    currentQuestionIndex = 0; // بدء الامتحان دائماً من السؤال الأول
+    currentQuestionIndex = 0;
 
     const examData = typeof dynamicExamsDatabase !== 'undefined' ? dynamicExamsDatabase[currentActiveSubject] : null;
     const durationInMinutes = (examData && examData.duration) ? examData.duration : DEFAULT_EXAM_DURATION;
@@ -1414,9 +1395,6 @@ function checkAndResumeRunningExam() {
     }
 }
 
-// ==========================================
-// 🎨 عرض الأسئلة وشريط الأرقام والتنقل الفردي
-// ==========================================
 function renderQuestions() {
     const container = document.getElementById('questions-container');
     const navBar = document.getElementById('questions-nav-bar');
@@ -1435,7 +1413,6 @@ function renderQuestions() {
         savedAnswers = {};
     }
 
-    // 1. توليد كروت الأسئلة داخل الحاوية
     let fullHtml = '';
     activeQuestionsList.forEach((q, qIndex) => {
         let isActive = (qIndex === currentQuestionIndex);
@@ -1484,7 +1461,6 @@ function renderQuestions() {
 
     container.innerHTML = fullHtml;
 
-    // 2. توليد شريط أرقام الأسئلة (1، 2، 3 ...)
     if (navBar) {
         navBar.innerHTML = activeQuestionsList.map((_, idx) => `
             <button type="button" id="q-nav-btn-${idx}" class="q-nav-btn ${idx === currentQuestionIndex ? 'active' : ''}" onclick="showQuestion(${idx})">
@@ -1495,15 +1471,11 @@ function renderQuestions() {
 
     if (footerNav) footerNav.style.display = 'flex';
 
-    // ظبط المساحة تحت الهيدر الثابت
     setupExamBarSpacing();
-
-    // 3. إظهار السؤال الحالي وتحديث العدادات
     showQuestion(currentQuestionIndex);
     updateExamProgressCounters();
 }
 
-// الهيدر بتاع الامتحان ثابت (fixed) فبنحسب ارتفاعه ونسيب مساحة بنفس الارتفاع تحته عشان ميغطيش على السؤال
 let examBarObserver = null;
 function setupExamBarSpacing() {
     const bar = document.querySelector('.exam-top-bar');
@@ -1525,12 +1497,10 @@ function setupExamBarSpacing() {
     }
 }
 
-// دالة الانتقال لسؤال محدد برقم المؤشر
 function showQuestion(index) {
     if (index < 0 || index >= activeQuestionsList.length) return;
     currentQuestionIndex = index;
 
-    // إخفاء كل الأسئلة وإظهار السؤال المحدد فقط
     activeQuestionsList.forEach((_, idx) => {
         const card = document.getElementById(`block-q${idx}`);
         const navBtn = document.getElementById(`q-nav-btn-${idx}`);
@@ -1544,7 +1514,6 @@ function showQuestion(index) {
         if (navBtn) {
             if (idx === index) {
                 navBtn.classList.add('active');
-                // خلّي الرقم الحالي ظاهر في الشريط (مهم لو الأسئلة كتيرة على الموبايل)
                 try { navBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (e) {}
             } else {
                 navBtn.classList.remove('active');
@@ -1552,12 +1521,10 @@ function showQuestion(index) {
         }
     });
 
-    // رجّع الصفحة لأول السؤال الجديد فوراً من غير حركة (الهيدر ثابت فوق)
     if (window.isExamRunning) {
         try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch (e) {}
     }
 
-    // تحديث أزرار التنقل السريع (السابق / التالي)
     const prevBtn = document.getElementById('prev-q-btn');
     const nextBtn = document.getElementById('next-q-btn');
     const indicator = document.getElementById('current-q-indicator');
@@ -1567,12 +1534,10 @@ function showQuestion(index) {
     if (indicator) indicator.textContent = `السؤال (${currentQuestionIndex + 1}) من (${activeQuestionsList.length})`;
 }
 
-// دالة التنقل بخطوة (1 للتالي و -1 للسابق)
 function navigateQuestion(step) {
     showQuestion(currentQuestionIndex + step);
 }
 
-// دالة تحديث عدادات الأسئلة المحلولة والمتبقية وتلوين الأرقام
 function updateExamProgressCounters() {
     let savedAnswers = {};
     try {
@@ -1606,11 +1571,9 @@ function updateExamProgressCounters() {
     if (solvedBadge) solvedBadge.textContent = solvedCount;
     if (remainingBadge) remainingBadge.textContent = remainingCount;
 
-    // شريط التقدم
     const progressFill = document.getElementById('exam-progress-fill');
     if (progressFill) progressFill.style.width = (total > 0 ? Math.round((solvedCount / total) * 100) : 0) + '%';
 
-    // رسالة تشجيع حسب تقدم الطالب
     const motivation = document.getElementById('exam-motivation');
     if (motivation) {
         let msg;
@@ -1637,14 +1600,9 @@ function autoSaveAnswer(questionKey, answerValue) {
     } catch(e) {
         console.warn("خطأ في الحفظ التلقائي:", e);
     }
-
-    // تحديث العدادات وشريط أرقام الأسئلة مباشرة فور اختيار الإجابة
     updateExamProgressCounters();
 }
 
-// ==========================================
-// ⏱️ دالة التايمر المربع في المنتصف
-// ==========================================
 function startTimer(targetEndTime) {
     clearInterval(timerInterval);
 
@@ -1679,7 +1637,6 @@ function startTimer(targetEndTime) {
             display.textContent = `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
         }
 
-        // تلوين التايمر: أصفر آخر 5 دقايق - أحمر آخر دقيقة
         const timerBox = document.querySelector('.exam-square-timer-box');
         if (timerBox) {
             timerBox.classList.toggle('danger', totalSecondsLeft <= 60);
@@ -1691,9 +1648,6 @@ function startTimer(targetEndTime) {
     timerInterval = setInterval(updateTimerDisplay, 1000);
 }
 
-// ==========================================
-// 🔍 الفحص قبل التسليم
-// ==========================================
 function submitExamWithCheck() {
     let unansweredIndices = [];
 
@@ -1712,9 +1666,7 @@ function submitExamWithCheck() {
     const modalText = document.getElementById('confirm-modal-text');
 
     if (unansweredIndices.length > 0) {
-        // الانتقال تلقائياً لأول سؤال غير محلول
         showQuestion(unansweredIndices[0] - 1);
-
         showCustomToast(`⚠️ تذكير: نسيت الإجابة على السؤال رقم (${unansweredIndices.join(' ، ')})!`, "warning");
 
         if (modalText) {
@@ -1739,11 +1691,7 @@ function confirmFinalSubmit() {
     calculateAndSend(true);
 }
 
-// ==========================================
-// 📤 تصحيح وتسليم الإجابات (تظهر "قيد التصحيح ⏳" لحين إظهارها من الأدمن)
-// ==========================================
 function calculateAndSend(bypassValidation = false) {
-    // لو الصفحة اتفتحت بعد انتهاء الوقت مفيش عناصر معروضة، فبنقرأ الإجابات المحفوظة من المتصفح
     let savedAnswersForSubmit = {};
     try {
         savedAnswersForSubmit = JSON.parse(localStorage.getItem('saved_exam_answers_' + currentActiveSubject) || '{}');
@@ -1824,7 +1772,6 @@ function calculateAndSend(bypassValidation = false) {
         });
     });
 
-    // لو الامتحان كله اختيارات: الدرجة بتظهر للطالب علطول. لو فيه مقالي: قيد التصحيح لحد ما المعلم يعتمد
     const hasEssay = answersForAdmin.some(a => a.type === "essay");
     const releaseNow = !hasEssay;
     const finalPercent = totalExamPointsPossible > 0 ? Math.round((mcqScoreObtained / totalExamPointsPossible) * 100) : 0;
@@ -1858,7 +1805,6 @@ function calculateAndSend(bypassValidation = false) {
         hour12: true
     });
 
-    // 🕒 وقت البدء الحقيقي (محفوظ لحظة ما الطالب بدأ الامتحان فعلياً) عشان نحسب منه المدة اللي استغرقها
     let realStartMs = null;
     try {
         const runningSession = JSON.parse(localStorage.getItem('active_running_exam_session') || 'null');
@@ -1872,7 +1818,6 @@ function calculateAndSend(bypassValidation = false) {
 
     const serialGenerated = Math.floor(10000 + Math.random() * 90000).toString();
 
-    // 🔒 حفظ النتيجة محلياً كـ "قيد التصحيح ⏳" وحجب الإجابات لحين تفعيلها من الأدمن
     let history = getStoredHistory();
     const newHistoryRecord = {
         id: `exam_${Date.now()}`,
@@ -1890,6 +1835,7 @@ function calculateAndSend(bypassValidation = false) {
         endTime: realEndFormatted,
         durationTaken: durationTaken,
         examId: currentActiveSubject,
+        courseId: window.currentCourseIdForExam || null,
         timestampMs: Date.now(),
         answers: answersForAdmin
     };
@@ -1913,6 +1859,7 @@ function calculateAndSend(bypassValidation = false) {
             examTitle: currentExamTitle,
             title: currentExamTitle,
             examCode: currentActiveSubject,
+            courseId: window.currentCourseIdForExam || null,
             examType: currentActiveType,
             mcqScore: mcqScoreObtained,
             score: mcqScoreObtained,
@@ -1928,7 +1875,7 @@ function calculateAndSend(bypassValidation = false) {
             hasSubmitted: true,
             isSubmitted: true,
             hasEssay: hasEssay,
-            showScore: releaseNow,      // اختيارات فقط: الدرجة تظهر علطول | فيه مقالي: قيد التصحيح لحد اعتماد المعلم
+            showScore: releaseNow,
             showResult: releaseNow,
             isResultVisible: releaseNow,
             submittedAt: currentFormattedTime,
@@ -1939,7 +1886,6 @@ function calculateAndSend(bypassValidation = false) {
             localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
             localStorage.removeItem('active_running_exam_session');
 
-            // نسخة دائمة من النتيجة لا يمسحها الأدمن
             archiveHistoryRecord(newHistoryRecord);
 
             showSubmissionResultModal({
@@ -1970,7 +1916,6 @@ function calculateAndSend(bypassValidation = false) {
     }
 }
 
-// 🏆 نافذة النتيجة بعد التسليم: الدرجة علطول لو اختيارات، أو "قيد التصحيح" لو فيه مقالي
 function showSubmissionResultModal(info) {
     const old = document.getElementById('submission-result-modal');
     if (old) old.remove();
@@ -2006,7 +1951,7 @@ function showSubmissionResultModal(info) {
             <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
             <div style="background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.4); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
                 <div style="color:#f1c40f; font-size: 1.4rem; font-weight: 900;">⏳ قيد التصحيح</div>
-                <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">الامتحان فيه أسئلة مقالية والمعلم هيراجعها. إجاباتك محفوظة وتقدر تشوفها من <strong>حسابي</strong> (من غير ما يبان الصح والغلط لحد ما النتيجة تتعتمد).</p>
+                <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">الامتحان فيه أسئلة مقالية والمعلم هيراجعها. إجاباتك محفوظة وتقدر تشوفها من <strong>حسابي</strong>.</p>
             </div>`;
 
     overlay.innerHTML = `
@@ -2028,9 +1973,6 @@ function closeSubmissionResultModal(openTab) {
     window.location.reload();
 }
 
-// ==========================================
-// 👑 دالة إعادة الامتحان للطالب من لوحة الأدمن
-// ==========================================
 async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode = "") {
     if (typeof db === 'undefined' || (!studentFullName && !studentCode) || !subjectKey) {
         showCustomToast("❌ بيانات الطالب أو الامتحان غير مكتملة!", "error");
@@ -2056,9 +1998,6 @@ async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode 
     }
 }
 
-// ==========================================
-// 🗑️ دالة مسح وحذف الامتحانات القديمة نهائياً (للأدمن)
-// ==========================================
 async function deleteOldExamsFromDB(daysOld = 30) {
     if (typeof db === 'undefined') return;
     try {
@@ -2087,13 +2026,12 @@ async function deleteOldExamsFromDB(daysOld = 30) {
 }
 
 // ==========================================
-// 📚 الوحدات والمحتوى التعليمي (ملفات + فيديوهات + امتحانات)
+// 📚 الوحدات والمحتوى التعليمي
 // ==========================================
 let studentUnitsCache = [];
 let examLockedIdsCache = new Set();
 let finishedExamStatsCache = new Map();
 
-// نتائج الامتحانات المتاحة للطالب (محلياً + احتياطي من الأرشيف لو فتح من جهاز تاني) - بنجيبها مرة واحدة بس
 async function loadFinishedExamStatsCache() {
     finishedExamStatsCache = new Map();
     getStoredHistory().forEach(r => { if (r.examId) finishedExamStatsCache.set(r.examId, r); });
@@ -2113,7 +2051,6 @@ async function loadFinishedExamStatsCache() {
 }
 let unitsCountdownTimer = null;
 
-// جلب أقفال إعادة الامتحان الخاصة بالطالب (امتحانات سبق له تسليمها فعلاً)
 async function loadExamLocksCache() {
     examLockedIdsCache = new Set();
     if (typeof db === 'undefined') return;
@@ -2127,7 +2064,6 @@ async function loadExamLocksCache() {
     }
 }
 
-// عداد تنازلي لموعد غلق الامتحان (يظهر للطالب فاضل كام يوم/ساعة/دقيقة)
 function formatCountdown(ms) {
     if (ms <= 0) return null;
     const totalMin = Math.floor(ms / 60000);
@@ -2154,7 +2090,6 @@ function tickUnitCountdowns() {
     });
 }
 
-// تحويل رابط الفيديو لرابط قابل للتضمين (يوتيوب / درايف / فيميو)
 function toEmbedUrl(url) {
     try {
         const u = new URL(url);
@@ -2221,12 +2156,117 @@ function openVideoModal(title, url) {
 
 function closeVideoModal() {
     const modal = document.getElementById('video-modal');
-    if (modal) modal.remove();   // حذف العنصر بيوقف الفيديو
+    if (modal) modal.remove();
 }
 
 function toggleUnitAccordion(unitId) {
     const acc = document.getElementById('unit-acc-' + unitId);
     if (acc) acc.classList.toggle('open');
+}
+
+// ==========================================
+// 🧩 عناصر مشتركة لعرض "الوحدة" (تستخدم في المحتوى العام وجوه الكورسات)
+// ==========================================
+const UNIT_ITEM_ICONS = { file: '📄', video: '▶️', exam: '📝' };
+const UNIT_ITEM_BTN_TEXT = { file: 'فتح الملف', video: 'مشاهدة', exam: 'ابدأ الامتحان' };
+
+function buildUnitItemRowHtml(it, openCallExpr) {
+    let label = UNIT_ITEM_BTN_TEXT[it.type] || 'فتح';
+    let disabled = false;
+    let reasonHtml = '';
+    let detailsHtml = '';
+    let rowExtraClass = '';
+    const desc = it.description || it.desc || '';
+
+    if (it.type === 'exam') {
+        const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
+        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId) || finishedExamStatsCache.has(it.examId);
+        const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
+        const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
+        const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
+
+        const statParts = [];
+        if (desc) statParts.push(`📝 ${escapeHtml(desc)}`);
+        if (examObj) {
+            statParts.push(`❓ عدد الأسئلة: ${(examObj.questions || []).length} سؤال`);
+            statParts.push(`⏱ مدة الامتحان: ${examObj.duration || 30} دقيقة`);
+        }
+        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
+
+        if (hasSubmitted) {
+            label = 'تم التسليم ✅';
+            disabled = true;
+            rowExtraClass = ' unit-row-done';
+
+            const stats = finishedExamStatsCache.get(it.examId);
+            if (stats) {
+                const released = stats.canReview === true;
+                const scoreChip = released
+                    ? `<div class="exam-result-chip score">🏆 <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
+                    : `<div class="exam-result-chip pending">⏳ <b>قيد التصحيح</b></div>`;
+                const metaChips = [];
+                if (stats.startTime) metaChips.push(`<span>🟢 بدأ: ${escapeHtml(stats.startTime)}</span>`);
+                if (stats.endTime) metaChips.push(`<span>🏁 سلّم: ${escapeHtml(stats.endTime)}</span>`);
+                if (stats.durationTaken) metaChips.push(`<span>⏱ المدة: ${escapeHtml(stats.durationTaken)}</span>`);
+                detailsHtml += `
+                    <div class="exam-result-panel">
+                        ${scoreChip}
+                        ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
+                        ${released && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')">📋 عرض تفاصيل الإجابة</button>` : ''}
+                    </div>`;
+            }
+        } else if (isHardClosed) {
+            label = '⚠️ أول إنذار';
+            disabled = true;
+            rowExtraClass = ' unit-row-locked';
+            reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;">🔒 الامتحان اتقفل ولم تقم بحله</div>`;
+        } else if (!available) {
+            label = 'غير متاح حالياً';
+            disabled = true;
+            const why = getExamUnavailableReason(it.examId);
+            if (why) reasonHtml = `<div class="unit-row-sub">${escapeHtml(why)}</div>`;
+        } else if (!isNaN(closeTs) && closeTs > Date.now()) {
+            detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}">⏳ يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
+        }
+    } else if (it.type === 'video') {
+        const viewKey = 'video_views_' + it.id;
+        const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
+        const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
+
+        const statParts = [];
+        if (desc) statParts.push(`📝 ${escapeHtml(desc)}`);
+        if (it.durationMin) statParts.push(`⏱ مدة الفيديو: ${it.durationMin} دقيقة`);
+        if (remaining !== null) statParts.push(`👁 المشاهدات المتبقية لك: ${remaining}`);
+        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
+
+        if (remaining === 0) { label = 'انتهت مرات المشاهدة'; disabled = true; }
+    } else if (desc) {
+        detailsHtml = `<div class="unit-row-stats"><span>📝 ${escapeHtml(desc)}</span></div>`;
+    }
+
+    return `
+        <div class="unit-row unit-row-${it.type}${rowExtraClass}">
+            <div class="unit-row-icon">${UNIT_ITEM_ICONS[it.type] || '📌'}</div>
+            <div class="unit-row-main">
+                <div class="unit-row-title">${escapeHtml(it.title)}${reasonHtml}</div>
+                ${detailsHtml}
+            </div>
+            <button class="unit-row-btn" ${disabled ? 'disabled' : ''} onclick="${openCallExpr}">${label}</button>
+        </div>
+    `;
+}
+
+function buildUnitAccordionHtml(unit, idx, rowsHtml) {
+    return `
+        <div class="unit-acc ${idx === 0 ? 'open' : ''}" id="unit-acc-${unit.id}">
+            <button class="unit-acc-head" onclick="toggleUnitAccordion('${unit.id}')">
+                <span class="unit-acc-chevron">⌄</span>
+                <span class="unit-acc-title">${escapeHtml(unit.title)}</span>
+                <span class="unit-acc-count">${(Array.isArray(unit.items) ? unit.items.length : 0)}</span>
+            </button>
+            <div class="unit-acc-body">${rowsHtml}</div>
+        </div>
+    `;
 }
 
 async function renderUnitsSection() {
@@ -2242,7 +2282,6 @@ async function renderUnitsSection() {
 
     box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'>⏳ جاري تحميل المحتوى...</p>";
 
-    // نستنى تحميل الامتحانات الأول عشان نعرف أنهي امتحان متاح للطالب
     try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
     await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
 
@@ -2264,107 +2303,12 @@ async function renderUnitsSection() {
             return;
         }
 
-        const icons = { file: '📄', video: '▶️', exam: '📝' };
-        const btnText = { file: 'فتح الملف', video: 'مشاهدة', exam: 'ابدأ الامتحان' };
-
         box.innerHTML = units.map((unit, idx) => {
             const items = Array.isArray(unit.items) ? unit.items : [];
-
             const rows = items.length === 0
                 ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
-                : items.map(it => {
-                    let label = btnText[it.type] || 'فتح';
-                    let disabled = false;
-
-                    let reasonHtml = '';
-                    let detailsHtml = '';
-                    let rowExtraClass = '';
-
-                    if (it.type === 'exam') {
-                        const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
-                        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId) || finishedExamStatsCache.has(it.examId);
-                        const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
-                        const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
-                        const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
-
-                        const statParts = [];
-                        if (it.desc) statParts.push(`📝 ${escapeHtml(it.desc)}`);
-                        if (examObj) {
-                            statParts.push(`❓ عدد الأسئلة: ${(examObj.questions || []).length} سؤال`);
-                            statParts.push(`⏱ مدة الامتحان: ${examObj.duration || 30} دقيقة`);
-                        }
-                        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
-
-                        if (hasSubmitted) {
-                            label = 'تم التسليم ✅';
-                            disabled = true;
-                            rowExtraClass = ' unit-row-done';
-
-                            const stats = finishedExamStatsCache.get(it.examId);
-                            if (stats) {
-                                const released = stats.canReview === true;
-                                const scoreChip = released
-                                    ? `<div class="exam-result-chip score">🏆 <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
-                                    : `<div class="exam-result-chip pending">⏳ <b>قيد التصحيح</b></div>`;
-                                const metaChips = [];
-                                if (stats.startTime) metaChips.push(`<span>🟢 بدأ: ${escapeHtml(stats.startTime)}</span>`);
-                                if (stats.endTime) metaChips.push(`<span>🏁 سلّم: ${escapeHtml(stats.endTime)}</span>`);
-                                if (stats.durationTaken) metaChips.push(`<span>⏱ المدة: ${escapeHtml(stats.durationTaken)}</span>`);
-                                detailsHtml += `
-                                    <div class="exam-result-panel">
-                                        ${scoreChip}
-                                        ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
-                                    </div>`;
-                            }
-                        } else if (isHardClosed) {
-                            label = '⚠️ أول إنذار';
-                            disabled = true;
-                            rowExtraClass = ' unit-row-locked';
-                            reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;">🔒 الامتحان اتقفل ولم تقم بحله</div>`;
-                        } else if (!available) {
-                            label = 'غير متاح حالياً';
-                            disabled = true;
-                            const why = getExamUnavailableReason(it.examId);
-                            if (why) reasonHtml = `<div class="unit-row-sub">${escapeHtml(why)}</div>`;
-                        } else if (!isNaN(closeTs) && closeTs > Date.now()) {
-                            detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}">⏳ يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
-                        }
-                    } else if (it.type === 'video') {
-                        const viewKey = 'video_views_' + it.id;
-                        const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
-                        const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
-
-                        const statParts = [];
-                        if (it.desc) statParts.push(`📝 ${escapeHtml(it.desc)}`);
-                        if (it.durationMin) statParts.push(`⏱ مدة الفيديو: ${it.durationMin} دقيقة`);
-                        if (remaining !== null) statParts.push(`👁 المشاهدات المتبقية لك: ${remaining}`);
-                        if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
-
-                        if (remaining === 0) { label = 'انتهت مرات المشاهدة'; disabled = true; }
-                    }
-
-                    return `
-                        <div class="unit-row unit-row-${it.type}${rowExtraClass}">
-                            <div class="unit-row-icon">${icons[it.type] || '📌'}</div>
-                            <div class="unit-row-main">
-                                <div class="unit-row-title">${escapeHtml(it.title)}${reasonHtml}</div>
-                                ${detailsHtml}
-                            </div>
-                            <button class="unit-row-btn" ${disabled ? 'disabled' : ''} onclick="openUnitItem('${unit.id}', '${it.id}')">${label}</button>
-                        </div>
-                    `;
-                }).join('');
-
-            return `
-                <div class="unit-acc ${idx === 0 ? 'open' : ''}" id="unit-acc-${unit.id}">
-                    <button class="unit-acc-head" onclick="toggleUnitAccordion('${unit.id}')">
-                        <span class="unit-acc-chevron">⌄</span>
-                        <span class="unit-acc-title">${escapeHtml(unit.title)}</span>
-                        <span class="unit-acc-count">${items.length}</span>
-                    </button>
-                    <div class="unit-acc-body">${rows}</div>
-                </div>
-            `;
+                : items.map(it => buildUnitItemRowHtml(it, `openUnitItem('${unit.id}', '${it.id}')`)).join('');
+            return buildUnitAccordionHtml(unit, idx, rows);
         }).join('');
 
         clearInterval(unitsCountdownTimer);
@@ -2375,7 +2319,6 @@ async function renderUnitsSection() {
     }
 }
 
-// ليه الامتحان مش متاح؟ (بيظهر تحت اسم الامتحان في الوحدة)
 function getExamUnavailableReason(examId) {
     const list = window.__allExamsRaw;
     if (!Array.isArray(list)) return "";
@@ -2421,6 +2364,226 @@ function openUnitItem(unitId, itemId) {
         openVideoModal(it.title, it.url);
         renderUnitsSection();
     } else if (it.type === 'exam') {
+        window.currentCourseIdForExam = null;
         resetPortalToStep1(it.examId, 'exam');
     }
+}
+
+// ==========================================
+// 🎓 نظام الكورسات والاشتراكات
+// ==========================================
+let coursesCache = [];
+let subscriptionsCache = new Map();
+let activeCourseId = null;
+
+function currentStudentIdentity() {
+    return (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || localStorage.getItem('student_fullname') || '').trim();
+}
+function courseSubscriptionId(courseId) { return getUniqueDocId(currentStudentIdentity(), courseId); }
+
+async function loadCourseData() {
+    if (typeof db === 'undefined' || !currentStudentIdentity()) return;
+    const [coursesSnap, subsSnap] = await Promise.all([
+        db.collection('courses').get(),
+        db.collection('course_enrollments').where('studentKey', '==', currentStudentIdentity()).get()
+    ]);
+    coursesCache = coursesSnap.docs.map(d => ({id:d.id, ...d.data()}));
+    subscriptionsCache = new Map(subsSnap.docs.map(d => [d.data().courseId, {id:d.id, ...d.data()}]));
+}
+
+function courseMatchesStudent(course) {
+    const stage = localStorage.getItem('student_stage') || '';
+    return course.isPublished !== false && (!course.grade || course.grade === 'الكل' || course.grade === 'كل الصفوف' || !stage || course.grade === stage);
+}
+
+// ✅ عرض الكورسات مع علامة ✓ على الصورة بعد الاشتراك
+async function renderCoursesSection() {
+    const box = document.getElementById('courses-list'); if (!box) return;
+    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);">⏳ جاري تحميل الكورسات...</p>';
+    try {
+        await loadCourseData();
+        const courses = coursesCache.filter(courseMatchesStudent);
+        if (!courses.length) {
+            box.innerHTML = '<p style="text-align:center;color:var(--text-sub);padding:30px;">لا توجد كورسات متاحة لصفك حالياً.</p>';
+            return;
+        }
+        box.innerHTML = `<div class="courses-grid">${courses.map(c => {
+            const enrolled = subscriptionsCache.has(c.id);
+            return `<article class="course-card" style="position:relative;">
+                ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;">✓</span>' : ''}
+                ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;">🎓</div>'}
+                <div class="course-body">
+                  ${enrolled ? '<span class="course-status">✓ مشترك في الكورس</span>' : ''}
+                  <div class="course-grade">${escapeHtml(c.grade || 'كل الصفوف')}</div>
+                  <h3>${escapeHtml(c.title || 'كورس بدون اسم')}</h3>
+                  <p>${escapeHtml(c.description || 'محتوى تعليمي متكامل: فيديوهات وملفات وامتحانات.')}</p>
+                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '🎯 دخول الكورس' : '📌 اشترك في الكورس'}</button>
+                </div>
+            </article>`;
+        }).join('')}</div>`;
+    } catch (e) {
+        box.innerHTML = '<p style="text-align:center;color:#ff718d;">تعذر تحميل الكورسات.</p>';
+    }
+}
+
+// ✅ اشتراك مع مودال تأكيد
+async function requestCourseSubscription(courseId) {
+    const course = coursesCache.find(c => c.id === courseId); if (!course) return;
+    showSubscriptionConfirmModal(course, async () => {
+        try {
+            const key = currentStudentIdentity();
+            await db.collection('course_enrollments').doc(courseSubscriptionId(courseId)).set({
+                courseId,
+                studentKey: key,
+                studentName: localStorage.getItem('student_fullname') || '',
+                studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
+                grade: localStorage.getItem('student_stage') || '',
+                enrolledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                source: 'student'
+            }, { merge: true });
+            showCustomToast('🎉 تم الاشتراك بنجاح! يمكنك دخول الكورس الآن.', 'success');
+            await renderCoursesSection();
+        } catch (e) {
+            showCustomToast('تعذر إتمام الاشتراك. تأكد من إعداد صلاحيات قاعدة البيانات.', 'error');
+        }
+    });
+}
+
+// ✅ مودال تأكيد الاشتراك
+function showSubscriptionConfirmModal(course, onConfirm) {
+    const old = document.getElementById('sub-confirm-modal'); if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sub-confirm-modal';
+    modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:100000;padding:16px;direction:rtl;font-family:'Cairo',sans-serif;`;
+    modal.innerHTML = `
+      <div style="background:linear-gradient(145deg,#1a2340,#0e1424);border:1px solid rgba(0,242,254,0.35);border-radius:22px;padding:28px 24px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+        <div style="font-size:3rem;margin-bottom:10px;">🎓</div>
+        <h3 style="color:#00f2fe;margin-bottom:8px;font-size:1.35rem;">تأكيد الاشتراك في الكورس</h3>
+        <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin:16px 0;text-align:right;">
+          <p style="color:#fff;font-weight:800;margin-bottom:6px;">📚 ${escapeHtml(course.title)}</p>
+          <p style="color:#94a3b8;font-size:0.85rem;line-height:1.8;margin:0;">${escapeHtml(course.description || 'كورس تعليمي متكامل')}</p>
+        </div>
+        <div style="background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:12px;padding:12px;margin-bottom:18px;text-align:right;">
+          <p style="color:#f1c40f;font-weight:800;font-size:0.9rem;margin:0 0 6px;">⚠️ يرجى قراءة التعليمات جيداً:</p>
+          <ul style="color:#cbd5e1;font-size:0.83rem;line-height:1.9;margin:0;padding-inline-start:20px;">
+            <li>الاشتراك يمنحك وصولاً كاملاً لمحتوى الكورس.</li>
+            <li>عدد مشاهدات الفيديو محدود حسب إعدادات المعلم.</li>
+            <li>الامتحانات لا يمكن إعادتها بعد التسليم.</li>
+          </ul>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button id="sub-confirm-yes" style="flex:1;padding:14px;background:linear-gradient(135deg,#00c896,#00b4d8);color:#000;border:none;border-radius:14px;font-weight:900;cursor:pointer;font-family:inherit;font-size:1rem;">✅ تأكيد</button>
+          <button id="sub-confirm-no" style="flex:1;padding:14px;background:#334155;color:#fff;border:none;border-radius:14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:1rem;">✖ لا / إلغاء</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('sub-confirm-yes').onclick = () => { modal.remove(); onConfirm(); };
+    document.getElementById('sub-confirm-no').onclick = () => modal.remove();
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+async function renderSubscriptionsSection() {
+    const box = document.getElementById('subscriptions-list'); if (!box) return;
+    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);">⏳ جاري تحميل اشتراكاتك...</p>';
+    try { await loadCourseData(); const mine = coursesCache.filter(c => subscriptionsCache.has(c.id));
+        if (!mine.length) { box.innerHTML = '<div class="subscription-summary">لم تشترك في أي كورس بعد. اختَر كورساً من صفحة «الكورسات».</div>'; return; }
+        box.innerHTML = `<div class="subscription-summary">أنت مشترك في <b>${mine.length}</b> كورس. علامة ✓ بجوار الكورس تؤكد اشتراكك.</div><div class="courses-grid">${mine.map(c => `<article class="course-card" style="position:relative;">${c.image ? `<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;border:2px solid #fff;">✓</span>` : ''}<div class="course-body"><span class="course-status">✓ اشتراك نشط</span><div class="course-grade">${escapeHtml(c.grade || '')}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description || '')}</p><button class="course-btn" onclick="enterCourse('${c.id}')">دخول الكورس ←</button></div></article>`).join('')}</div>`;
+    } catch(e) { box.innerHTML = '<p style="color:#ff718d;text-align:center;">تعذر تحميل الاشتراكات.</p>'; }
+}
+
+async function enterCourse(courseId) {
+    if (!subscriptionsCache.has(courseId)) { await loadCourseData(); if (!subscriptionsCache.has(courseId)) return requestCourseSubscription(courseId); }
+    activeCourseId = courseId;
+    switchTab('units');
+}
+
+// ✅ داخل الكورس: عرض الوحدات (وحدة أولى/ثانية/...) وكل وحدة فيها فيديوهات وملفات وامتحانات + الدرجة وتفاصيل الإجابة مباشرة
+const originalRenderUnitsSection = renderUnitsSection;
+renderUnitsSection = async function() {
+    if (!activeCourseId) {
+        const banner = document.getElementById('active-course-banner');
+        if (banner) {
+            try {
+                await loadCourseData();
+                const myCourses = coursesCache.filter(c => subscriptionsCache.has(c.id));
+                // لو الطالب مشترك في كورس واحد بس، ادخله عليه طوالي بدل ما يدوس "دخول الكورس" تاني
+                if (myCourses.length === 1) {
+                    activeCourseId = myCourses[0].id;
+                    return renderUnitsSection();
+                }
+                banner.innerHTML = myCourses.length
+                    ? `<div class="course-hero"><div><small>الكورسات المشترك فيها</small><h3>${myCourses.map(c => `<span style="cursor:pointer;text-decoration:underline;" onclick="enterCourse('${c.id}')">${escapeHtml(c.title)}</span>`).join(' • ')}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="switchTab('courses')">عرض الكورسات</button></div>`
+                    : '';
+            } catch (e) { banner.innerHTML = ''; }
+        }
+        return originalRenderUnitsSection();
+    }
+
+    const box = document.getElementById('units-list');
+    if (!box) return;
+    clearInterval(unitsCountdownTimer);
+
+    try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
+    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
+    await loadCourseData();
+
+    const course = coursesCache.find(c => c.id === activeCourseId);
+    if (!course || !subscriptionsCache.has(course.id)) { activeCourseId = null; return renderUnitsSection(); }
+
+    const banner = document.getElementById('active-course-banner');
+    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3>🎓 ${escapeHtml(course.title)}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
+
+    const units = (course.units || []).filter(u => u.isPublished !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    if (!units.length) {
+        box.innerHTML = '<div class="unit-row-empty">سيتم إضافة محتوى الكورس قريباً.</div>';
+        return;
+    }
+
+    box.innerHTML = units.map((unit, idx) => {
+        const items = Array.isArray(unit.items) ? unit.items : [];
+        const rows = items.length === 0
+            ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
+            : items.map(it => buildUnitItemRowHtml(it, `openCourseUnitItem('${course.id}', '${unit.id}', '${it.id}')`)).join('');
+        return buildUnitAccordionHtml(unit, idx, rows);
+    }).join('');
+
+    clearInterval(unitsCountdownTimer);
+    unitsCountdownTimer = setInterval(tickUnitCountdowns, 30000);
+};
+
+function exitCourse() { activeCourseId = null; renderUnitsSection(); }
+
+function openCourseUnitItem(courseId, unitId, itemId) {
+    const course = coursesCache.find(c => c.id === courseId);
+    if (!course) return;
+    const unit = (course.units || []).find(u => u.id === unitId);
+    if (!unit) return;
+    const it = (unit.items || []).find(x => x.id === itemId);
+    if (!it) return;
+
+    if (it.type === 'file') {
+        window.open(it.url, '_blank', 'noopener');
+        recordCourseActivity(courseId, it, 'opened');
+    } else if (it.type === 'video') {
+        const viewKey = 'video_views_' + it.id;
+        const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
+        if (it.maxViews && watched >= it.maxViews) {
+            showCustomToast("🔒 خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
+            return;
+        }
+        localStorage.setItem(viewKey, String(watched + 1));
+        openVideoModal(it.title, it.url);
+        recordCourseActivity(courseId, it, 'watched');
+        renderUnitsSection();
+    } else if (it.type === 'exam') {
+        window.currentCourseIdForExam = courseId;
+        resetPortalToStep1(it.examId, 'exam');
+    }
+}
+
+function recordCourseActivity(courseId,item,action) {
+    if (typeof db === 'undefined') return;
+    const key = currentStudentIdentity(); if (!key) return;
+    db.collection('course_activity').doc(getUniqueDocId(key, courseId + '_' + item.id)).set({courseId,itemId:item.id,itemTitle:item.title,itemType:item.type,action,studentKey:key,studentName:localStorage.getItem('student_fullname')||'',studentCode:localStorage.getItem('student_code')||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
 }
