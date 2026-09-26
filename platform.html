@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         /* ================= 0. المتغيرات والتنسيق العام ================= */
@@ -497,7 +498,7 @@
         /* الكورسات والاشتراكات */
         .courses-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:22px; }
         .course-card { overflow:hidden; border-radius:22px; background:linear-gradient(145deg,#182238,#0c1220); border:1px solid rgba(0,242,254,.18); box-shadow:0 14px 30px rgba(0,0,0,.24); }
-        .course-cover { height:150px; width:100%; object-fit:cover; background:#172033; display:block; }
+        .course-cover { width:100%; aspect-ratio:16/9; height:auto; object-fit:contain; background:#0c1220; display:block; }
         .course-body { padding:18px; }
         .course-grade { color:var(--accent-cyan); font-size:.82rem; font-weight:800; }
         .course-body h3 { margin:7px 0; font-size:1.2rem; }
@@ -654,7 +655,7 @@
             font-size: 1.3rem;
         }
 
-        /* ⏱️ التايمر المربع في المنتصف البارز */
+        /* <i class="fas fa-stopwatch"></i> التايمر المربع في المنتصف البارز */
         .exam-square-timer-box {
             width: 84px;
             height: 76px;
@@ -769,7 +770,7 @@
             transition: opacity 0.3s ease;
         }
 
-        /* 🔢 شريط أرقام الأسئلة (1، 2، 3 ...) */
+        /* <i class="fas fa-list-ol"></i> شريط أرقام الأسئلة (1، 2، 3 ...) */
         .questions-nav-strip {
             display: flex;
             gap: 10px;
@@ -1126,7 +1127,7 @@
             box-shadow: none;
         }
 
-        /* 📱 الموبايل: هيدر مضغوط في صف واحد + أرقام قابلة للسحب */
+        /* <i class="fas fa-mobile-screen"></i> الموبايل: هيدر مضغوط في صف واحد + أرقام قابلة للسحب */
         @media (max-width: 640px) {
             body.exam-mode .main-content { padding: 0 10px 30px !important; }
 
@@ -1491,7 +1492,7 @@
             .sidebar-menu li { font-size: 0.66rem; padding: 8px 2px; }
             .section-title { font-size: 1.12rem; margin-bottom: 14px; }
             .section-title::after { display: none; }
-            .course-cover { height: 120px; }
+            .course-cover { aspect-ratio:16/9; height:auto; }
             .course-body { padding: 14px; }
             .course-body h3 { font-size: 1.05rem; }
             .course-body p { min-height: auto; }
@@ -1506,12 +1507,12 @@
 </head>
 <body>
 
-<!-- ⏱️ التايمر العائم -->
+<!-- <i class="fas fa-stopwatch"></i> التايمر العائم -->
 <div id="timer-banner" class="exam-timer">
-    ⏱️ الوقت المتبقي: <span style="color: #fff; font-weight: 900;">00:00</span>
+    <i class="fas fa-stopwatch"></i> الوقت المتبقي: <span style="color: #fff; font-weight: 900;">00:00</span>
 </div>
 
-<!-- 🔍 نافذة تكبير الصور ملء الشاشة -->
+<!-- <i class="fas fa-magnifying-glass"></i> نافذة تكبير الصور ملء الشاشة -->
 <div id="image-modal" class="image-modal">
     <span class="close-img-modal" id="close-img-modal">&times;</span>
     <img id="modal-img-src" src="" alt="تكبير الصورة">
@@ -1523,16 +1524,16 @@
         <h2>منصة القيصر</h2>
 
         <div class="user-box">
-            <span style="font-size: 0.8rem; color: var(--text-sub); display: block; margin-bottom: 4px;">مرحباً بك مجدداً 👋</span>
+            <span style="font-size: 0.8rem; color: var(--text-sub); display: block; margin-bottom: 4px;">مرحباً بك مجدداً <i class="fas fa-hand"></i></span>
             <h3 id="user-display-name" style="color: var(--accent-cyan); margin: 0; font-size: 1.15rem; font-weight: 800;">
                 جاري التحميل...
             </h3>
         </div>
 
         <ul class="sidebar-menu">
-            <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true">🎓</span> الكورسات</li>
+            <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true"><i class="fas fa-graduation-cap"></i></span> الكورسات</li>
             <li class="active" id="tab-btn-units" onclick="switchTab('units')">
-                <span aria-hidden="true">📚</span>
+                <span aria-hidden="true"><i class="fas fa-book"></i></span>
                 <!-- emoji menu icon -->
                 <svg style="display:none" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -1541,7 +1542,7 @@
                 المحتوى التعليمي
             </li>
             <li id="tab-btn-account" onclick="switchTab('account')">
-                <span aria-hidden="true">👤</span>
+                <span aria-hidden="true"><i class="fas fa-user"></i></span>
                 <svg style="display:none" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
@@ -1557,14 +1558,14 @@
 
     <!-- الكورسات: تظهر قبل المحتوى العلمي -->
     <div id="courses-section" style="display:none;">
-        <h2 class="section-title">🎓 الكورسات</h2>
+        <h2 class="section-title"><i class="fas fa-graduation-cap"></i> الكورسات</h2>
         <div id="courses-list"></div>
     </div>
 
     <!-- 1. قسم الاختبارات المتاحة -->
     <!-- قسم الاختبارات: مخفي دايماً. الامتحانات دلوقتي بتتفتح من جوه الوحدات في "المحتوى التعليمي" -->
     <div id="exams-section" style="display: none !important;">
-        <h2 class="section-title">📚 الاختبارات التفاعلية</h2>
+        <h2 class="section-title"><i class="fas fa-book"></i> الاختبارات التفاعلية</h2>
         <div class="grid-container" id="assigned-exam-grid">
             <p style="text-align: center; color: var(--text-sub); grid-column: 1/-1;">جاري تحميل الامتحانات المخصصة لك...</p>
         </div>
@@ -1572,7 +1573,7 @@
 
     <!-- قسم المحتوى التعليمي (وحدات: ملفات + فيديوهات + امتحانات) -->
     <div id="units-section">
-        <h2 class="section-title">📚 المحتوى التعليمي</h2>
+        <h2 class="section-title"><i class="fas fa-book"></i> المحتوى التعليمي</h2>
         <div id="active-course-banner"></div>
         <div id="units-list"></div>
     </div>
@@ -1581,20 +1582,20 @@
     <!-- 2. قسم كشف النتائج -->
     <!-- قسم كشف النتائج: مخفي دايماً (النتائج بتظهر للطالب في "حسابي") -->
     <div id="results-section" style="display: none !important;">
-        <h2 class="section-title">📊 الاستعلام عن حالة الامتحان</h2>
+        <h2 class="section-title"><i class="fas fa-chart-column"></i> الاستعلام عن حالة الامتحان</h2>
 
         <div class="result-inputs-box">
             <label style="display: block; margin-bottom: 10px; font-weight: bold; color: var(--accent-cyan);">
-                🔍 البحث عن حالة إجابة الطالب:
+                <i class="fas fa-magnifying-glass"></i> البحث عن حالة إجابة الطالب:
             </label>
             <input type="text" id="search-student-name" placeholder="اكتب اسم الطالب هنا...">
             
             <label style="display: block; margin-bottom: 10px; font-weight: bold; color: var(--accent-cyan);">
-                🔑 كود الطالب <span style="color: var(--accent-red);">* (إجباري)</span>:
+                <i class="fas fa-key"></i> كود الطالب <span style="color: var(--accent-red);">* (إجباري)</span>:
             </label>
             <input type="text" id="search-student-code" placeholder="أدخل كود الطالب..." required>
 
-            <button class="btn btn-result-card" onclick="checkStudentResult()">استعلام عن النتيجة 🔍</button>
+            <button class="btn btn-result-card" onclick="checkStudentResult()">استعلام عن النتيجة <i class="fas fa-magnifying-glass"></i></button>
         </div>
 
         <div id="result-display-box"></div>
@@ -1602,7 +1603,7 @@
 
     <!-- 3. قسم حسابي (الاسم والصف وزر النتائج فقط، مع عرض درجات الطالب الحقيقية) -->
     <div id="account-section" style="display: none;">
-        <h2 class="section-title">👤 حسابي</h2>
+        <h2 class="section-title"><i class="fas fa-user"></i> حسابي</h2>
 
         <div class="account-container">
             
@@ -1630,11 +1631,11 @@
                             </svg>
                             نتائج الامتحانات
                         </span>
-                        <span>❯</span>
+                        <span><i class="fas fa-chevron-left"></i></span>
                     </button>
                 </div>
                 <div style="margin-top:20px;text-align:right;">
-                    <h3 style="font-size:1.05rem;color:var(--accent-cyan);margin-bottom:12px;">✅ اشتراكاتي</h3>
+                    <h3 style="font-size:1.05rem;color:var(--accent-cyan);margin-bottom:12px;"><i class="fas fa-circle-check"></i> اشتراكاتي</h3>
                     <div id="subscriptions-list"></div>
                 </div>
             </div>
@@ -1709,7 +1710,7 @@
             <!-- 3. زر تسليم الإجابات في الأعلى -->
             <div class="exam-submit-wrap">
                 <button id="submit-btn" class="btn btn-submit-top" onclick="submitExamWithCheck()">
-                    تسليم الامتحان 📤
+                    تسليم الامتحان <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
 
@@ -1718,7 +1719,7 @@
         </div>
 
         <!-- رسالة تشجيع هادئة بتتغير حسب تقدم الطالب -->
-        <div class="exam-motivation" id="exam-motivation">ابدأ بهدوء وتركيز… إنت مذاكر وقادر تحلها 💪</div>
+        <div class="exam-motivation" id="exam-motivation">ابدأ بهدوء وتركيز… إنت مذاكر وقادر تحلها <i class="fas fa-hand-fist"></i></div>
 
         <!-- أرقام الانتقال بين الأسئلة (1 ، 2 ، 3 ...) بدون كتابة أي كلمة خريطة -->
         <div class="questions-nav-strip" id="questions-nav-bar"></div>
@@ -1734,9 +1735,9 @@
             
             <!-- أزرار التنقل السريع (السابق / التالي) أسفل السؤال -->
             <div class="exam-footer-nav" id="exam-footer-nav" style="display: none;">
-                <button class="btn-nav-step" id="prev-q-btn" onclick="navigateQuestion(-1)">➔ السؤال السابق</button>
+                <button class="btn-nav-step" id="prev-q-btn" onclick="navigateQuestion(-1)"><i class="fas fa-arrow-left"></i> السؤال السابق</button>
                 <span id="current-q-indicator" style="font-weight: 800; color: var(--accent-cyan); font-size: 1.05rem;"></span>
-                <button class="btn-nav-step" id="next-q-btn" onclick="navigateQuestion(1)">السؤال التالي ⬅</button>
+                <button class="btn-nav-step" id="next-q-btn" onclick="navigateQuestion(1)">السؤال التالي <i class="fas fa-arrow-left"></i></button>
             </div>
         </div>
     </div>
@@ -1751,11 +1752,11 @@
             <p style="margin-bottom: 20px; line-height: 1.6; font-size: 0.95rem; color: var(--text-sub);">
                 يرجى عدم إغلاق المتصفح أثناء الاختبار. ستبدأ حاسبة الوقت تلقائياً عند الضغط على زر البدء.
             </p>
-            <button class="btn btn-glow" onclick="showInstructionsPage()">موافق والمتابعة ➔</button>
+            <button class="btn btn-glow" onclick="showInstructionsPage()">موافق والمتابعة <i class="fas fa-arrow-left"></i></button>
         </div>
         <div id="step-2" style="display:none;">
             <h3 style="color: var(--accent-green); margin-bottom: 15px;">هل أنت جاهز للبدء؟</h3>
-            <button class="btn btn-submit-top" style="width: 100%;" onclick="startExamActual()">ابدأ الامتحان الآن 🚀</button>
+            <button class="btn btn-submit-top" style="width: 100%;" onclick="startExamActual()">ابدأ الامتحان الآن <i class="fas fa-rocket"></i></button>
         </div>
     </div>
 </div>

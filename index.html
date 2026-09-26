@@ -432,6 +432,52 @@
             box-shadow: 0 2px 10px rgba(0, 210, 255, 0.5);
         }
 
+        .top-nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .top-signup-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            min-height: 42px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 800;
+            font-size: 0.92rem;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .top-signup-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(34, 197, 94, 0.5);
+        }
+
+        @media (min-width: 480px) {
+            .top-signup-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 22px rgba(34, 197, 94, 0.55);
+            }
+        }
+
+        @media (max-width: 360px) {
+            .top-signup-btn { padding: 9px 14px; font-size: 0.85rem; }
+            .top-signup-btn span { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .top-signup-btn span { display: none; }
+        }
+
         @media (min-width: 480px) {
             .top-login-btn:hover {
                 transform: translateY(-2px);
@@ -899,10 +945,16 @@
         <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار القيصر">
         <span>القيصر</span>
     </div>
-    <button id="top-login-btn" class="top-login-btn">
-        <i class="fas fa-right-to-bracket"></i>
-        <span>تسجيل الدخول</span>
-    </button>
+    <div class="top-nav-actions">
+        <button id="top-signup-btn" class="top-signup-btn">
+            <i class="fas fa-user-plus"></i>
+            <span>حساب جديد</span>
+        </button>
+        <button id="top-login-btn" class="top-login-btn">
+            <i class="fas fa-right-to-bracket"></i>
+            <span>تسجيل الدخول</span>
+        </button>
+    </div>
 </header>
 
 <!-- إشعار الترحيب بالأمان (Toast) -->
@@ -934,17 +986,7 @@
             <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="platform-img">
         </div>
 
-        <div class="news-ticker">
-            <span class="news-badge">📢 تنبيه</span>
-            <span class="news-text">أدخل اسمك كما هو مسجل لدى المعلم والكود الخاص بك للدخول.</span>
-        </div>
-
         <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
-
-        <!-- 🖼️ بانر عريض (زي صورة المعلمين) -->
-        <div class="hero-banner-wrap">
-            <img src="https:cdn.phototourl.com/free/2026-09-22-af183b9d-ee2e-4719-85a7-5e4a843f1a5d." alt="بانر منصة القيصر" class="hero-banner-img">
-        </div>
     </div>
 
     <!-- ------------------ الأقسام الإضافية بتصميم ألوان متناسق ومميز ------------------ -->
@@ -1440,6 +1482,15 @@
     signupModal.addEventListener("click", (e) => {
         if (e.target === signupModal) signupModal.classList.remove("active");
     });
+
+    // زر "حساب جديد" في الشريط الثابت أعلى الصفحة: يفتح نافذة إنشاء الحساب مباشرة
+    const topSignupBtn = document.getElementById("top-signup-btn");
+    if (topSignupBtn) {
+        topSignupBtn.addEventListener("click", () => {
+            loginModal.classList.remove("active");
+            signupModal.classList.add("active");
+        });
+    }
 
     function showSignupMessage(text, type) {
         const msgBox = document.getElementById("signup-alert-msg");

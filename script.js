@@ -5,7 +5,9 @@
 // ==========================================
 // ==========================================
 // ==========================================
-// 💥 1. إعدادات وتصريح Firebase
+// ==========================================
+// ==========================================
+// <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyDSaHZfMovOtZVkv5HDtfsy4Kh_ttszSLI",
@@ -31,7 +33,7 @@ if (typeof firebase !== 'undefined') {
 }
 
 // ==========================================
-// ⚙️ 2. المتغيرات العامة والدوال المساعدة
+// <i class="fas fa-gear"></i> 2. المتغيرات العامة والدوال المساعدة
 // ==========================================
 const DEFAULT_EXAM_DURATION = 15;
 let timerInterval = null;
@@ -222,9 +224,9 @@ function generateQuestionsReviewHtml(answers, released = true) {
     let html = `
         <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
             <h5 style="color: #00d2ff; font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; text-align: right; display: flex; align-items: center; gap: 8px;">
-                ${released ? '📝 تفاصيل الأسئلة ونموذج الإجابة:' : '📝 إجاباتك اللي سلّمتها:'}
+                ${released ? '<i class="fas fa-pen-to-square"></i> تفاصيل الأسئلة ونموذج الإجابة:' : '<i class="fas fa-pen-to-square"></i> إجاباتك اللي سلّمتها:'}
             </h5>
-            ${released ? '' : `<p style="color:#f1c40f; font-size:0.85rem; margin: -6px 0 14px; text-align:right;">🔒 الصح والغلط والدرجات هتظهر بعد ما المعلم يعتمد النتيجة.</p>`}
+            ${released ? '' : `<p style="color:#f1c40f; font-size:0.85rem; margin: -6px 0 14px; text-align:right;"><i class="fas fa-lock"></i> الصح والغلط والدرجات هتظهر بعد ما المعلم يعتمد النتيجة.</p>`}
     `;
 
     answers.forEach((item, index) => {
@@ -254,28 +256,28 @@ function generateQuestionsReviewHtml(answers, released = true) {
         if (g.state === 'pending') {
             boxBg = "rgba(241, 196, 15, 0.06)";
             borderColor = "#f1c40f";
-            icon = "✍️";
+            icon = "<i class='fas fa-pen'></i>";
             statusText = "سؤال مقالي (قيد المراجعة)";
         } else if (g.state === 'correct') {
             boxBg = "rgba(46, 204, 113, 0.08)";
             borderColor = "#2ecc71";
-            icon = "✅";
+            icon = "<i class='fas fa-circle-check'></i>";
             statusText = "إجابة صحيحة";
         } else if (g.state === 'partial') {
             boxBg = "rgba(241, 196, 15, 0.08)";
             borderColor = "#f1c40f";
-            icon = "🟡";
+            icon = "<i class='fas fa-circle'></i>";
             statusText = "درجة جزئية";
         } else {
             boxBg = "rgba(231, 76, 60, 0.08)";
             borderColor = "#e74c3c";
-            icon = "❌";
+            icon = "<i class='fas fa-circle-xmark'></i>";
             statusText = "إجابة خاطئة";
         }
 
         const pointsBadge = (g.state === 'pending')
             ? ''
-            : `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;">🎯 ${fmtPts(g.earned)} من ${fmtPts(g.points)}</span>`;
+            : `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;"><i class="fas fa-bullseye"></i> ${fmtPts(g.earned)} من ${fmtPts(g.points)}</span>`;
 
         const showCorrect = (isEssay ? !!crAns : (g.state !== 'correct' && !!crAns));
 
@@ -317,7 +319,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
 }
 
 // ==========================================
-// 💾 نظام مزامنة "حسابي" مع النتائج الحقيقية فقط
+// <i class="fas fa-floppy-disk"></i> نظام مزامنة "حسابي" مع النتائج الحقيقية فقط
 // ==========================================
 function getHistoryOwner() {
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").toString().trim().toLowerCase();
@@ -459,18 +461,21 @@ async function syncAccountWithFirebase() {
             let realSubmissions = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
+                const sName = normalizeArabicText(data.studentName || data.name || "");
+                // لازم الاسم يتطابق برضو مش بس الكود، عشان لو حصل واتكرر نفس الكود بالغلط بين طالبين مختلفين ميحصلش تداخل في النتايج
+                if (studentName && sName && sName !== studentName) return;
                 if (data.hasSubmitted === true || data.isSubmitted === true || (data.answers && data.answers.length > 0)) {
                     realSubmissions.push({ id: doc.id, ...data });
                 }
             });
 
-            if (realSubmissions.length === 0 && studentName) {
+            if (realSubmissions.length === 0 && studentName && !studentCode) {
                 const allSnap = await db.collection("students").get();
                 allSnap.forEach(doc => {
                     const data = doc.data();
                     const sName = normalizeArabicText(data.studentName || data.name || "");
                     const docCode = (data.studentCode || data.code || "").toString().trim();
-                    const codeOk = !docCode || !studentCode || docCode.toLowerCase() === studentCode.toLowerCase();
+                    const codeOk = !docCode;
                     if (sName && sName === studentName && codeOk) {
                         if (data.hasSubmitted === true || data.isSubmitted === true || (data.answers && data.answers.length > 0)) {
                             realSubmissions.push({ id: doc.id, ...data });
@@ -496,8 +501,8 @@ async function syncAccountWithFirebase() {
                     serial: (docData.serial || (20000 + idx)).toString(),
                     examName: docData.examName || docData.examTitle || docData.title || "اختبار أونلاين",
                     totalQuestions: totalQuestions,
-                    percentage: isApproved ? `% ${percentage}` : '⏳ قيد التصحيح',
-                    score: isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح ⏳',
+                    percentage: isApproved ? `% ${percentage}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح',
+                    score: isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>',
                     scoreNum: Number(score) || 0,
                     maxScoreNum: Number(maxScore) || 10,
                     solvedQuestions: solvedCount,
@@ -555,7 +560,7 @@ function renderAccountHistoryTable() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="10" style="text-align: center; padding: 35px 15px; color: var(--text-sub);">
-                    📭 لا توجد نتائج سابقة مسجلة حتى الآن.<br>
+                    <i class="fas fa-inbox"></i> لا توجد نتائج سابقة مسجلة حتى الآن.<br>
                     <span style="font-size: 0.82rem; color: #64748b;">ستظهر درجاتك هنا فور أداء وتسليم أي اختبار مخصص لك.</span>
                 </td>
             </tr>
@@ -574,7 +579,7 @@ function renderAccountHistoryTable() {
                 ${row.percentage}
             </td>
             <td style="font-weight: 800; color: ${isUnderReview ? '#f1c40f' : '#2ecc71'};">
-                ${isUnderReview ? '⏳' : '🏆'} ${row.score}
+                ${isUnderReview ? '<i class="fas fa-hourglass-half"></i>' : '<i class="fas fa-trophy"></i>'} ${row.score}
             </td>
             <td>${row.solvedQuestions}</td>
             <td>
@@ -595,7 +600,7 @@ function openAnswersReviewModal(recordId) {
     const item = history.find(h => (h.id === recordId || h.serial === recordId));
     
     if (!item || !item.answers || item.answers.length === 0) {
-        showCustomToast("🔒 الإجابات غير متاحة لهذا الامتحان.", "warning");
+        showCustomToast("<i class='fas fa-lock'></i> الإجابات غير متاحة لهذا الامتحان.", "warning");
         return;
     }
 
@@ -624,14 +629,14 @@ function openAnswersReviewModal(recordId) {
     }
 
     const scoreBanner = released
-        ? `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.25); border-radius: 12px; color:#fff; font-weight:800;">🏆 درجتك: <span style="color:#2ecc71;">${escapeHtml(item.score)}</span></div>`
-        : `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.3); border-radius: 12px; color:#f1c40f; font-weight:800;">⏳ النتيجة قيد التصحيح</div>`;
+        ? `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.25); border-radius: 12px; color:#fff; font-weight:800;"><i class="fas fa-trophy"></i> درجتك: <span style="color:#2ecc71;">${escapeHtml(item.score)}</span></div>`
+        : `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.3); border-radius: 12px; color:#f1c40f; font-weight:800;"><i class="fas fa-hourglass-half"></i> النتيجة قيد التصحيح</div>`;
 
     reviewModal.innerHTML = `
         <div style="background: #0f1422; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
             <div style="padding: 16px 20px; background: #141c2c; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
-                <h4 style="color: #00f2fe; margin: 0; font-size: 1.1rem; font-weight: 800;">📖 مراجعة إجابات: ${escapeHtml(item.examName)}</h4>
-                <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;">✕</button>
+                <h4 style="color: #00f2fe; margin: 0; font-size: 1.1rem; font-weight: 800;"><i class="fas fa-book-open"></i> مراجعة إجابات: ${escapeHtml(item.examName)}</h4>
+                <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;"><i class="fas fa-xmark"></i></button>
             </div>
             <div style="padding: 18px; overflow-y: auto; flex: 1;">
                 ${scoreBanner}
@@ -694,6 +699,33 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
     return false;
 }
 
+// ==========================================
+// تسجيل الخروج: تفريغ بيانات الطالب بالكامل من الجهاز
+// ==========================================
+function logoutStudent() {
+    if (!confirm("هل أنت متأكد من تسجيل الخروج؟")) return;
+
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+            key === "student_code" || key === "exam_code" || key === "code" ||
+            key === "student_fullname" || key === "student_name" ||
+            key === "student_stage" || key === "student_phone" || key === "parent_phone" ||
+            key.startsWith("finished_") ||
+            key.startsWith("saved_exam_answers_") ||
+            key.startsWith("active_running_exam_session") ||
+            key.startsWith("last_ping_")
+        ) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    sessionStorage.clear();
+
+    window.location.href = "index.html";
+}
+
 window.onload = function() {
     let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
     let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
@@ -703,14 +735,14 @@ window.onload = function() {
 
     if (!studentName || !studentCode) {
         if (!studentName) {
-            studentName = prompt("🔑 يرجى إدخال اسمك الثلاثي لدخول المنصة:") || "";
+            studentName = prompt("يرجى إدخال اسمك الثلاثي لدخول المنصة:") || "";
             if (studentName.trim() !== "") {
                 studentName = studentName.trim();
                 localStorage.setItem("student_fullname", studentName);
             }
         }
         if (!studentCode) {
-            studentCode = prompt("🔑 يرجى إدخال كود الطالب الخاص بك:") || "";
+            studentCode = prompt("يرجى إدخال كود الطالب الخاص بك:") || "";
             if (studentCode.trim() !== "") {
                 studentCode = studentCode.trim();
                 localStorage.setItem("student_code", studentCode);
@@ -718,7 +750,7 @@ window.onload = function() {
         }
 
         if (!studentName || !studentCode) {
-            showCustomToast("⚠️ بيانات الدخول غير مكتملة، جاري توجيهك لصفحة التسجيل...", "warning");
+            showCustomToast("<i class='fas fa-triangle-exclamation'></i> بيانات الدخول غير مكتملة، جاري توجيهك لصفحة التسجيل...", "warning");
             setTimeout(() => { window.location.href = "login.html"; }, 2000);
             return;
         }
@@ -801,11 +833,11 @@ function createConfirmSubmitModal() {
     `;
     modal.innerHTML = `
         <div style="background: #1e1e38; padding: 28px; border-radius: 16px; max-width: 440px; width: 95%; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
-            <h3 style="color: #00d2ff; margin-bottom: 15px; font-size: 1.3rem; font-weight:900;">🚨 تأكيد تسليم الامتحان</h3>
+            <h3 style="color: #00d2ff; margin-bottom: 15px; font-size: 1.3rem; font-weight:900;"><i class="fas fa-triangle-exclamation"></i> تأكيد تسليم الامتحان</h3>
             <p id="confirm-modal-text" style="color: #cbd5e1; margin-bottom: 25px; line-height: 1.6; font-size: 1rem;"></p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="confirmFinalSubmit()" style="flex: 1; padding: 12px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">تأكيد التسليم 🚀</button>
-                <button onclick="closeConfirmSubmitModal()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">استنى / مراجعة 🔙</button>
+                <button onclick="confirmFinalSubmit()" style="flex: 1; padding: 12px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">تأكيد التسليم <i class="fas fa-rocket"></i></button>
+                <button onclick="closeConfirmSubmitModal()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">استنى / مراجعة <i class="fas fa-arrow-right"></i></button>
             </div>
         </div>
     `;
@@ -831,7 +863,7 @@ function setupAntiCheatListeners() {
     window.addEventListener('beforeunload', function (e) {
         saveAllAnswersFromDOM();
         if (window.isExamRunning) {
-            const confirmationMessage = '⚠️ تنبيه: إغلاق الصفحة أو إعادة تحميلها قد يؤدي إلى فقدان إجاباتك ورصد الاختبار!';
+            const confirmationMessage = '<i class="fas fa-triangle-exclamation"></i> تنبيه: إغلاق الصفحة أو إعادة تحميلها قد يؤدي إلى فقدان إجاباتك ورصد الاختبار!';
             (e || window.event).returnValue = confirmationMessage;
             return confirmationMessage;
         }
@@ -840,7 +872,7 @@ function setupAntiCheatListeners() {
     document.addEventListener("visibilitychange", function() {
         if (window.isExamRunning && document.hidden) {
             saveAllAnswersFromDOM();
-            showCustomToast("⚠️ تنبيه أمني: يرجى عدم الخروج من شاشة الامتحان لضمان عدم الخصم أو الإلغاء!", "warning");
+            showCustomToast("<i class='fas fa-triangle-exclamation'></i> تنبيه أمني: يرجى عدم الخروج من شاشة الامتحان لضمان عدم الخصم أو الإلغاء!", "warning");
         }
     });
 }
@@ -855,7 +887,7 @@ async function loadAssignedExam() {
     if (!examsGrid) return;
 
     if (typeof db === 'undefined') {
-        examsGrid.innerHTML = "<p style='text-align:center;color:#e74c3c;grid-column:1/-1;'>❌ تعذر الاتصال بقاعدة البيانات. تحقق من الاتصال بالإنترنت.</p>";
+        examsGrid.innerHTML = "<p style='text-align:center;color:#e74c3c;grid-column:1/-1;'><i class='fas fa-circle-xmark'></i> تعذر الاتصال بقاعدة البيانات. تحقق من الاتصال بالإنترنت.</p>";
         return;
     }
 
@@ -867,7 +899,7 @@ async function loadAssignedExam() {
 
         if (snapshot.empty) {
             window.__allExamsRaw = [];
-            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'>📭 لا يوجد امتحان منشور حالياً.</p>";
+            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان منشور حالياً.</p>";
             return;
         }
 
@@ -909,7 +941,7 @@ async function loadAssignedExam() {
         cleanStaleExamStorage(accessibleExams.map(e => e.id));
 
         if (accessibleExams.length === 0) {
-            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'>📭 لا يوجد امتحان مخصص لك حالياً.</p>";
+            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان مخصص لك حالياً.</p>";
             return;
         }
 
@@ -955,10 +987,10 @@ async function loadAssignedExam() {
 
             examsGrid.innerHTML += `
                 <div class="exam-card" id="card-${activeExam.id}">
-                    <h3>🏫 ${activeExam.grade || studentStage || 'عام'}</h3>
+                    <h3><i class="fas fa-school"></i> ${activeExam.grade || studentStage || 'عام'}</h3>
                     <h4>${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
-                    <p>📝 عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br>⏱️ مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
-                    <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن 🚀</button>
+                    <p><i class="fas fa-pen-to-square"></i> عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br><i class="fas fa-stopwatch"></i> مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
+                    <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن <i class="fas fa-rocket"></i></button>
                 </div>
             `;
         });
@@ -969,8 +1001,8 @@ async function loadAssignedExam() {
         console.error("خطأ أثناء تحميل الامتحان:", err);
         examsGrid.innerHTML = `
             <div style="text-align:center; color:#e74c3c; grid-column:1/-1; padding:20px;">
-                <p>❌ تعذر تحميل الامتحانات بسبب بطء شبكة الموبايل أو عدم استجابة السيرفر.</p>
-                <button onclick="location.reload()" style="padding:8px 16px; background:#0066ff; color:#fff; border:none; border-radius:6px; cursor:pointer;">إعادة المحاولة 🔄</button>
+                <p><i class="fas fa-circle-xmark"></i> تعذر تحميل الامتحانات بسبب بطء شبكة الموبايل أو عدم استجابة السيرفر.</p>
+                <button onclick="location.reload()" style="padding:8px 16px; background:#0066ff; color:#fff; border:none; border-radius:6px; cursor:pointer;">إعادة المحاولة <i class="fas fa-arrows-rotate"></i></button>
             </div>`;
     }
 }
@@ -1019,12 +1051,12 @@ async function updateExamButtonsStatus() {
                     btn.style.background = "#64748b";
                     btn.style.cursor = "not-allowed";
                     btn.disabled = true;
-                    btn.innerHTML = type === "exam" ? "🔒 تم أداء الامتحان" : "🔒 تم تسليم الواجب";
+                    btn.innerHTML = type === "exam" ? "<i class='fas fa-lock'></i> تم أداء الامتحان" : "<i class='fas fa-lock'></i> تم تسليم الواجب";
                 } else {
                     btn.style.background = "#0066ff";
                     btn.style.cursor = "pointer";
                     btn.disabled = false;
-                    btn.innerHTML = "ابدأ الآن 🚀";
+                    btn.innerHTML = "ابدأ الآن <i class='fas fa-rocket'></i>";
                 }
             }
         }
@@ -1043,13 +1075,13 @@ async function checkStudentResult() {
     const displayBox = document.getElementById("result-display-box");
 
     if (!rawNameSearch || !rawCodeSearch) {
-        showCustomToast("⚠️ خطأ: يجب إدخال (اسم الطالب) و (كود الطالب) معاً للاستعلام!", "warning");
+        showCustomToast("<i class='fas fa-triangle-exclamation'></i> خطأ: يجب إدخال (اسم الطالب) و (كود الطالب) معاً للاستعلام!", "warning");
         if (displayBox) {
             displayBox.style.display = "block";
             displayBox.innerHTML = `
                 <div style="background: rgba(231, 76, 60, 0.1); border-right: 5px solid #e74c3c; padding: 18px; border-radius: 12px; text-align: right; margin-top: 15px;">
                     <p style="color:#e74c3c; font-weight:bold; margin:0; font-size:1.1rem;">
-                        ⚠️ حقل الاسم وكود الطالب مطلوبان معاً لإجراء الاستعلام!
+                        <i class="fas fa-triangle-exclamation"></i> حقل الاسم وكود الطالب مطلوبان معاً لإجراء الاستعلام!
                     </p>
                 </div>
             `;
@@ -1060,7 +1092,7 @@ async function checkStudentResult() {
     if (!displayBox) return;
 
     displayBox.style.display = "block";
-    displayBox.innerHTML = "<p style='text-align:center; color:#00d2ff; font-weight:bold; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);'>⏳ جاري البحث عن الامتحانات التي قمت بأدائها...</p>";
+    displayBox.innerHTML = "<p style='text-align:center; color:#00d2ff; font-weight:bold; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);'><i class='fas fa-hourglass-half'></i> جاري البحث عن الامتحانات التي قمت بأدائها...</p>";
 
     let foundResults = [];
 
@@ -1108,7 +1140,7 @@ async function checkStudentResult() {
             });
 
             if (finalFilteredResults.length > 0) {
-                let html = `<h4 style="color: #00d2ff; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 1.2rem;">📊 كشف الامتحانات التي قمت بأدائها (${finalFilteredResults.length})</h4>`;
+                let html = `<h4 style="color: #00d2ff; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 1.2rem;"><i class="fas fa-chart-column"></i> كشف الامتحانات التي قمت بأدائها (${finalFilteredResults.length})</h4>`;
 
                 finalFilteredResults.forEach(docData => {
                     const studentStage = docData.stage || docData.studentGrade || localStorage.getItem('student_stage') || "غير محدد";
@@ -1125,10 +1157,10 @@ async function checkStudentResult() {
 
                         html += `
                             <div style="background: rgba(20, 20, 35, 0.8); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid ${scoreColor}; box-shadow: 0 0 15px rgba(0,0,0,0.5); padding: 18px; margin-bottom: 20px; border-radius: 12px; text-align: right;">
-                                <h4 style="color: ${scoreColor}; margin-bottom: 15px; font-weight: bold;">🏆 النتيجة النهائية</h4>
-                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name}</p>
-                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>🏫 الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
-                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
+                                <h4 style="color: ${scoreColor}; margin-bottom: 15px; font-weight: bold;"><i class="fas fa-trophy"></i> النتيجة النهائية</h4>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong><i class="fas fa-user"></i> الطالب:</strong> ${docData.studentName || docData.name}</p>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong><i class="fas fa-school"></i> الصف:</strong> <span style="color:#00d2ff;">${studentStage}</span></p>
+                                <p style="margin-bottom: 8px; color:#cbd5e1;"><strong><i class="fas fa-book-open"></i> الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
                                 
                                 <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
                                     <span style="font-size: 1.1rem; color: #fff;">الدرجة: </span>
@@ -1143,12 +1175,12 @@ async function checkStudentResult() {
                     } else {
                         html += `
                             <div style="background: rgba(241, 196, 15, 0.1); border-right: 5px solid #f1c40f; padding: 18px; border-radius: 12px; text-align: right; margin-bottom: 15px;">
-                                <h4 style="color: #f1c40f; margin-bottom: 10px;">⏳ قيد التصحيح والمراجعة</h4>
-                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>👤 الطالب:</strong> ${docData.studentName || docData.name}</p>
-                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📖 الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
-                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong>📅 وقت التسليم:</strong> ${submittedDate}</p>
+                                <h4 style="color: #f1c40f; margin-bottom: 10px;"><i class="fas fa-hourglass-half"></i> قيد التصحيح والمراجعة</h4>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-user"></i> الطالب:</strong> ${docData.studentName || docData.name}</p>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-book-open"></i> الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
+                                <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-calendar-days"></i> وقت التسليم:</strong> ${submittedDate}</p>
                                 <p style="color: #2ecc71; font-weight: bold; margin-top: 10px;">
-                                    📩 تم حفظ إجاباتك بنجاح، وستظهر الدرجة والصح والغلط هنا فور اعتمادها من المعلم.
+                                    <i class="fas fa-envelope"></i> تم حفظ إجاباتك بنجاح، وستظهر الدرجة والصح والغلط هنا فور اعتمادها من المعلم.
                                 </p>
                                 ${generateQuestionsReviewHtml(docData.answers, false)}
                             </div>
@@ -1167,7 +1199,7 @@ async function checkStudentResult() {
 
     displayBox.innerHTML = `
         <div style="background: rgba(231, 76, 60, 0.1); border-right: 5px solid #e74c3c; padding: 20px; border-radius: 12px; text-align: right;">
-            <p style="color:#e74c3c; font-weight:bold; margin:0 0 10px 0; font-size:1.1rem;">❌ لم يتم العثور على أي امتحان مُسلّم</p>
+            <p style="color:#e74c3c; font-weight:bold; margin:0 0 10px 0; font-size:1.1rem;"><i class="fas fa-circle-xmark"></i> لم يتم العثور على أي امتحان مُسلّم</p>
             <p style="color: #cbd5e1; font-size: 0.95rem; margin:0;">عفواً، لم تقم بأداء وتسليم أي امتحان بعد تحت هذا الاسم والكود.</p>
         </div>
     `;
@@ -1175,7 +1207,7 @@ async function checkStudentResult() {
 
 function switchTab(tab) {
     if (window.isExamRunning) {
-        showCustomToast("⚠️ عذراً! لا يمكنك التنقل بين الأقسام أثناء أداء الامتحان.", "warning");
+        showCustomToast("<i class='fas fa-triangle-exclamation'></i> عذراً! لا يمكنك التنقل بين الأقسام أثناء أداء الامتحان.", "warning");
         return;
     }
 
@@ -1213,30 +1245,30 @@ function switchTab(tab) {
     if (tab === 'courses') renderCoursesSection();
 }
 
-// ✅ متوسّط النتائج بتصميم احترافي وألوان
+// <i class="fas fa-circle-check"></i> متوسّط النتائج بتصميم احترافي وألوان
 function renderStudentPerformanceSummary() {
     const box = document.getElementById('student-performance-summary'); if (!box) return;
     const rows = getStoredHistory().filter(r => r.canReview && Number(r.maxScoreNum) > 0);
     if (!rows.length) {
         box.style.display = 'block';
-        box.innerHTML = '📊 <b>متوسط نتائجك:</b> لم تُعتمد أي نتيجة بعد.';
+        box.innerHTML = '<i class="fas fa-chart-column"></i> <b>متوسط نتائجك:</b> لم تُعتمد أي نتيجة بعد.';
         return;
     }
     const avg = Math.round(rows.reduce((s, r) => s + (Number(r.scoreNum || 0) / Number(r.maxScoreNum || 1) * 100), 0) / rows.length);
     const best = Math.max(...rows.map(r => Math.round(Number(r.scoreNum || 0) / Number(r.maxScoreNum || 1) * 100)));
     let level, color, emoji;
-    if (avg >= 90)      { level = 'عاش يا وحش! ممتاز 🌟'; color = '#00f5d4'; emoji = '🏆'; }
-    else if (avg >= 85) { level = 'عاش يا بطل! ممتاز';    color = '#2ecc71'; emoji = '🥇'; }
-    else if (avg >= 75) { level = 'كويس جداً، استمر';      color = '#3498db'; emoji = '🥈'; }
-    else if (avg >= 60) { level = 'كويس، محتاج مراجعة';    color = '#f1c40f'; emoji = '🥉'; }
-    else                { level = 'محتاج مراجعة جادة 💪';  color = '#e74c3c'; emoji = '📚'; }
+    if (avg >= 90)      { level = 'عاش يا وحش! ممتاز <i class="fas fa-star"></i>'; color = '#00f5d4'; emoji = '<i class="fas fa-trophy"></i>'; }
+    else if (avg >= 85) { level = 'عاش يا بطل! ممتاز';    color = '#2ecc71'; emoji = '<i class="fas fa-medal"></i>'; }
+    else if (avg >= 75) { level = 'كويس جداً، استمر';      color = '#3498db'; emoji = '<i class="fas fa-medal"></i>'; }
+    else if (avg >= 60) { level = 'كويس، محتاج مراجعة';    color = '#f1c40f'; emoji = '<i class="fas fa-medal"></i>'; }
+    else                { level = 'محتاج مراجعة جادة <i class="fas fa-hand-fist"></i>';  color = '#e74c3c'; emoji = '<i class="fas fa-book"></i>'; }
 
     box.style.display = 'block';
     box.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-around;text-align:center;">
-        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">📊 متوسط نتائجك</div><div style="color:${color};font-size:2.2rem;font-weight:900;">${avg}%</div></div>
-        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">🏆 أعلى نتيجة</div><div style="color:#00f2fe;font-size:2.2rem;font-weight:900;">${best}%</div></div>
-        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;">📝 عدد الامتحانات</div><div style="color:#fff;font-size:2.2rem;font-weight:900;">${rows.length}</div></div>
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;"><i class="fas fa-chart-column"></i> متوسط نتائجك</div><div style="color:${color};font-size:2.2rem;font-weight:900;">${avg}%</div></div>
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;"><i class="fas fa-trophy"></i> أعلى نتيجة</div><div style="color:#00f2fe;font-size:2.2rem;font-weight:900;">${best}%</div></div>
+        <div><div style="color:#94a3b8;font-size:.85rem;margin-bottom:4px;"><i class="fas fa-pen-to-square"></i> عدد الامتحانات</div><div style="color:#fff;font-size:2.2rem;font-weight:900;">${rows.length}</div></div>
       </div>
       <div style="margin-top:14px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;color:${color};font-weight:900;font-size:1.1rem;text-align:center;">
         ${emoji} ${level}
@@ -1256,7 +1288,7 @@ async function resetPortalToStep1(subjectKey, type) {
             const lockSnap = await db.collection("exam_locks").doc(uniqueDocId).get();
             if (lockSnap.exists) {
                 localStorage.setItem('finished_' + cleanSubjectKey, (dynamicExamsDatabase[cleanSubjectKey]?.version || 1).toString());
-                showCustomToast("⚠️ عذراً، لقد قمت بأداء هذا الاختبار مسبقاً!", "error");
+                showCustomToast("<i class='fas fa-triangle-exclamation'></i> عذراً، لقد قمت بأداء هذا الاختبار مسبقاً!", "error");
                 updateExamButtonsStatus();
                 renderUnitsSection();
                 return;
@@ -1271,7 +1303,7 @@ async function resetPortalToStep1(subjectKey, type) {
                 const data = docSnapshot.data();
                 if (data.hasSubmitted === true || data.isSubmitted === true) {
                     localStorage.setItem('finished_' + cleanSubjectKey, (dynamicExamsDatabase[cleanSubjectKey]?.version || 1).toString());
-                    showCustomToast("⚠️ عذراً، لقد قمت بأداء هذا الاختبار مسبقاً!", "error");
+                    showCustomToast("<i class='fas fa-triangle-exclamation'></i> عذراً، لقد قمت بأداء هذا الاختبار مسبقاً!", "error");
                     updateExamButtonsStatus();
                     return;
                 }
@@ -1286,7 +1318,7 @@ async function resetPortalToStep1(subjectKey, type) {
 
     const dbSource = (cleanType === "exam") ? dynamicExamsDatabase : homeworksDatabase;
     if (!dbSource || !dbSource[cleanSubjectKey]) {
-        showCustomToast(`⚠️ تنبيه: الامتحان غير متاح حالياً، حاول تحديث الصفحة.`, "warning");
+        showCustomToast(`<i class="fas fa-triangle-exclamation"></i> تنبيه: الامتحان غير متاح حالياً، حاول تحديث الصفحة.`, "warning");
         return;
     }
 
@@ -1388,7 +1420,7 @@ function checkAndResumeRunningExam() {
         renderQuestions();
         startTimer(sessionData.endTime);
 
-        showCustomToast("🔄 تم استعادة جلسة الامتحان وإجاباتك بنجاح!", "success");
+        showCustomToast("<i class='fas fa-arrows-rotate'></i> تم استعادة جلسة الامتحان وإجاباتك بنجاح!", "success");
 
     } catch (e) {
         console.warn("خطأ في استعادة الجلسة الحالية:", e);
@@ -1421,7 +1453,7 @@ function renderQuestions() {
         const isChoiceHead = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
         html += `
         <div class="q-card-head">
-            <span class="q-card-tag">📝 السؤال ${qIndex + 1} من ${activeQuestionsList.length}</span>
+            <span class="q-card-tag"><i class="fas fa-pen-to-square"></i> السؤال ${qIndex + 1} من ${activeQuestionsList.length}</span>
             <span class="q-card-type">${isChoiceHead ? 'اختر الإجابة الصحيحة' : 'اكتب إجابتك'}</span>
         </div>`;
 
@@ -1578,15 +1610,15 @@ function updateExamProgressCounters() {
     if (motivation) {
         let msg;
         if (total > 0 && solvedCount >= total) {
-            msg = "ممتاز! جاوبت على كل الأسئلة ✅ راجع إجاباتك قبل التسليم";
+            msg = "ممتاز! جاوبت على كل الأسئلة <i class='fas fa-circle-check'></i> راجع إجاباتك قبل التسليم";
         } else if (solvedCount === 0) {
-            msg = "ابدأ بهدوء وتركيز… إنت مذاكر وقادر تحلها 💪";
+            msg = "ابدأ بهدوء وتركيز… إنت مذاكر وقادر تحلها <i class='fas fa-hand-fist'></i>";
         } else if (solvedCount < total / 2) {
-            msg = "ماشي كويس! خد نفس وكمّل سؤال ورا التاني ✨";
+            msg = "ماشي كويس! خد نفس وكمّل سؤال ورا التاني <i class='fas fa-wand-magic-sparkles'></i>";
         } else {
-            msg = "قربت تخلّص! فاضل القليل، كمّل بنفس التركيز 🔥";
+            msg = "قربت تخلّص! فاضل القليل، كمّل بنفس التركيز <i class='fas fa-fire'></i>";
         }
-        if (motivation.textContent !== msg) motivation.textContent = msg;
+        if (motivation.textContent !== msg) motivation.innerHTML = msg;
     }
 }
 
@@ -1626,7 +1658,7 @@ function startTimer(targetEndTime) {
         if (totalSecondsLeft <= 0) {
             if (display) display.textContent = "00:00";
             clearInterval(timerInterval);
-            showCustomToast("⏰ انتهى الوقت المحدد! سيتم تسليم الإجابات تلقائياً الآن.", "warning");
+            showCustomToast("<i class='fas fa-clock'></i> انتهى الوقت المحدد! سيتم تسليم الإجابات تلقائياً الآن.", "warning");
             calculateAndSend(true);
             return;
         }
@@ -1667,14 +1699,14 @@ function submitExamWithCheck() {
 
     if (unansweredIndices.length > 0) {
         showQuestion(unansweredIndices[0] - 1);
-        showCustomToast(`⚠️ تذكير: نسيت الإجابة على السؤال رقم (${unansweredIndices.join(' ، ')})!`, "warning");
+        showCustomToast(`<i class="fas fa-triangle-exclamation"></i> تذكير: نسيت الإجابة على السؤال رقم (${unansweredIndices.join(' ، ')})!`, "warning");
 
         if (modalText) {
-            modalText.innerHTML = `⚠️ <strong style="color:#f1c40f;">تنبيه:</strong> نسيت الإجابة على الأسئلة التالية: <br><span style="color:#e74c3c; font-weight:bold; font-size:1.15rem;">(سؤال ${unansweredIndices.join(' ، ')})</span><br><br>هل تريد تسليم الامتحان رغم ذلك أم المراجعة؟`;
+            modalText.innerHTML = `<i class="fas fa-triangle-exclamation"></i> <strong style="color:#f1c40f;">تنبيه:</strong> نسيت الإجابة على الأسئلة التالية: <br><span style="color:#e74c3c; font-weight:bold; font-size:1.15rem;">(سؤال ${unansweredIndices.join(' ، ')})</span><br><br>هل تريد تسليم الامتحان رغم ذلك أم المراجعة؟`;
         }
     } else {
         if (modalText) {
-            modalText.innerHTML = `🎉 ممتاز! لقد قمت بالإجابة على جميع الأسئلة.<br><br>هل أنت متأكد من تسليم الإجابات الآن؟`;
+            modalText.innerHTML = `<i class="fas fa-champagne-glasses"></i> ممتاز! لقد قمت بالإجابة على جميع الأسئلة.<br><br>هل أنت متأكد من تسليم الإجابات الآن؟`;
         }
     }
 
@@ -1735,17 +1767,17 @@ function calculateAndSend(bypassValidation = false) {
                     mcqScoreObtained += points;
                     isCorrect = true;
                     correctCount++;
-                    correctionStatus = ` [✅ صحيح]`;
+                    correctionStatus = ` [<i class="fas fa-circle-check"></i> صحيح]`;
                 } else {
                     isCorrect = false;
                     wrongCount++;
-                    correctionStatus = ` [❌ خطأ]`;
+                    correctionStatus = ` [<i class="fas fa-circle-xmark"></i> خطأ]`;
                 }
             } else {
                 studentValue = "لم يحل";
                 isCorrect = false;
                 wrongCount++;
-                correctionStatus = ` [❌ لم يحل]`;
+                correctionStatus = ` [<i class="fas fa-circle-xmark"></i> لم يحل]`;
             }
         } else {
             let textarea = document.querySelector(`textarea[name="q${qIndex}"]`);
@@ -1756,7 +1788,7 @@ function calculateAndSend(bypassValidation = false) {
             } else {
                 studentValue = "لم يكتب إجابة";
             }
-            correctionStatus = ` [📝 مقالي]`;
+            correctionStatus = ` [<i class="fas fa-pen-to-square"></i> مقالي]`;
         }
 
         studentAnswersText[questionKey] = studentValue + correctionStatus;
@@ -1825,8 +1857,8 @@ function calculateAndSend(bypassValidation = false) {
         serial: serialGenerated,
         examName: currentExamTitle,
         totalQuestions: activeQuestionsList.length,
-        percentage: releaseNow ? `% ${finalPercent}` : '⏳ قيد التصحيح',
-        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'قيد التصحيح ⏳',
+        percentage: releaseNow ? `% ${finalPercent}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح',
+        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>',
         scoreNum: mcqScoreObtained,
         maxScoreNum: totalExamPointsPossible || 10,
         solvedQuestions: solvedQuestionsCount,
@@ -1897,10 +1929,10 @@ function calculateAndSend(bypassValidation = false) {
 
         }).catch((error) => {
             console.error("خطأ أثناء تسليم الامتحان: ", error);
-            showCustomToast("❌ حدث خطأ أثناء تسليم إجاباتك، يرجى المحاولة مرة أخرى.", "error");
+            showCustomToast("<i class='fas fa-circle-xmark'></i> حدث خطأ أثناء تسليم إجاباتك، يرجى المحاولة مرة أخرى.", "error");
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.innerText = "تسليم الامتحان 📤";
+                submitBtn.innerHTML = "تسليم الامتحان <i class='fas fa-paper-plane'></i>";
             }
         });
     } else {
@@ -1931,11 +1963,11 @@ function showSubmissionResultModal(info) {
 
     const pct = info.percent || 0;
     const color = pct >= 85 ? '#2ecc71' : (pct >= 50 ? '#f1c40f' : '#e74c3c');
-    const cheer = pct >= 85 ? 'ممتاز! استمر 🔥' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن 💪' : 'متزعلش، راجع إجاباتك وهتتحسن ✨');
+    const cheer = pct >= 85 ? 'ممتاز! استمر <i class="fas fa-fire"></i>' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن <i class="fas fa-hand-fist"></i>' : 'متزعلش، راجع إجاباتك وهتتحسن <i class="fas fa-wand-magic-sparkles"></i>');
 
     const body = info.released
         ? `
-            <div style="font-size: 3rem; margin-bottom: 6px;">🎉</div>
+            <div style="font-size: 3rem; margin-bottom: 6px;"><i class="fas fa-champagne-glasses"></i></div>
             <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
             <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
             <div style="background: rgba(0,0,0,0.35); border: 1px solid ${color}; border-radius: 16px; padding: 16px; margin-bottom: 14px;">
@@ -1946,11 +1978,11 @@ function showSubmissionResultModal(info) {
             <p style="color:#cbd5e1; margin: 0 0 6px; font-weight: 700;">${cheer}</p>
             <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.85rem;">تقدر تشوف درجتك وإجاباتك في أي وقت من <strong>حسابي</strong>.</p>`
         : `
-            <div style="font-size: 3rem; margin-bottom: 6px;">✅</div>
+            <div style="font-size: 3rem; margin-bottom: 6px;"><i class="fas fa-circle-check"></i></div>
             <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
             <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
             <div style="background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.4); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
-                <div style="color:#f1c40f; font-size: 1.4rem; font-weight: 900;">⏳ قيد التصحيح</div>
+                <div style="color:#f1c40f; font-size: 1.4rem; font-weight: 900;"><i class="fas fa-hourglass-half"></i> قيد التصحيح</div>
                 <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">الامتحان فيه أسئلة مقالية والمعلم هيراجعها. إجاباتك محفوظة وتقدر تشوفها من <strong>حسابي</strong>.</p>
             </div>`;
 
@@ -1958,7 +1990,7 @@ function showSubmissionResultModal(info) {
         <div style="background: #1e1e38; padding: 26px; border-radius: 20px; max-width: 420px; width: 95%; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
             ${body}
             <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button onclick="closeSubmissionResultModal('account')" style="padding: 11px 20px; background: linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">📊 روح لحسابي</button>
+                <button onclick="closeSubmissionResultModal('account')" style="padding: 11px 20px; background: linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;"><i class="fas fa-chart-column"></i> روح لحسابي</button>
                 <button onclick="closeSubmissionResultModal()" style="padding: 11px 20px; background:#334155; color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">تمام</button>
             </div>
         </div>
@@ -1975,7 +2007,7 @@ function closeSubmissionResultModal(openTab) {
 
 async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode = "") {
     if (typeof db === 'undefined' || (!studentFullName && !studentCode) || !subjectKey) {
-        showCustomToast("❌ بيانات الطالب أو الامتحان غير مكتملة!", "error");
+        showCustomToast("<i class='fas fa-circle-xmark'></i> بيانات الطالب أو الامتحان غير مكتملة!", "error");
         return;
     }
 
@@ -1988,13 +2020,13 @@ async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode 
         localStorage.removeItem('saved_exam_answers_' + subjectKey);
         localStorage.removeItem('active_running_exam_session');
 
-        showCustomToast(`✅ تم إعادة فتح الامتحان بنجاح للطالب (${studentFullName})!`, "success");
+        showCustomToast(`<i class="fas fa-circle-check"></i> تم إعادة فتح الامتحان بنجاح للطالب (${studentFullName})!`, "success");
         
         updateExamButtonsStatus();
 
     } catch (error) {
         console.error("خطأ في إعادة الامتحان للطالب:", error);
-        showCustomToast("❌ حدث خطأ أثناء إعادة الامتحان للطالب.", "error");
+        showCustomToast("<i class='fas fa-circle-xmark'></i> حدث خطأ أثناء إعادة الامتحان للطالب.", "error");
     }
 }
 
@@ -2017,7 +2049,7 @@ async function deleteOldExamsFromDB(daysOld = 30) {
         });
 
         if (deletedCount > 0) {
-            showCustomToast(`🗑️ تم مسح ${deletedCount} امتحان قديم بنجاح!`, "success");
+            showCustomToast(`<i class="fas fa-trash"></i> تم مسح ${deletedCount} امتحان قديم بنجاح!`, "success");
             loadAssignedExam();
         }
     } catch (e) {
@@ -2026,7 +2058,7 @@ async function deleteOldExamsFromDB(daysOld = 30) {
 }
 
 // ==========================================
-// 📚 الوحدات والمحتوى التعليمي
+// <i class="fas fa-book"></i> الوحدات والمحتوى التعليمي
 // ==========================================
 let studentUnitsCache = [];
 let examLockedIdsCache = new Set();
@@ -2081,11 +2113,11 @@ function tickUnitCountdowns() {
         const left = closesAt - Date.now();
         const text = formatCountdown(left);
         if (!text) {
-            el.textContent = '🔒 قفل الامتحان الآن';
+            el.innerHTML = '<i class="fas fa-lock"></i> قفل الامتحان الآن';
             el.classList.add('closed-now');
             renderUnitsSection();
         } else {
-            el.textContent = '⏳ يُقفل الامتحان خلال: ' + text;
+            el.innerHTML = '<i class="fas fa-hourglass-half"></i> يُقفل الامتحان خلال: ' + text;
         }
     });
 }
@@ -2139,8 +2171,8 @@ function openVideoModal(title, url) {
     modal.innerHTML = `
         <div style="width: 100%; max-width: 900px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                <strong style="color:#fff; font-size: 1.05rem;">🎬 ${escapeHtml(title)}</strong>
-                <button onclick="closeVideoModal()" style="background:#e74c3c; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; cursor:pointer; font-family:inherit;">✕ إغلاق</button>
+                <strong style="color:#fff; font-size: 1.05rem;"><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
+                <button onclick="closeVideoModal()" style="background:#e74c3c; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; cursor:pointer; font-family:inherit;"><i class="fas fa-xmark"></i> إغلاق</button>
             </div>
             <div style="position: relative; width: 100%; padding-top: 56.25%; background:#000; border-radius: 14px; overflow: hidden;">
                 <iframe src="${embed}" style="position:absolute; inset:0; width:100%; height:100%; border:0;" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
@@ -2165,9 +2197,9 @@ function toggleUnitAccordion(unitId) {
 }
 
 // ==========================================
-// 🧩 عناصر مشتركة لعرض "الوحدة" (تستخدم في المحتوى العام وجوه الكورسات)
+// <i class="fas fa-puzzle-piece"></i> عناصر مشتركة لعرض "الوحدة" (تستخدم في المحتوى العام وجوه الكورسات)
 // ==========================================
-const UNIT_ITEM_ICONS = { file: '📄', video: '▶️', exam: '📝' };
+const UNIT_ITEM_ICONS = { file: '<i class="fas fa-file-lines"></i>', video: '<i class="fas fa-play"></i>', exam: '<i class="fas fa-pen-to-square"></i>' };
 const UNIT_ITEM_BTN_TEXT = { file: 'فتح الملف', video: 'مشاهدة', exam: 'ابدأ الامتحان' };
 
 function buildUnitItemRowHtml(it, openCallExpr) {
@@ -2186,15 +2218,15 @@ function buildUnitItemRowHtml(it, openCallExpr) {
         const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
 
         const statParts = [];
-        if (desc) statParts.push(`📝 ${escapeHtml(desc)}`);
+        if (desc) statParts.push(`<i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}`);
         if (examObj) {
-            statParts.push(`❓ عدد الأسئلة: ${(examObj.questions || []).length} سؤال`);
-            statParts.push(`⏱ مدة الامتحان: ${examObj.duration || 30} دقيقة`);
+            statParts.push(`<i class="fas fa-circle-question"></i> عدد الأسئلة: ${(examObj.questions || []).length} سؤال`);
+            statParts.push(`<i class="fas fa-stopwatch"></i> مدة الامتحان: ${examObj.duration || 30} دقيقة`);
         }
         if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
 
         if (hasSubmitted) {
-            label = 'تم التسليم ✅';
+            label = 'تم التسليم <i class="fas fa-circle-check"></i>';
             disabled = true;
             rowExtraClass = ' unit-row-done';
 
@@ -2202,31 +2234,31 @@ function buildUnitItemRowHtml(it, openCallExpr) {
             if (stats) {
                 const released = stats.canReview === true;
                 const scoreChip = released
-                    ? `<div class="exam-result-chip score">🏆 <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
-                    : `<div class="exam-result-chip pending">⏳ <b>قيد التصحيح</b></div>`;
+                    ? `<div class="exam-result-chip score"><i class="fas fa-trophy"></i> <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
+                    : `<div class="exam-result-chip pending"><i class="fas fa-hourglass-half"></i> <b>قيد التصحيح</b></div>`;
                 const metaChips = [];
-                if (stats.startTime) metaChips.push(`<span>🟢 بدأ: ${escapeHtml(stats.startTime)}</span>`);
-                if (stats.endTime) metaChips.push(`<span>🏁 سلّم: ${escapeHtml(stats.endTime)}</span>`);
-                if (stats.durationTaken) metaChips.push(`<span>⏱ المدة: ${escapeHtml(stats.durationTaken)}</span>`);
+                if (stats.startTime) metaChips.push(`<span><i class="fas fa-circle"></i> بدأ: ${escapeHtml(stats.startTime)}</span>`);
+                if (stats.endTime) metaChips.push(`<span><i class="fas fa-flag-checkered"></i> سلّم: ${escapeHtml(stats.endTime)}</span>`);
+                if (stats.durationTaken) metaChips.push(`<span><i class="fas fa-stopwatch"></i> المدة: ${escapeHtml(stats.durationTaken)}</span>`);
                 detailsHtml += `
                     <div class="exam-result-panel">
                         ${scoreChip}
                         ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
-                        ${released && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')">📋 عرض تفاصيل الإجابة</button>` : ''}
+                        ${released && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')"><i class="fas fa-clipboard-list"></i> عرض تفاصيل الإجابة</button>` : ''}
                     </div>`;
             }
         } else if (isHardClosed) {
-            label = '⚠️ أول إنذار';
+            label = '<i class="fas fa-triangle-exclamation"></i> أول إنذار';
             disabled = true;
             rowExtraClass = ' unit-row-locked';
-            reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;">🔒 الامتحان اتقفل ولم تقم بحله</div>`;
+            reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;"><i class="fas fa-lock"></i> الامتحان اتقفل ولم تقم بحله</div>`;
         } else if (!available) {
             label = 'غير متاح حالياً';
             disabled = true;
             const why = getExamUnavailableReason(it.examId);
             if (why) reasonHtml = `<div class="unit-row-sub">${escapeHtml(why)}</div>`;
         } else if (!isNaN(closeTs) && closeTs > Date.now()) {
-            detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}">⏳ يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
+            detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}"><i class="fas fa-hourglass-half"></i> يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
         }
     } else if (it.type === 'video') {
         const viewKey = 'video_views_' + it.id;
@@ -2234,19 +2266,19 @@ function buildUnitItemRowHtml(it, openCallExpr) {
         const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
 
         const statParts = [];
-        if (desc) statParts.push(`📝 ${escapeHtml(desc)}`);
-        if (it.durationMin) statParts.push(`⏱ مدة الفيديو: ${it.durationMin} دقيقة`);
-        if (remaining !== null) statParts.push(`👁 المشاهدات المتبقية لك: ${remaining}`);
+        if (desc) statParts.push(`<i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}`);
+        if (it.durationMin) statParts.push(`<i class="fas fa-stopwatch"></i> مدة الفيديو: ${it.durationMin} دقيقة`);
+        if (remaining !== null) statParts.push(`<i class="fas fa-eye"></i> المشاهدات المتبقية لك: ${remaining}`);
         if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
 
         if (remaining === 0) { label = 'انتهت مرات المشاهدة'; disabled = true; }
     } else if (desc) {
-        detailsHtml = `<div class="unit-row-stats"><span>📝 ${escapeHtml(desc)}</span></div>`;
+        detailsHtml = `<div class="unit-row-stats"><span><i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}</span></div>`;
     }
 
     return `
         <div class="unit-row unit-row-${it.type}${rowExtraClass}">
-            <div class="unit-row-icon">${UNIT_ITEM_ICONS[it.type] || '📌'}</div>
+            <div class="unit-row-icon">${UNIT_ITEM_ICONS[it.type] || '<i class="fas fa-thumbtack"></i>'}</div>
             <div class="unit-row-main">
                 <div class="unit-row-title">${escapeHtml(it.title)}${reasonHtml}</div>
                 ${detailsHtml}
@@ -2260,7 +2292,7 @@ function buildUnitAccordionHtml(unit, idx, rowsHtml) {
     return `
         <div class="unit-acc ${idx === 0 ? 'open' : ''}" id="unit-acc-${unit.id}">
             <button class="unit-acc-head" onclick="toggleUnitAccordion('${unit.id}')">
-                <span class="unit-acc-chevron">⌄</span>
+                <span class="unit-acc-chevron"><i class="fas fa-chevron-down"></i></span>
                 <span class="unit-acc-title">${escapeHtml(unit.title)}</span>
                 <span class="unit-acc-count">${(Array.isArray(unit.items) ? unit.items.length : 0)}</span>
             </button>
@@ -2276,11 +2308,11 @@ async function renderUnitsSection() {
     clearInterval(unitsCountdownTimer);
 
     if (typeof db === 'undefined') {
-        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'>❌ تعذر الاتصال بقاعدة البيانات.</p>";
+        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'><i class='fas fa-circle-xmark'></i> تعذر الاتصال بقاعدة البيانات.</p>";
         return;
     }
 
-    box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'>⏳ جاري تحميل المحتوى...</p>";
+    box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'><i class='fas fa-hourglass-half'></i> جاري تحميل المحتوى...</p>";
 
     try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
     await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
@@ -2299,7 +2331,7 @@ async function renderUnitsSection() {
         studentUnitsCache = units;
 
         if (units.length === 0) {
-            box.innerHTML = "<p style='text-align:center;color:#cbd5e1;padding:25px;'>📭 لا يوجد محتوى منشور حالياً.</p>";
+            box.innerHTML = "<p style='text-align:center;color:#cbd5e1;padding:25px;'><i class='fas fa-inbox'></i> لا يوجد محتوى منشور حالياً.</p>";
             return;
         }
 
@@ -2315,7 +2347,7 @@ async function renderUnitsSection() {
         unitsCountdownTimer = setInterval(tickUnitCountdowns, 30000);
     } catch (err) {
         console.error("خطأ في تحميل الوحدات:", err);
-        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'>❌ تعذر تحميل المحتوى. حاول مرة أخرى.</p>";
+        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'><i class='fas fa-circle-xmark'></i> تعذر تحميل المحتوى. حاول مرة أخرى.</p>";
     }
 }
 
@@ -2357,7 +2389,7 @@ function openUnitItem(unitId, itemId) {
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
         if (it.maxViews && watched >= it.maxViews) {
-            showCustomToast("🔒 خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
+            showCustomToast("<i class='fas fa-lock'></i> خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
             return;
         }
         localStorage.setItem(viewKey, String(watched + 1));
@@ -2370,7 +2402,7 @@ function openUnitItem(unitId, itemId) {
 }
 
 // ==========================================
-// 🎓 نظام الكورسات والاشتراكات
+// <i class="fas fa-graduation-cap"></i> نظام الكورسات والاشتراكات
 // ==========================================
 let coursesCache = [];
 let subscriptionsCache = new Map();
@@ -2396,10 +2428,10 @@ function courseMatchesStudent(course) {
     return course.isPublished !== false && (!course.grade || course.grade === 'الكل' || course.grade === 'كل الصفوف' || !stage || course.grade === stage);
 }
 
-// ✅ عرض الكورسات مع علامة ✓ على الصورة بعد الاشتراك
+// <i class="fas fa-circle-check"></i> عرض الكورسات مع علامة <i class="fas fa-check"></i> على الصورة بعد الاشتراك
 async function renderCoursesSection() {
     const box = document.getElementById('courses-list'); if (!box) return;
-    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);">⏳ جاري تحميل الكورسات...</p>';
+    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل الكورسات...</p>';
     try {
         await loadCourseData();
         const courses = coursesCache.filter(courseMatchesStudent);
@@ -2410,14 +2442,14 @@ async function renderCoursesSection() {
         box.innerHTML = `<div class="courses-grid">${courses.map(c => {
             const enrolled = subscriptionsCache.has(c.id);
             return `<article class="course-card" style="position:relative;">
-                ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;">✓</span>' : ''}
-                ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;">🎓</div>'}
+                ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;"><i class="fas fa-check"></i></span>' : ''}
+                ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;"><i class="fas fa-graduation-cap"></i></div>'}
                 <div class="course-body">
-                  ${enrolled ? '<span class="course-status">✓ مشترك في الكورس</span>' : ''}
+                  ${enrolled ? '<span class="course-status"><i class="fas fa-check"></i> مشترك في الكورس</span>' : ''}
                   <div class="course-grade">${escapeHtml(c.grade || 'كل الصفوف')}</div>
                   <h3>${escapeHtml(c.title || 'كورس بدون اسم')}</h3>
                   <p>${escapeHtml(c.description || 'محتوى تعليمي متكامل: فيديوهات وملفات وامتحانات.')}</p>
-                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '🎯 دخول الكورس' : '📌 اشترك في الكورس'}</button>
+                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '<i class="fas fa-bullseye"></i> دخول الكورس' : '<i class="fas fa-thumbtack"></i> اشترك في الكورس'}</button>
                 </div>
             </article>`;
         }).join('')}</div>`;
@@ -2426,7 +2458,7 @@ async function renderCoursesSection() {
     }
 }
 
-// ✅ اشتراك مع مودال تأكيد
+// <i class="fas fa-circle-check"></i> اشتراك مع مودال تأكيد
 async function requestCourseSubscription(courseId) {
     const course = coursesCache.find(c => c.id === courseId); if (!course) return;
     showSubscriptionConfirmModal(course, async () => {
@@ -2441,7 +2473,7 @@ async function requestCourseSubscription(courseId) {
                 enrolledAt: firebase.firestore.FieldValue.serverTimestamp(),
                 source: 'student'
             }, { merge: true });
-            showCustomToast('🎉 تم الاشتراك بنجاح! يمكنك دخول الكورس الآن.', 'success');
+            showCustomToast('<i class="fas fa-champagne-glasses"></i> تم الاشتراك بنجاح! يمكنك دخول الكورس الآن.', 'success');
             await renderCoursesSection();
         } catch (e) {
             showCustomToast('تعذر إتمام الاشتراك. تأكد من إعداد صلاحيات قاعدة البيانات.', 'error');
@@ -2449,7 +2481,7 @@ async function requestCourseSubscription(courseId) {
     });
 }
 
-// ✅ مودال تأكيد الاشتراك
+// <i class="fas fa-circle-check"></i> مودال تأكيد الاشتراك
 function showSubscriptionConfirmModal(course, onConfirm) {
     const old = document.getElementById('sub-confirm-modal'); if (old) old.remove();
     const modal = document.createElement('div');
@@ -2457,14 +2489,14 @@ function showSubscriptionConfirmModal(course, onConfirm) {
     modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:100000;padding:16px;direction:rtl;font-family:'Cairo',sans-serif;`;
     modal.innerHTML = `
       <div style="background:linear-gradient(145deg,#1a2340,#0e1424);border:1px solid rgba(0,242,254,0.35);border-radius:22px;padding:28px 24px;max-width:460px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
-        <div style="font-size:3rem;margin-bottom:10px;">🎓</div>
+        <div style="font-size:3rem;margin-bottom:10px;"><i class="fas fa-graduation-cap"></i></div>
         <h3 style="color:#00f2fe;margin-bottom:8px;font-size:1.35rem;">تأكيد الاشتراك في الكورس</h3>
         <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin:16px 0;text-align:right;">
-          <p style="color:#fff;font-weight:800;margin-bottom:6px;">📚 ${escapeHtml(course.title)}</p>
+          <p style="color:#fff;font-weight:800;margin-bottom:6px;"><i class="fas fa-book"></i> ${escapeHtml(course.title)}</p>
           <p style="color:#94a3b8;font-size:0.85rem;line-height:1.8;margin:0;">${escapeHtml(course.description || 'كورس تعليمي متكامل')}</p>
         </div>
         <div style="background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:12px;padding:12px;margin-bottom:18px;text-align:right;">
-          <p style="color:#f1c40f;font-weight:800;font-size:0.9rem;margin:0 0 6px;">⚠️ يرجى قراءة التعليمات جيداً:</p>
+          <p style="color:#f1c40f;font-weight:800;font-size:0.9rem;margin:0 0 6px;"><i class="fas fa-triangle-exclamation"></i> يرجى قراءة التعليمات جيداً:</p>
           <ul style="color:#cbd5e1;font-size:0.83rem;line-height:1.9;margin:0;padding-inline-start:20px;">
             <li>الاشتراك يمنحك وصولاً كاملاً لمحتوى الكورس.</li>
             <li>عدد مشاهدات الفيديو محدود حسب إعدادات المعلم.</li>
@@ -2472,8 +2504,8 @@ function showSubscriptionConfirmModal(course, onConfirm) {
           </ul>
         </div>
         <div style="display:flex;gap:10px;">
-          <button id="sub-confirm-yes" style="flex:1;padding:14px;background:linear-gradient(135deg,#00c896,#00b4d8);color:#000;border:none;border-radius:14px;font-weight:900;cursor:pointer;font-family:inherit;font-size:1rem;">✅ تأكيد</button>
-          <button id="sub-confirm-no" style="flex:1;padding:14px;background:#334155;color:#fff;border:none;border-radius:14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:1rem;">✖ لا / إلغاء</button>
+          <button id="sub-confirm-yes" style="flex:1;padding:14px;background:linear-gradient(135deg,#00c896,#00b4d8);color:#000;border:none;border-radius:14px;font-weight:900;cursor:pointer;font-family:inherit;font-size:1rem;"><i class="fas fa-circle-check"></i> تأكيد</button>
+          <button id="sub-confirm-no" style="flex:1;padding:14px;background:#334155;color:#fff;border:none;border-radius:14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:1rem;"><i class="fas fa-xmark"></i> لا / إلغاء</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2484,10 +2516,10 @@ function showSubscriptionConfirmModal(course, onConfirm) {
 
 async function renderSubscriptionsSection() {
     const box = document.getElementById('subscriptions-list'); if (!box) return;
-    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);">⏳ جاري تحميل اشتراكاتك...</p>';
+    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل اشتراكاتك...</p>';
     try { await loadCourseData(); const mine = coursesCache.filter(c => subscriptionsCache.has(c.id));
         if (!mine.length) { box.innerHTML = '<div class="subscription-summary">لم تشترك في أي كورس بعد. اختَر كورساً من صفحة «الكورسات».</div>'; return; }
-        box.innerHTML = `<div class="subscription-summary">أنت مشترك في <b>${mine.length}</b> كورس. علامة ✓ بجوار الكورس تؤكد اشتراكك.</div><div class="courses-grid">${mine.map(c => `<article class="course-card" style="position:relative;">${c.image ? `<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;border:2px solid #fff;">✓</span>` : ''}<div class="course-body"><span class="course-status">✓ اشتراك نشط</span><div class="course-grade">${escapeHtml(c.grade || '')}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description || '')}</p><button class="course-btn" onclick="enterCourse('${c.id}')">دخول الكورس ←</button></div></article>`).join('')}</div>`;
+        box.innerHTML = `<div class="subscription-summary">أنت مشترك في <b>${mine.length}</b> كورس. علامة <i class="fas fa-check"></i> بجوار الكورس تؤكد اشتراكك.</div><div class="courses-grid">${mine.map(c => `<article class="course-card" style="position:relative;">${c.image ? `<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;border:2px solid #fff;"><i class="fas fa-check"></i></span>` : ''}<div class="course-body"><span class="course-status"><i class="fas fa-check"></i> اشتراك نشط</span><div class="course-grade">${escapeHtml(c.grade || '')}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description || '')}</p><button class="course-btn" onclick="enterCourse('${c.id}')">دخول الكورس <i class="fas fa-arrow-right"></i></button></div></article>`).join('')}</div>`;
     } catch(e) { box.innerHTML = '<p style="color:#ff718d;text-align:center;">تعذر تحميل الاشتراكات.</p>'; }
 }
 
@@ -2497,7 +2529,7 @@ async function enterCourse(courseId) {
     switchTab('units');
 }
 
-// ✅ داخل الكورس: عرض الوحدات (وحدة أولى/ثانية/...) وكل وحدة فيها فيديوهات وملفات وامتحانات + الدرجة وتفاصيل الإجابة مباشرة
+// <i class="fas fa-circle-check"></i> داخل الكورس: عرض الوحدات (وحدة أولى/ثانية/...) وكل وحدة فيها فيديوهات وملفات وامتحانات + الدرجة وتفاصيل الإجابة مباشرة
 const originalRenderUnitsSection = renderUnitsSection;
 renderUnitsSection = async function() {
     if (!activeCourseId) {
@@ -2531,7 +2563,7 @@ renderUnitsSection = async function() {
     if (!course || !subscriptionsCache.has(course.id)) { activeCourseId = null; return renderUnitsSection(); }
 
     const banner = document.getElementById('active-course-banner');
-    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3>🎓 ${escapeHtml(course.title)}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
+    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
 
     const units = (course.units || []).filter(u => u.isPublished !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -2569,7 +2601,7 @@ function openCourseUnitItem(courseId, unitId, itemId) {
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
         if (it.maxViews && watched >= it.maxViews) {
-            showCustomToast("🔒 خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
+            showCustomToast("<i class='fas fa-lock'></i> خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
             return;
         }
         localStorage.setItem(viewKey, String(watched + 1));
