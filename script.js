@@ -7,6 +7,8 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -779,7 +781,7 @@ window.onload = function() {
     checkAndResumeRunningExam();
 
     try {
-        let nextTab = sessionStorage.getItem('open_tab_after_reload') || 'units';
+        let nextTab = sessionStorage.getItem('open_tab_after_reload') || 'home';
         sessionStorage.removeItem('open_tab_after_reload');
         if (!window.isExamRunning) switchTab(nextTab);
     } catch (e) {}
@@ -1212,9 +1214,11 @@ function switchTab(tab) {
     }
 
     const tabs = {
+        'home': { btn: document.getElementById('tab-btn-home'), sec: document.getElementById('home-section') },
         'courses': { btn: document.getElementById('tab-btn-courses'), sec: document.getElementById('courses-section') },
         'exams': { btn: document.getElementById('tab-btn-exams'), sec: document.getElementById('exams-section') },
         'units': { btn: document.getElementById('tab-btn-units'), sec: document.getElementById('units-section') },
+        'forum': { btn: document.getElementById('tab-btn-forum'), sec: document.getElementById('forum-section') },
         'results': { btn: document.getElementById('tab-btn-results'), sec: document.getElementById('results-section') },
         'account': { btn: document.getElementById('tab-btn-account'), sec: document.getElementById('account-section') }
     };
@@ -1243,6 +1247,12 @@ function switchTab(tab) {
         renderUnitsSection();
     }
     if (tab === 'courses') renderCoursesSection();
+    if (tab === 'home') renderHomeSection();
+}
+
+function toggleSidebarCollapse() {
+    const sb = document.getElementById('app-sidebar');
+    if (sb) sb.classList.toggle('collapsed');
 }
 
 // <i class="fas fa-circle-check"></i> متوسّط النتائج بتصميم احترافي وألوان
@@ -2527,6 +2537,131 @@ async function enterCourse(courseId) {
     if (!subscriptionsCache.has(courseId)) { await loadCourseData(); if (!subscriptionsCache.has(courseId)) return requestCourseSubscription(courseId); }
     activeCourseId = courseId;
     switchTab('units');
+}
+
+// ================= لوحة الرئيسية (الداشبورد) =================
+async function renderHomeSection() {
+    const savedEl = document.getElementById('home-stat-saved');
+    const currentEl = document.getElementById('home-stat-current');
+    const completedEl = document.getElementById('home-stat-completed');
+    const progressValEl = document.getElementById('home-progress-value');
+    const progressFillEl = document.getElementById('home-progress-fill');
+    const subsBox = document.getElementById('home-subscriptions-list');
+
+    if (savedEl) savedEl.textContent = '0';
+
+    try {
+        await loadCourseData();
+        const myCourses = coursesCache.filter(c => subscriptionsCache.has(c.id));
+        if (currentEl) currentEl.textContent = myCourses.length;
+
+        try { await loadFinishedExamStatsCache(); } catch (e) {}
+
+        let totalItems = 0, doneItems = 0, completedCourses = 0;
+        myCourses.forEach(course => {
+            let courseTotal = 0, courseDone = 0;
+            (course.units || []).forEach(unit => {
+                (unit.items || []).forEach(it => {
+                    courseTotal++;
+                    let isDone = false;
+                    if (it.type === 'exam') {
+                        isDone = (typeof finishedExamStatsCache !== 'undefined' && finishedExamStatsCache.has(it.examId)) || !!localStorage.getItem('finished_' + it.examId);
+                    } else if (it.type === 'video') {
+                        isDone = parseInt(localStorage.getItem('video_views_' + it.id) || '0', 10) > 0;
+                    } else if (it.type === 'file') {
+                        isDone = !!localStorage.getItem('file_opened_' + it.id);
+                    }
+                    if (isDone) courseDone++;
+                });
+            });
+            totalItems += courseTotal;
+            doneItems += courseDone;
+            if (courseTotal > 0 && courseDone === courseTotal) completedCourses++;
+        });
+
+        if (completedEl) completedEl.textContent = completedCourses;
+        const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+        if (progressValEl) progressValEl.textContent = '% ' + pct;
+        if (progressFillEl) progressFillEl.style.width = pct + '%';
+
+        if (subsBox) {
+            if (!myCourses.length) {
+                subsBox.innerHTML = '<div class="subscription-summary">لم تشترك في أي كورس بعد. اختَر كورساً من صفحة «الكورسات».</div>';
+            } else {
+                subsBox.innerHTML = `<div class="courses-grid">${myCourses.map(c => `
+                    <article class="course-card">
+                        ${c.image ? `<img src="${escapeHtml(c.image)}" class="course-cover">` : ''}
+                        <div class="course-body">
+                            <span class="course-status"><i class="fas fa-check"></i> اشتراك نشط</span>
+                            <div class="course-grade">${escapeHtml(c.grade || '')}</div>
+                            <h3>${escapeHtml(c.title)}</h3>
+                            <p>${escapeHtml(c.description || '')}</p>
+                            <button class="course-btn" onclick="enterCourse('${c.id}')">دخول الكورس <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    </article>
+                `).join('')}</div>`;
+            }
+        }
+    } catch (e) {
+        console.error('تعذر تحميل بيانات الرئيسية:', e);
+    }
+
+    renderHomeActivityChart();
+}
+
+let homeChartInstance = null;
+async function renderHomeActivityChart() {
+    const canvas = document.getElementById('home-activity-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const dayLabels = ['السبت', 'الجمعة', 'الخميس', 'الأربعاء', 'الثلاثاء', 'الإثنين', 'الأحد'];
+    const now = new Date();
+    const jsDay = now.getDay(); // 0=Sunday ... 6=Saturday
+    const daysSinceSaturday = (jsDay + 1) % 7;
+    const startOfThisWeek = new Date(now); startOfThisWeek.setHours(0, 0, 0, 0); startOfThisWeek.setDate(now.getDate() - daysSinceSaturday);
+    const startOfLastWeek = new Date(startOfThisWeek); startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+
+    const thisWeekCounts = new Array(7).fill(0);
+    const lastWeekCounts = new Array(7).fill(0);
+
+    try {
+        const key = currentStudentIdentity();
+        if (key && typeof db !== 'undefined') {
+            const snap = await db.collection('course_activity').where('studentKey', '==', key).get();
+            snap.forEach(doc => {
+                const d = doc.data();
+                const ts = d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate() : null;
+                if (!ts) return;
+                const diffDaysThis = Math.floor((ts - startOfThisWeek) / 86400000);
+                const diffDaysLast = Math.floor((ts - startOfLastWeek) / 86400000);
+                if (diffDaysThis >= 0 && diffDaysThis < 7) thisWeekCounts[diffDaysThis]++;
+                else if (diffDaysLast >= 0 && diffDaysLast < 7) lastWeekCounts[diffDaysLast]++;
+            });
+        }
+    } catch (e) { console.warn('تعذر تحميل بيانات النشاط:', e); }
+
+    const orderedThis = [thisWeekCounts[0], thisWeekCounts[6], thisWeekCounts[5], thisWeekCounts[4], thisWeekCounts[3], thisWeekCounts[2], thisWeekCounts[1]];
+    const orderedLast = [lastWeekCounts[0], lastWeekCounts[6], lastWeekCounts[5], lastWeekCounts[4], lastWeekCounts[3], lastWeekCounts[2], lastWeekCounts[1]];
+
+    if (homeChartInstance) { homeChartInstance.destroy(); }
+    homeChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: dayLabels,
+            datasets: [
+                { label: 'الأسبوع الماضي', data: orderedLast, borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,.15)', borderDash: [6, 4], tension: 0.4, pointBackgroundColor: '#2ecc71' },
+                { label: 'الأسبوع الحالي', data: orderedThis, borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,.15)', tension: 0.4, pointBackgroundColor: '#e74c3c' }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, suggestedMax: 10, grid: { color: 'rgba(255,255,255,.06)' }, ticks: { color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+            }
+        }
+    });
 }
 
 // <i class="fas fa-circle-check"></i> داخل الكورس: عرض الوحدات (وحدة أولى/ثانية/...) وكل وحدة فيها فيديوهات وملفات وامتحانات + الدرجة وتفاصيل الإجابة مباشرة

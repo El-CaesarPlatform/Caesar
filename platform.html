@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     
     <style>
         /* ================= 0. المتغيرات والتنسيق العام ================= */
@@ -495,7 +496,45 @@
 
         .unit-row-empty { text-align: center; color: var(--text-sub); padding: 14px; font-size: 0.9rem; }
 
-        /* الكورسات والاشتراكات */
+        /* ================= لوحة الرئيسية (الداشبورد) ================= */
+        .home-stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; margin-bottom:22px; }
+        .stat-card { display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#ffbe0b,#fb8500); border-radius:20px; padding:20px 24px; box-shadow:0 12px 26px rgba(255,190,11,.22); }
+        .stat-card .stat-num { font-size:2rem; font-weight:900; color:#1a1200; }
+        .stat-card .stat-label { color:#3a2900; font-weight:800; font-size:.92rem; margin-top:4px; }
+        .stat-card .stat-icon { width:52px; height:52px; border-radius:50%; background:rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:#fff; flex-shrink:0; }
+
+        .home-main-grid { display:grid; grid-template-columns:300px 1fr; gap:22px; margin-bottom:26px; }
+        @media (max-width: 900px) { .home-main-grid { grid-template-columns:1fr; } }
+
+        .progress-card { background:linear-gradient(160deg,#1c2740,#0c1220); border:1px solid rgba(255,190,11,.28); border-radius:22px; padding:26px 20px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .progress-card .progress-title { color:var(--text-sub); font-weight:800; margin-bottom:14px; }
+        .progress-card .progress-value { font-size:2.1rem; font-weight:900; color:var(--accent-gold); margin-bottom:16px; }
+        .progress-bar-track { width:100%; height:12px; border-radius:8px; background:rgba(255,255,255,.08); overflow:hidden; margin-bottom:16px; }
+        .progress-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,#111,var(--accent-gold)); transition:width .6s ease; }
+        .progress-card .progress-desc { color:var(--text-sub); font-size:.85rem; line-height:1.8; }
+
+        .chart-card { background:linear-gradient(160deg,#182238,#0c1220); border:1px solid rgba(0,242,254,.18); border-radius:22px; padding:22px; }
+        .chart-card h3 { margin:0 0 14px; font-size:1.15rem; }
+        .chart-legend { display:flex; gap:18px; margin-bottom:10px; font-size:.85rem; color:var(--text-sub); }
+        .chart-legend span { display:inline-flex; align-items:center; gap:6px; }
+        .chart-legend i { width:12px; height:12px; border-radius:50%; display:inline-block; }
+        .chart-card canvas { max-height:260px; }
+
+        .home-courses-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+        .home-courses-header a { color:var(--accent-cyan); font-weight:800; font-size:.9rem; cursor:pointer; text-decoration:none; }
+
+        .coming-soon-box { text-align:center; padding:60px 20px; color:var(--text-sub); }
+        .coming-soon-box i { font-size:3rem; color:var(--accent-cyan); margin-bottom:16px; display:block; }
+        .coming-soon-box h3 { color:#fff; margin-bottom:10px; }
+
+        /* تصغير القائمة الجانبية */
+        .sidebar-collapse-btn { display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:var(--text-sub); cursor:pointer; margin-bottom:14px; transition:all .25s ease; }
+        .sidebar-collapse-btn:hover { color:var(--accent-cyan); border-color:var(--accent-cyan); }
+        .sidebar.collapsed { width:88px; }
+        .sidebar.collapsed h2, .sidebar.collapsed .user-box, .sidebar.collapsed .menu-label { display:none; }
+        .sidebar.collapsed .sidebar-menu li { justify-content:center; }
+        .sidebar.collapsed .sidebar-collapse-btn i { transform:rotate(180deg); }
+
         .courses-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:22px; }
         .course-card { overflow:hidden; border-radius:22px; background:linear-gradient(145deg,#182238,#0c1220); border:1px solid rgba(0,242,254,.18); box-shadow:0 14px 30px rgba(0,0,0,.24); }
         .course-cover { width:100%; aspect-ratio:16/9; height:auto; object-fit:contain; background:#0c1220; display:block; }
@@ -1519,8 +1558,12 @@
 </div>
 
 <!-- القائمة الجانبية -->
-<div class="sidebar">
+<div class="sidebar" id="app-sidebar">
     <div>
+        <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="تصغير القائمة">
+            <i class="fas fa-angle-right"></i>
+        </button>
+
         <h2>منصة القيصر</h2>
 
         <div class="user-box">
@@ -1531,30 +1574,71 @@
         </div>
 
         <ul class="sidebar-menu">
-            <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true"><i class="fas fa-graduation-cap"></i></span> الكورسات</li>
-            <li class="active" id="tab-btn-units" onclick="switchTab('units')">
-                <span aria-hidden="true"><i class="fas fa-book"></i></span>
-                <!-- emoji menu icon -->
-                <svg style="display:none" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-                المحتوى التعليمي
-            </li>
-            <li id="tab-btn-account" onclick="switchTab('account')">
-                <span aria-hidden="true"><i class="fas fa-user"></i></span>
-                <svg style="display:none" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                حسابي
-            </li>
+            <li class="active" id="tab-btn-home" onclick="switchTab('home')"><span aria-hidden="true"><i class="fas fa-house"></i></span><span class="menu-label">الرئيسية</span></li>
+            <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true"><i class="fas fa-graduation-cap"></i></span><span class="menu-label">الكورسات</span></li>
+            <li id="tab-btn-units" onclick="switchTab('units')"><span aria-hidden="true"><i class="fas fa-book"></i></span><span class="menu-label">المحتوى التعليمي</span></li>
+            <li id="tab-btn-forum" onclick="switchTab('forum')"><span aria-hidden="true"><i class="fas fa-comments"></i></span><span class="menu-label">المنتدى</span></li>
+            <li id="tab-btn-account" onclick="switchTab('account')"><span aria-hidden="true"><i class="fas fa-user"></i></span><span class="menu-label">حسابي</span></li>
         </ul>
     </div>
 </div>
 
 <!-- المحتوى الرئيسي -->
 <div class="main-content">
+
+    <!-- الرئيسية: لوحة معلومات ونشاط الطالب -->
+    <div id="home-section">
+        <h2 class="section-title"><i class="fas fa-house"></i> الرئيسية</h2>
+
+        <div class="home-stats-grid">
+            <div class="stat-card">
+                <div><div class="stat-num" id="home-stat-saved">0</div><div class="stat-label">الفيديوهات المحفوظة</div></div>
+                <div class="stat-icon"><i class="fas fa-bookmark"></i></div>
+            </div>
+            <div class="stat-card">
+                <div><div class="stat-num" id="home-stat-current">0</div><div class="stat-label">كورساتك الحالية</div></div>
+                <div class="stat-icon"><i class="fas fa-lightbulb"></i></div>
+            </div>
+            <div class="stat-card">
+                <div><div class="stat-num" id="home-stat-completed">0</div><div class="stat-label">كورسات مكتملة</div></div>
+                <div class="stat-icon"><i class="fas fa-square-check"></i></div>
+            </div>
+        </div>
+
+        <div class="home-main-grid">
+            <div class="progress-card">
+                <div class="progress-title">تقدمك</div>
+                <div class="progress-value" id="home-progress-value">% 0</div>
+                <div class="progress-bar-track"><div class="progress-bar-fill" id="home-progress-fill" style="width:0%;"></div></div>
+                <div class="progress-desc">مقياس لكمية الدروس السابقة والمتبقية في كورساتك الحالية!</div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-line"></i> نشاطك التعليمي</h3>
+                <div class="chart-legend">
+                    <span><i style="background:#2ecc71;"></i> الأسبوع الماضي</span>
+                    <span><i style="background:#e74c3c;"></i> الأسبوع الحالي</span>
+                </div>
+                <canvas id="home-activity-chart" height="90"></canvas>
+                <p style="text-align:center;color:var(--text-sub);font-size:.82rem;margin-top:10px;">*ابدأ أول كورس علشان نقدر نعرضلك بيانات نشاطك التعليمي بشكل دقيق!</p>
+            </div>
+        </div>
+
+        <div class="home-courses-header">
+            <h2 class="section-title" style="margin-bottom:0;">الكورسات اللي مشترك فيها</h2>
+            <a onclick="switchTab('courses')">عرض الكورسات <i class="fas fa-arrow-left"></i></a>
+        </div>
+        <div id="home-subscriptions-list"></div>
+    </div>
+
+    <!-- المنتدى (قريباً) -->
+    <div id="forum-section" style="display:none;">
+        <h2 class="section-title"><i class="fas fa-comments"></i> المنتدى</h2>
+        <div class="coming-soon-box">
+            <i class="fas fa-comments"></i>
+            <h3>المنتدى قريباً</h3>
+            <p>هنا هتقدر تتناقش مع زمايلك وتسأل أسئلتك.. تابعنا قريباً!</p>
+        </div>
+    </div>
 
     <!-- الكورسات: تظهر قبل المحتوى العلمي -->
     <div id="courses-section" style="display:none;">
@@ -1572,7 +1656,7 @@
     </div>
 
     <!-- قسم المحتوى التعليمي (وحدات: ملفات + فيديوهات + امتحانات) -->
-    <div id="units-section">
+    <div id="units-section" style="display:none;">
         <h2 class="section-title"><i class="fas fa-book"></i> المحتوى التعليمي</h2>
         <div id="active-course-banner"></div>
         <div id="units-list"></div>
