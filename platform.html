@@ -309,6 +309,24 @@
             min-height: 52px;
         }
 
+        .mistake-practice-card { max-width:900px; margin:0 0 22px; padding:18px 20px; border-radius:18px; border:1px solid rgba(255,190,11,.32); background:linear-gradient(120deg,rgba(255,190,11,.12),rgba(157,78,221,.11)); display:flex; align-items:center; justify-content:space-between; gap:18px; }
+        .mistake-practice-copy { display:flex; align-items:center; gap:14px; }
+        .mistake-practice-icon { width:48px; height:48px; border-radius:15px; flex:none; display:grid; place-items:center; color:#171100; background:linear-gradient(135deg,#ffda63,#ff9f1c); font-size:1.25rem; }
+        .mistake-practice-card h3 { margin:0 0 4px; color:#fff; font-size:1.08rem; }
+        .mistake-practice-card p { margin:0; color:#cbd5e1; font-size:.88rem; line-height:1.8; }
+        .mistake-practice-card p b { color:var(--accent-gold); }
+        .mistake-practice-btn { border:0; border-radius:12px; padding:12px 18px; flex:none; color:#151000; background:linear-gradient(135deg,#ffda63,#ff9f1c); font:900 .9rem 'Cairo',sans-serif; cursor:pointer; }
+        .mistake-practice-btn:disabled { opacity:.55; cursor:not-allowed; }
+        .mistake-practice-modal { position:fixed; inset:0; z-index:100010; display:grid; place-items:center; padding:16px; background:rgba(0,0,0,.82); backdrop-filter:blur(7px); }
+        .mistake-practice-dialog { position:relative; width:min(440px,100%); padding:28px 22px 22px; border:1px solid rgba(255,190,11,.38); border-radius:22px; background:linear-gradient(145deg,#1a2340,#0e1424); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.65); }
+        .mistake-practice-dialog .mistake-practice-icon { margin:0 auto 12px; }
+        .mistake-practice-dialog h3 { color:#fff; margin:0 0 5px; }
+        .mistake-practice-dialog p { color:#a0aec0; margin-bottom:18px; }
+        .mistake-count-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+        .mistake-count-options button { border:1px solid rgba(255,190,11,.35); border-radius:12px; padding:13px 8px; color:#fff; background:rgba(255,190,11,.1); font:800 .92rem 'Cairo',sans-serif; cursor:pointer; }
+        .mistake-count-options button:hover { background:rgba(255,190,11,.24); }
+        .mistake-practice-close { position:absolute; top:12px; left:12px; border:0; color:#cbd5e1; background:transparent; font-size:1.1rem; cursor:pointer; }
+        @media(max-width:600px) { .mistake-practice-card { align-items:stretch; flex-direction:column; padding:15px; } .mistake-practice-btn { width:100%; } }
         /* ================= المحتوى التعليمي (الوحدات) ================= */
         #units-list { max-width: 900px; }
 

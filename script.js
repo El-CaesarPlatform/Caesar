@@ -9,6 +9,10 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -1814,6 +1818,26 @@ function calculateAndSend(bypassValidation = false) {
         });
     });
 
+    // احفظ أخطاء أسئلة الاختيار للكورس الحالي حتى تظهر في تدريب "أسئلة من أخطائك".
+    const practiceCourseId = window.currentCourseIdForExam || activeCourseId;
+    if (practiceCourseId && !String(currentActiveSubject).startsWith('mistake_practice_')) {
+        const mistakeKey = getMistakeQuestionsStorageKey(practiceCourseId);
+        let mistakeMap = {};
+        try { mistakeMap = JSON.parse(localStorage.getItem(mistakeKey) || '{}') || {}; } catch (e) {}
+        activeQuestionsList.forEach((q, qIndex) => {
+            const answer = answersForAdmin[qIndex];
+            const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
+            if (!isChoice || !answer || answer.isCorrect === true) return;
+            const stableKey = `${currentActiveSubject}_${qIndex}_${(q.question || '').slice(0, 80)}`;
+            mistakeMap[stableKey] = {
+                question: q.question || 'سؤال بدون نص', options: Array.isArray(q.options) ? q.options : [],
+                correctAnswer: q.correctAnswer || '', imageUrl: q.imageUrl || '', points: q.points || 1,
+                sourceExam: currentActiveSubject
+            };
+        });
+        try { localStorage.setItem(mistakeKey, JSON.stringify(mistakeMap)); } catch (e) { console.warn('تعذر حفظ أسئلة الأخطاء:', e); }
+    }
+
     const hasEssay = answersForAdmin.some(a => a.type === "essay");
     const releaseNow = !hasEssay;
     const finalPercent = totalExamPointsPossible > 0 ? Math.round((mcqScoreObtained / totalExamPointsPossible) * 100) : 0;
@@ -2092,6 +2116,20 @@ async function loadFinishedExamStatsCache() {
     }
 }
 let unitsCountdownTimer = null;
+let videoPurchasesCache = new Set();
+
+async function loadVideoPurchasesCache() {
+    videoPurchasesCache = new Set();
+    if (typeof db === 'undefined') return;
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    if (!code) return;
+    try {
+        const snap = await db.collection("video_purchases").where("studentCode", "==", code).get();
+        snap.forEach(d => { const it = d.data().itemId; if (it) videoPurchasesCache.add(it); });
+    } catch (e) {
+        console.warn("تعذر تحميل مشتريات الفيديو:", e);
+    }
+}
 
 async function loadExamLocksCache() {
     examLockedIdsCache = new Set();
@@ -2161,42 +2199,255 @@ function toEmbedUrl(url) {
     return null;
 }
 
+// ==========================================
+// مشغّل الفيديو الخاص (أزرار الموقع + علامة مائية باسم الطالب)
+// ==========================================
+let _ytApiPromise = null;
+let _vp = null;
+
+function loadYouTubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (_ytApiPromise) return _ytApiPromise;
+    _ytApiPromise = new Promise((resolve, reject) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { if (typeof prev === 'function') prev(); resolve(); };
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        s.onerror = () => { _ytApiPromise = null; reject(new Error('yt api failed')); };
+        document.head.appendChild(s);
+    });
+    return _ytApiPromise;
+}
+
+function vpFmt(sec) {
+    sec = Math.max(0, Math.floor(sec || 0));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s).padStart(2, '0');
+}
+
+function vpInjectStyles() {
+    if (document.getElementById('vp-styles')) return;
+    const st = document.createElement('style');
+    st.id = 'vp-styles';
+    st.textContent = `
+#vp-box{position:relative;width:100%;padding-top:56.25%;background:#000;border-radius:14px;overflow:hidden;user-select:none;-webkit-user-select:none}
+#vp-box:fullscreen,#vp-box.vp-pseudo-fs{position:fixed;inset:0;width:100%;height:100%;padding-top:0;border-radius:0;z-index:100001}
+#vp-box:-webkit-full-screen{width:100%;height:100%;padding-top:0;border-radius:0}
+#vp-stage{position:absolute;inset:0}
+#vp-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#vp-shield{position:absolute;inset:0 0 50px 0;z-index:2;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#vp-bigplay{width:70px;height:70px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:28px;display:none;align-items:center;justify-content:center;pointer-events:none}
+#vp-corner{position:absolute;top:0;right:0;width:70px;height:70px;z-index:3}
+#vp-wm{position:absolute;z-index:5;pointer-events:none;color:rgba(255,255,255,.35);font-weight:800;font-size:clamp(11px,2.2vw,17px);text-shadow:0 0 4px rgba(0,0,0,.9);transition:top 1.5s ease,left 1.5s ease;white-space:nowrap;unicode-bidi:plaintext}
+#vp-wm2{position:absolute;z-index:5;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-20deg);color:rgba(255,255,255,.12);font-weight:900;font-size:clamp(16px,4vw,34px);white-space:nowrap;text-shadow:0 0 4px rgba(0,0,0,.6);unicode-bidi:plaintext}
+#vp-controls{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;gap:6px;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,.9));direction:ltr;color:#fff;font-family:inherit;font-size:13px}
+#vp-controls .vp-btn,#vp-fs-float{background:none;border:0;color:#fff;font-size:17px;cursor:pointer;padding:4px 8px;font-family:inherit}
+#vp-controls .vp-time{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+#vp-seek{flex:1;accent-color:#e74c3c;cursor:pointer}
+#vp-fs-float{position:absolute;top:8px;left:8px;z-index:6;background:rgba(0,0,0,.55);border-radius:8px}
+`;
+    document.head.appendChild(st);
+}
+
 function openVideoModal(title, url) {
     const embed = toEmbedUrl(url);
     if (!embed) {
         window.open(url, '_blank', 'noopener');
         return;
     }
+    closeVideoModal();
+    vpInjectStyles();
 
-    let modal = document.getElementById('video-modal');
-    if (modal) modal.remove();
+    const name = (localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    const wmText = escapeHtml([name, code].filter(Boolean).join(' • ') || 'طالب');
 
-    modal = document.createElement('div');
+    const isYT = /youtube\.com\/embed\//.test(embed);
+    const isDrive = embed.indexOf('drive.google.com') !== -1;
+    const isVimeo = embed.indexOf('player.vimeo.com') !== -1;
+    const otherSrc = isVimeo ? embed + (embed.indexOf('?') === -1 ? '?' : '&') + 'title=0&byline=0&portrait=0&dnt=1' : embed;
+
+    const modal = document.createElement('div');
     modal.id = 'video-modal';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.93); z-index: 100000; display: flex;
-        justify-content: center; align-items: center; padding: 14px; direction: rtl;
-    `;
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.93);z-index:100000;display:flex;justify-content:center;align-items:center;padding:14px;direction:rtl;';
     modal.innerHTML = `
-        <div style="width: 100%; max-width: 900px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                <strong style="color:#fff; font-size: 1.05rem;"><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
-                <button onclick="closeVideoModal()" style="background:#e74c3c; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; cursor:pointer; font-family:inherit;"><i class="fas fa-xmark"></i> إغلاق</button>
+        <div style="width:100%;max-width:900px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <strong style="color:#fff;font-size:1.05rem;"><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
+                <button onclick="closeVideoModal()" style="background:#e74c3c;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-xmark"></i> إغلاق</button>
             </div>
-            <div style="position: relative; width: 100%; padding-top: 56.25%; background:#000; border-radius: 14px; overflow: hidden;">
-                <iframe src="${embed}" style="position:absolute; inset:0; width:100%; height:100%; border:0;" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
-            </div>
-            <div style="text-align:center; margin-top:10px;">
-                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:#94a3b8; font-size:0.85rem;">لو الفيديو مش شغال اضغط هنا لفتحه في صفحة جديدة</a>
+            <div id="vp-box">
+                <div id="vp-stage">${isYT ? '<div id="vp-yt"></div>' : `<iframe src="${otherSrc}" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`}</div>
+                ${isYT ? `<div id="vp-shield"><div id="vp-bigplay"><i class="fas fa-play"></i></div></div>` : ''}
+                ${isDrive ? '<div id="vp-corner"></div>' : ''}
+                <div id="vp-wm">${wmText}</div>
+                <div id="vp-wm2">${wmText}</div>
+                ${isYT ? `
+                <div id="vp-controls">
+                    <button class="vp-btn" id="vp-play"><i class="fas fa-play"></i></button>
+                    <span class="vp-time" id="vp-cur">0:00</span>
+                    <input type="range" id="vp-seek" min="0" max="1000" value="0">
+                    <span class="vp-time" id="vp-dur">0:00</span>
+                    <button class="vp-btn" id="vp-mute"><i class="fas fa-volume-high"></i></button>
+                    <button class="vp-btn" id="vp-speed">1x</button>
+                    <button class="vp-btn" id="vp-fs"><i class="fas fa-expand"></i></button>
+                </div>` : `<button id="vp-fs-float"><i class="fas fa-expand"></i></button>`}
             </div>
         </div>
     `;
     modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
     document.body.appendChild(modal);
+
+    const box = modal.querySelector('#vp-box');
+    box.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    _vp = { modal, box, player: null, timer: null, wmTimer: null, seeking: false };
+
+    // العلامة المائية المتحركة
+    const wm = modal.querySelector('#vp-wm');
+    const moveWm = () => {
+        wm.style.top = (6 + Math.random() * 78) + '%';
+        wm.style.left = (4 + Math.random() * 55) + '%';
+    };
+    moveWm();
+    _vp.wmTimer = setInterval(moveWm, 6000);
+
+    // ملء الشاشة (على صندوق المشغّل عشان العلامة المائية تفضل ظاهرة)
+    const fsBtn = modal.querySelector('#vp-fs') || modal.querySelector('#vp-fs-float');
+    const isFs = () => document.fullscreenElement === box || document.webkitFullscreenElement === box || box.classList.contains('vp-pseudo-fs');
+    const setFsIcon = () => { fsBtn.innerHTML = '<i class="fas fa-' + (isFs() ? 'compress' : 'expand') + '"></i>'; };
+    const toggleFs = () => {
+        if (isFs()) {
+            if (box.classList.contains('vp-pseudo-fs')) box.classList.remove('vp-pseudo-fs');
+            else if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } else if (box.requestFullscreen) {
+            box.requestFullscreen().catch(() => box.classList.add('vp-pseudo-fs'));
+        } else if (box.webkitRequestFullscreen) {
+            box.webkitRequestFullscreen();
+        } else {
+            box.classList.add('vp-pseudo-fs');
+        }
+        setTimeout(setFsIcon, 150);
+    };
+    fsBtn.addEventListener('click', toggleFs);
+    _vp.onFs = setFsIcon;
+    document.addEventListener('fullscreenchange', _vp.onFs);
+    document.addEventListener('webkitfullscreenchange', _vp.onFs);
+
+    if (!isYT) return;
+
+    // ===== مشغّل يوتيوب بأزرار الموقع =====
+    const playBtn = modal.querySelector('#vp-play');
+    const bigPlay = modal.querySelector('#vp-bigplay');
+    const seek = modal.querySelector('#vp-seek');
+    const curEl = modal.querySelector('#vp-cur');
+    const durEl = modal.querySelector('#vp-dur');
+    const muteBtn = modal.querySelector('#vp-mute');
+    const speedBtn = modal.querySelector('#vp-speed');
+    const shield = modal.querySelector('#vp-shield');
+    const rates = [1, 1.25, 1.5, 2, 0.75];
+    let rateIdx = 0;
+
+    const setPlayingUi = (playing) => {
+        playBtn.innerHTML = '<i class="fas fa-' + (playing ? 'pause' : 'play') + '"></i>';
+        bigPlay.style.display = playing ? 'none' : 'flex';
+    };
+    setPlayingUi(false);
+
+    const togglePlay = () => {
+        const p = _vp && _vp.player;
+        if (!p || !p.getPlayerState) return;
+        if (p.getPlayerState() === 1) p.pauseVideo(); else p.playVideo();
+    };
+    playBtn.addEventListener('click', togglePlay);
+    shield.addEventListener('click', togglePlay);
+
+    muteBtn.addEventListener('click', () => {
+        const p = _vp && _vp.player;
+        if (!p || !p.isMuted) return;
+        if (p.isMuted()) p.unMute(); else p.mute();
+        muteBtn.innerHTML = '<i class="fas fa-volume-' + (p.isMuted() ? 'xmark' : 'high') + '"></i>';
+    });
+
+    speedBtn.addEventListener('click', () => {
+        const p = _vp && _vp.player;
+        if (!p || !p.setPlaybackRate) return;
+        rateIdx = (rateIdx + 1) % rates.length;
+        p.setPlaybackRate(rates[rateIdx]);
+        speedBtn.textContent = rates[rateIdx] + 'x';
+    });
+
+    seek.addEventListener('input', () => {
+        _vp.seeking = true;
+        const p = _vp.player;
+        if (p && p.getDuration) curEl.textContent = vpFmt((seek.value / 1000) * p.getDuration());
+    });
+    seek.addEventListener('change', () => {
+        const p = _vp.player;
+        if (p && p.getDuration) p.seekTo((seek.value / 1000) * p.getDuration(), true);
+        _vp.seeking = false;
+    });
+
+    const fallbackToPlainIframe = () => {
+        if (!_vp || _vp.modal !== modal) return;
+        const stage = modal.querySelector('#vp-stage');
+        stage.innerHTML = `<iframe src="${embed}" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
+        const c = modal.querySelector('#vp-controls'); if (c) c.remove();
+        if (shield) shield.remove();
+        if (_vp.timer) clearInterval(_vp.timer);
+    };
+
+    loadYouTubeApi().then(() => {
+        if (!_vp || _vp.modal !== modal) return;
+        const vid = (embed.match(/embed\/([^?/]+)/) || [])[1];
+        _vp.player = new YT.Player('vp-yt', {
+            videoId: vid,
+            playerVars: Object.assign({ controls: 0, rel: 0, modestbranding: 1, disablekb: 1, fs: 0, iv_load_policy: 3, playsinline: 1, cc_load_policy: 0 }, /^https?:$/.test(location.protocol) ? { origin: location.origin } : {}),
+            events: {
+                onStateChange: (e) => setPlayingUi(e.data === 1),
+                onError: (e) => {
+                    const codes = {
+                        2: 'رابط الفيديو غير صحيح',
+                        5: 'مشكلة في مشغّل المتصفح، جرّب متصفح تاني',
+                        100: 'الفيديو محذوف أو خاص (Private). خليه "غير مدرج" (Unlisted)',
+                        101: 'صاحب الفيديو مقفّل التضمين. فعّل "السماح بالتضمين" في YouTube Studio',
+                        150: 'صاحب الفيديو مقفّل التضمين. فعّل "السماح بالتضمين" في YouTube Studio',
+                        153: 'YouTube مش عارف الموقع اللي بيشغّل الفيديو (Referer). افتح الموقع من رابط http/https بدل ما يكون ملف مباشر'
+                    };
+                    const msg = codes[e.data] || 'الفيديو غير متاح للتشغيل حالياً، تواصل مع الدعم.';
+                    const stage = modal.querySelector('#vp-stage');
+                    if (stage) stage.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px;gap:8px;"><div>' + msg + '</div><div style="font-size:12px;opacity:.6;direction:ltr;">Error ' + e.data + '</div></div>';
+                }
+            }
+        });
+        _vp.timer = setInterval(() => {
+            const p = _vp && _vp.player;
+            if (!p || !p.getDuration) return;
+            const d = p.getDuration() || 0;
+            const t = p.getCurrentTime ? p.getCurrentTime() : 0;
+            durEl.textContent = vpFmt(d);
+            if (!_vp.seeking) {
+                curEl.textContent = vpFmt(t);
+                seek.value = d ? Math.round((t / d) * 1000) : 0;
+            }
+        }, 300);
+    }).catch(fallbackToPlainIframe);
 }
 
 function closeVideoModal() {
+    if (_vp) {
+        if (_vp.timer) clearInterval(_vp.timer);
+        if (_vp.wmTimer) clearInterval(_vp.wmTimer);
+        document.removeEventListener('fullscreenchange', _vp.onFs);
+        document.removeEventListener('webkitfullscreenchange', _vp.onFs);
+        try { if (_vp.player && _vp.player.destroy) _vp.player.destroy(); } catch (e) {}
+        try {
+            if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } catch (e) {}
+        _vp = null;
+    }
     const modal = document.getElementById('video-modal');
     if (modal) modal.remove();
 }
@@ -2274,14 +2525,24 @@ function buildUnitItemRowHtml(it, openCallExpr) {
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
         const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
+        const price = parseFloat(it.price) || 0;
+        const purchased = videoPurchasesCache.has(it.id);
 
         const statParts = [];
         if (desc) statParts.push(`<i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}`);
         if (it.durationMin) statParts.push(`<i class="fas fa-stopwatch"></i> مدة الفيديو: ${it.durationMin} دقيقة`);
         if (remaining !== null) statParts.push(`<i class="fas fa-eye"></i> المشاهدات المتبقية لك: ${remaining}`);
+        if (price > 0) statParts.push(`<i class="fas fa-tag"></i> السعر: ${price} جنيه`);
+        if (price > 0 && purchased) statParts.push(`<i class="fas fa-circle-check"></i> تم شراء هذا الفيديو`);
         if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
 
-        if (remaining === 0) { label = 'انتهت مرات المشاهدة'; disabled = true; }
+        if (price > 0 && !purchased) {
+            label = '<i class="fas fa-lock"></i> اشترِ الفيديو';
+            rowExtraClass = ' unit-row-locked';
+            reasonHtml = `<div class="unit-row-sub" style="color:#f1c40f;"><i class="fas fa-circle-info"></i> فيديو مدفوع (${price} جنيه) — يرجى التواصل مع الدعم الفني لشراء الفيديو</div>`;
+        } else if (remaining === 0) {
+            label = 'انتهت مرات المشاهدة'; disabled = true;
+        }
     } else if (desc) {
         detailsHtml = `<div class="unit-row-stats"><span><i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}</span></div>`;
     }
@@ -2325,7 +2586,7 @@ async function renderUnitsSection() {
     box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'><i class='fas fa-hourglass-half'></i> جاري تحميل المحتوى...</p>";
 
     try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
-    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
+    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache(), loadVideoPurchasesCache()]);
 
     try {
         const snap = await db.collection("units").get();
@@ -2396,6 +2657,10 @@ function openUnitItem(unitId, itemId) {
     if (it.type === 'file') {
         window.open(it.url, '_blank', 'noopener');
     } else if (it.type === 'video') {
+        if ((parseFloat(it.price) || 0) > 0 && !videoPurchasesCache.has(it.id)) {
+            showCustomToast("<i class='fas fa-lock'></i> هذا الفيديو مدفوع، يرجى التواصل مع الدعم الفني لشراء الفيديو.", "warning");
+            return;
+        }
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
         if (it.maxViews && watched >= it.maxViews) {
@@ -2691,7 +2956,7 @@ renderUnitsSection = async function() {
     clearInterval(unitsCountdownTimer);
 
     try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
-    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]);
+    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache(), loadVideoPurchasesCache()]);
     await loadCourseData();
 
     const course = coursesCache.find(c => c.id === activeCourseId);
@@ -2699,6 +2964,8 @@ renderUnitsSection = async function() {
 
     const banner = document.getElementById('active-course-banner');
     if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
+
+    renderMistakePracticeCard(course);
 
     const units = (course.units || []).filter(u => u.isPublished !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -2719,6 +2986,58 @@ renderUnitsSection = async function() {
     unitsCountdownTimer = setInterval(tickUnitCountdowns, 30000);
 };
 
+function getMistakeQuestionsStorageKey(courseId) {
+    return `mistake_questions_${currentStudentIdentity()}_${courseId}`;
+}
+
+function getCourseMistakeQuestions(courseId) {
+    try {
+        const value = JSON.parse(localStorage.getItem(getMistakeQuestionsStorageKey(courseId)) || '{}');
+        return Object.entries(value || {}).map(([key, question]) => ({ key, ...question }));
+    } catch (e) { return []; }
+}
+
+function renderMistakePracticeCard(course) {
+    const old = document.getElementById('mistake-practice-card');
+    if (old) old.remove();
+    const box = document.createElement('section');
+    box.id = 'mistake-practice-card';
+    box.className = 'mistake-practice-card';
+    // الميزة مقفولة مؤقتاً (قريباً)
+    box.innerHTML = `
+      <div class="mistake-practice-copy">
+        <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
+        <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;font-size:.75rem;font-weight:800;">قريباً</span></h3><p>هذه الميزة ستتوفر قريباً.</p></div>
+      </div>
+      <button class="mistake-practice-btn" disabled><i class="fas fa-lock"></i> قريباً</button>`;
+    const banner = document.getElementById('active-course-banner');
+    if (banner) banner.insertAdjacentElement('afterend', box);
+}
+
+function startMistakePractice(courseId) {
+    return showCustomToast('ميزة "أسئلة من أخطائك" ستتوفر قريباً.', 'warning');
+    const mistakes = getCourseMistakeQuestions(courseId);
+    if (!mistakes.length) return showCustomToast('لسه مفيش أسئلة غلط في الكورس ده. بعد أول امتحان هتلاقيها هنا.', 'warning');
+    const modal = document.createElement('div');
+    modal.className = 'mistake-practice-modal';
+    modal.innerHTML = `<div class="mistake-practice-dialog"><button class="mistake-practice-close" aria-label="إغلاق" onclick="this.closest('.mistake-practice-modal').remove()"><i class="fas fa-xmark"></i></button><span class="mistake-practice-icon"><i class="fas fa-list-check"></i></span><h3>اختار عدد الأسئلة</h3><p>عندك ${mistakes.length} ${mistakes.length === 1 ? 'سؤال متاح' : 'أسئلة متاحة'} من أخطائك.</p><div class="mistake-count-options">${[1,2].filter(n => n <= mistakes.length).map(n => `<button onclick="launchMistakePractice('${courseId}', ${n}); this.closest('.mistake-practice-modal').remove()">${n} ${n === 1 ? 'سؤال واحد' : 'سؤالين'}</button>`).join('')}</div></div>`;
+    document.body.appendChild(modal);
+}
+
+function launchMistakePractice(courseId, amount) {
+    const mistakes = getCourseMistakeQuestions(courseId);
+    if (!mistakes.length) return;
+    const chosen = mistakes.sort(() => Math.random() - 0.5).slice(0, Math.min(amount, mistakes.length));
+    const practiceId = `mistake_practice_${Date.now()}`;
+    dynamicExamsDatabase[practiceId] = {
+        version: 1, examTitle: 'أسئلة من أخطائك', duration: Math.max(2, chosen.length * 2),
+        questions: chosen.map(q => ({ section: 'general', type: 'choice', question: q.question,
+            imageUrl: q.imageUrl || '', options: q.options, correctAnswer: q.correctAnswer, points: q.points || 1 }))
+    };
+    window.currentCourseIdForExam = courseId;
+    resetPortalToStep1(practiceId, 'exam');
+}
+
 function exitCourse() { activeCourseId = null; renderUnitsSection(); }
 
 function openCourseUnitItem(courseId, unitId, itemId) {
@@ -2733,6 +3052,10 @@ function openCourseUnitItem(courseId, unitId, itemId) {
         window.open(it.url, '_blank', 'noopener');
         recordCourseActivity(courseId, it, 'opened');
     } else if (it.type === 'video') {
+        if ((parseFloat(it.price) || 0) > 0 && !videoPurchasesCache.has(it.id)) {
+            showCustomToast("<i class='fas fa-lock'></i> هذا الفيديو مدفوع، يرجى التواصل مع الدعم الفني لشراء الفيديو.", "warning");
+            return;
+        }
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
         if (it.maxViews && watched >= it.maxViews) {
