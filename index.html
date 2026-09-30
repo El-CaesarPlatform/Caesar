@@ -1101,6 +1101,16 @@
             </div>
 
             <div class="input-group">
+                <label for="edit-grade" class="input-label"><i class="fas fa-graduation-cap"></i> الصف الدراسي</label>
+                <select id="edit-grade" class="form-input" required style="width:100%; padding:12px; border-radius:10px; background:#0b1121; color:#fff; border:1px solid rgba(255,255,255,0.15); font-family:'Cairo',sans-serif;">
+                    <option value="" disabled>اختر صفك الدراسي...</option>
+                    <option value="الصف الأول الإعدادي">الصف الأول الإعدادي</option>
+                    <option value="الصف الثاني الإعدادي">الصف الثاني الإعدادي</option>
+                    <option value="الصف الثالث الإعدادي">الصف الثالث الإعدادي</option>
+                </select>
+            </div>
+
+            <div class="input-group">
                 <label for="edit-password" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
                 <input type="password" id="edit-password" placeholder="اكتب كلمة مرور..." required autocomplete="off">
                 <span class="input-hint">8 أحرف على الأقل، ولازم تحتوي على حروف وأرقام مع بعض.</span>
@@ -1577,6 +1587,7 @@
             '<i class="fas fa-triangle-exclamation"></i> تم رفض بياناتك من المعلم للسبب التالي، من فضلك صححه وأعد الإرسال:<br><strong>' +
             (userData.rejectReason ? String(userData.rejectReason).replace(/</g, '&lt;') : 'برجاء مراجعة بياناتك.') + '</strong>';
         document.getElementById("edit-name").value = userData.studentName || userData.name || "";
+        document.getElementById("edit-grade").value = userData.grade || userData.studentGrade || userData.stage || "";
         document.getElementById("edit-password").value = "";
         document.getElementById("edit-password-confirm").value = "";
         document.getElementById("edit-alert-msg").style.display = "none";
@@ -1612,11 +1623,12 @@
 
         const editBtn = document.getElementById("edit-submit-btn");
         const nameInput = document.getElementById("edit-name").value.trim();
+        const gradeInput = document.getElementById("edit-grade").value;
         const passInput = document.getElementById("edit-password").value;
         const passConfirm = document.getElementById("edit-password-confirm").value;
 
-        if (!nameInput || !passInput || !passConfirm) {
-            showEditMessage("⚠️ يرجى ملء جميع الخانات!", "warning");
+        if (!nameInput || !gradeInput || !passInput || !passConfirm) {
+            showEditMessage("⚠️ يرجى ملء جميع الخانات، بما فيها اختيار الصف الدراسي!", "warning");
             return;
         }
 
@@ -1656,6 +1668,9 @@
             await db.collection("students").doc(editStudentDocId).update({
                 studentName: nameInput,
                 name: nameInput,
+                grade: gradeInput,
+                studentGrade: gradeInput,
+                stage: gradeInput,
                 code: passInput,
                 examCode: passInput,
                 studentCode: passInput,

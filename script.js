@@ -13,6 +13,8 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -1366,6 +1368,7 @@ function startExamActual() {
     if (document.getElementById('courses-section')) document.getElementById('courses-section').style.display = 'none';
 
     window.isExamRunning = true;
+    window.__aiSig = { leaves: 0, paste: 0, copy: 0, hiddenMs: 0 };
     document.body.classList.add('exam-mode');
     currentQuestionIndex = 0;
 
@@ -1839,7 +1842,14 @@ function calculateAndSend(bypassValidation = false) {
     }
 
     const hasEssay = answersForAdmin.some(a => a.type === "essay");
-    const releaseNow = !hasEssay;
+    const sig = window.__aiSig || {};
+    const aiReasons = [];
+    if ((sig.leaves || 0) >= 2) aiReasons.push('خرج من شاشة الامتحان ' + sig.leaves + ' مرات');
+    if ((sig.paste || 0) >= 1) aiReasons.push('لصق نص ' + sig.paste + ' مرة');
+    if ((sig.copy || 0) >= 1) aiReasons.push('نسخ نص ' + sig.copy + ' مرة');
+    const aiSuspected = aiReasons.length > 0;
+    const cancelExam = aiSuspected && !hasEssay;
+    const releaseNow = !hasEssay && !cancelExam;
     const finalPercent = totalExamPointsPossible > 0 ? Math.round((mcqScoreObtained / totalExamPointsPossible) * 100) : 0;
 
     clearInterval(timerInterval);
@@ -1905,6 +1915,8 @@ function calculateAndSend(bypassValidation = false) {
         timestampMs: Date.now(),
         answers: answersForAdmin
     };
+    newHistoryRecord.aiSuspected = aiSuspected;
+    if (cancelExam) { newHistoryRecord.percentage = 'ملغي'; newHistoryRecord.score = 'ملغي'; newHistoryRecord.canReview = false; }
     history.unshift(newHistoryRecord);
     saveStoredHistory(history);
 
@@ -1941,6 +1953,11 @@ function calculateAndSend(bypassValidation = false) {
             hasSubmitted: true,
             isSubmitted: true,
             hasEssay: hasEssay,
+            aiSuspected: aiSuspected,
+            aiReasons: aiReasons,
+            aiSignals: { leaves: sig.leaves || 0, paste: sig.paste || 0, copy: sig.copy || 0, hiddenSeconds: Math.round((sig.hiddenMs || 0) / 1000) },
+            examCancelled: cancelExam,
+            cancelReason: cancelExam ? 'استخدام AI' : '',
             showScore: releaseNow,
             showResult: releaseNow,
             isResultVisible: releaseNow,
@@ -1958,7 +1975,8 @@ function calculateAndSend(bypassValidation = false) {
                 examTitle: currentExamTitle,
                 released: releaseNow,
                 scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
-                percent: finalPercent
+                percent: finalPercent,
+                cancelled: cancelExam
             });
 
         }).catch((error) => {
@@ -1977,7 +1995,8 @@ function calculateAndSend(bypassValidation = false) {
             examTitle: currentExamTitle,
             released: releaseNow,
             scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
-            percent: finalPercent
+            percent: finalPercent,
+                cancelled: cancelExam
         });
     }
 }
@@ -1999,7 +2018,14 @@ function showSubmissionResultModal(info) {
     const color = pct >= 85 ? '#2ecc71' : (pct >= 50 ? '#f1c40f' : '#e74c3c');
     const cheer = pct >= 85 ? 'ممتاز! استمر <i class="fas fa-fire"></i>' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن <i class="fas fa-hand-fist"></i>' : 'متزعلش، راجع إجاباتك وهتتحسن <i class="fas fa-wand-magic-sparkles"></i>');
 
-    const body = info.released
+    const cancelledBody = `
+            <div style="font-size: 3rem; margin-bottom: 6px;"><i class="fas fa-ban"></i></div>
+            <h3 style="color:#ef4444; margin: 0 0 4px; font-size: 1.3rem;">امتحانك ملغي</h3>
+            <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.4); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
+                <p style="color:#fca5a5; margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.8;">امتحانك ملغي، يرجى التواصل مع الدعم.</p>
+            </div>`;
+    const body = info.cancelled ? cancelledBody : info.released
         ? `
             <div style="font-size: 3rem; margin-bottom: 6px;"><i class="fas fa-champagne-glasses"></i></div>
             <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
@@ -2131,17 +2157,47 @@ async function loadVideoPurchasesCache() {
     }
 }
 
+let examLockStateLoaded = false;
+
 async function loadExamLocksCache() {
     examLockedIdsCache = new Set();
+    examLockStateLoaded = false;
     if (typeof db === 'undefined') return;
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
     if (!code) return;
     try {
-        const snap = await db.collection("exam_locks").where("studentCode", "==", code).get();
-        snap.forEach(d => { const ex = d.data().examId; if (ex) examLockedIdsCache.add(ex); });
+        const [locksSnap, byStudentCode, byCode] = await Promise.all([
+            db.collection("exam_locks").where("studentCode", "==", code).get(),
+            db.collection("students").where("studentCode", "==", code).get(),
+            db.collection("students").where("code", "==", code).get()
+        ]);
+        locksSnap.forEach(d => { const ex = d.data().examId; if (ex) examLockedIdsCache.add(ex); });
+        [byStudentCode, byCode].forEach(snap => snap.forEach(d => {
+            const data = d.data();
+            const ex = data.examId || data.examCode;
+            if (ex && (data.hasSubmitted === true || data.isSubmitted === true)) examLockedIdsCache.add(ex);
+        }));
+        examLockStateLoaded = true;
+
+        // لو الأدمن عمل "إعادة الامتحان": نشيل علامة التسليم القديمة المحفوظة على جهاز الطالب
+        const stale = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('finished_')) {
+                const examId = key.replace('finished_', '');
+                if (!examLockedIdsCache.has(examId) && !isExamSessionActive(examId)) stale.push(key, 'saved_exam_answers_' + examId);
+            }
+        }
+        stale.forEach(k => localStorage.removeItem(k));
     } catch (e) {
         console.warn("تعذر تحميل أقفال الامتحانات:", e);
     }
+}
+
+// هل الطالب سلّم الامتحان فعلاً؟ (السيرفر هو المرجع، والجهاز فقط عند تعذر الاتصال)
+function isExamSubmittedForStudent(examId) {
+    if (examLockStateLoaded) return examLockedIdsCache.has(examId);
+    return !!localStorage.getItem('finished_' + examId) || examLockedIdsCache.has(examId);
 }
 
 function formatCountdown(ms) {
@@ -2473,7 +2529,7 @@ function buildUnitItemRowHtml(it, openCallExpr) {
 
     if (it.type === 'exam') {
         const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
-        const hasSubmitted = !!localStorage.getItem('finished_' + it.examId) || examLockedIdsCache.has(it.examId) || finishedExamStatsCache.has(it.examId);
+        const hasSubmitted = isExamSubmittedForStudent(it.examId);
         const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
         const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
         const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
@@ -2820,7 +2876,7 @@ async function renderHomeSection() {
         const myCourses = coursesCache.filter(c => subscriptionsCache.has(c.id));
         if (currentEl) currentEl.textContent = myCourses.length;
 
-        try { await loadFinishedExamStatsCache(); } catch (e) {}
+        try { await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]); } catch (e) {}
 
         let totalItems = 0, doneItems = 0, completedCourses = 0;
         myCourses.forEach(course => {
@@ -2830,7 +2886,7 @@ async function renderHomeSection() {
                     courseTotal++;
                     let isDone = false;
                     if (it.type === 'exam') {
-                        isDone = (typeof finishedExamStatsCache !== 'undefined' && finishedExamStatsCache.has(it.examId)) || !!localStorage.getItem('finished_' + it.examId);
+                        isDone = isExamSubmittedForStudent(it.examId);
                     } else if (it.type === 'video') {
                         isDone = parseInt(localStorage.getItem('video_views_' + it.id) || '0', 10) > 0;
                     } else if (it.type === 'file') {
@@ -3077,3 +3133,16 @@ function recordCourseActivity(courseId,item,action) {
     const key = currentStudentIdentity(); if (!key) return;
     db.collection('course_activity').doc(getUniqueDocId(key, courseId + '_' + item.id)).set({courseId,itemId:item.id,itemTitle:item.title,itemType:item.type,action,studentKey:key,studentName:localStorage.getItem('student_fullname')||'',studentCode:localStorage.getItem('student_code')||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
 }
+
+// ===== مؤشرات الاشتباه في استخدام AI أثناء الامتحان =====
+window.__aiSig = { leaves: 0, paste: 0, copy: 0, hiddenMs: 0 };
+(function () {
+    let hiddenStart = 0;
+    document.addEventListener('visibilitychange', function () {
+        if (!window.isExamRunning) return;
+        if (document.hidden) { window.__aiSig.leaves++; hiddenStart = Date.now(); }
+        else if (hiddenStart) { window.__aiSig.hiddenMs += Date.now() - hiddenStart; hiddenStart = 0; }
+    });
+    document.addEventListener('paste', function () { if (window.isExamRunning) window.__aiSig.paste++; }, true);
+    document.addEventListener('copy', function () { if (window.isExamRunning) window.__aiSig.copy++; }, true);
+})();
