@@ -946,9 +946,9 @@
         <span>القيصر</span>
     </div>
     <div class="top-nav-actions">
-        <button id="top-signup-btn" class="top-signup-btn">
-            <i class="fas fa-user-plus"></i>
-            <span>حساب جديد</span>
+        <button id="top-signup-btn" class="top-signup-btn" disabled title="التسجيل مغلق حالياً" style="opacity:.55; cursor:not-allowed;">
+            <i class="fas fa-lock"></i>
+            <span>مغلق الآن</span>
         </button>
         <button id="top-login-btn" class="top-login-btn">
             <i class="fas fa-right-to-bracket"></i>
@@ -1075,11 +1075,47 @@
         </form>
 
         <div class="signup-switch">
-            ليس لديك حساب؟
-            <a href="javascript:void(0)" id="open-signup-link">
-                <i class="fas fa-user-plus"></i> أنشئه الآن
-            </a>
+            <span style="color:#fca5a5;"><i class="fas fa-lock"></i> التسجيل مغلق حالياً</span>
         </div>
+    </div>
+</div>
+
+<!-- ------------------ نافذة Modal تعديل بيانات مرفوضة ------------------ -->
+<div id="edit-modal" class="modal-overlay">
+    <div class="login-container">
+        <button type="button" class="close-modal-btn" id="close-edit-modal-btn" title="إغلاق">&times;</button>
+
+        <div class="form-header">
+            <i class="fas fa-pen-to-square"></i>
+            <span>تعديل بيانات الحساب</span>
+        </div>
+
+        <div id="edit-reason-box" style="background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.4); color:#fca5a5; padding:12px 14px; border-radius:10px; margin-bottom:16px; line-height:1.8;"></div>
+
+        <div id="edit-alert-msg"></div>
+
+        <form id="edit-form">
+            <div class="input-group">
+                <label for="edit-name" class="input-label"><i class="fas fa-user"></i> الاسم الثلاثي</label>
+                <input type="text" id="edit-name" placeholder="اكتب اسمك كاملاً كما هو مسجل لدى المعلم..." required autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label for="edit-password" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
+                <input type="password" id="edit-password" placeholder="اكتب كلمة مرور..." required autocomplete="off">
+                <span class="input-hint">8 أحرف على الأقل، ولازم تحتوي على حروف وأرقام مع بعض.</span>
+            </div>
+
+            <div class="input-group">
+                <label for="edit-password-confirm" class="input-label"><i class="fas fa-lock"></i> تأكيد كلمة المرور</label>
+                <input type="password" id="edit-password-confirm" placeholder="اعد كتابة كلمة المرور..." required autocomplete="off">
+            </div>
+
+            <button type="submit" class="btn" id="edit-submit-btn">
+                <span>إعادة إرسال البيانات</span>
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
     </div>
 </div>
 
@@ -1371,6 +1407,11 @@
                     nameMatched = true;
 
                     const accStatus = getAccountStatus(userData);
+                    if (accStatus === "needs_edit") {
+                        resetButton(loginBtn);
+                        openEditModal(doc.id, userData);
+                        return;
+                    }
                     if (accStatus === "pending") {
                         resetButton(loginBtn);
                         showStatusModal("pending");
@@ -1420,6 +1461,7 @@
         if (item.status === "suspended" || item.accountStatus === "suspended" || item.isSuspended === true) return "suspended";
         if (item.status === "approved" || item.accountStatus === "approved" || item.isApproved === true) return "approved";
         if (item.status === "rejected" || item.accountStatus === "rejected") return "rejected";
+        if (item.status === "needs_edit" || item.accountStatus === "needs_edit") return "needs_edit";
         return "pending";
     }
 
@@ -1466,10 +1508,7 @@
     // ==========================================
     const signupModal = document.getElementById("signup-modal");
 
-    document.getElementById("open-signup-link").addEventListener("click", () => {
-        loginModal.classList.remove("active");
-        signupModal.classList.add("active");
-    });
+    // زرار "حساب جديد" مغلق دلوقتي، مفيش لينك يفتح نافذة التسجيل
 
     document.getElementById("back-to-login-link").addEventListener("click", () => {
         signupModal.classList.remove("active");
@@ -1483,14 +1522,7 @@
         if (e.target === signupModal) signupModal.classList.remove("active");
     });
 
-    // زر "حساب جديد" في الشريط الثابت أعلى الصفحة: يفتح نافذة إنشاء الحساب مباشرة
-    const topSignupBtn = document.getElementById("top-signup-btn");
-    if (topSignupBtn) {
-        topSignupBtn.addEventListener("click", () => {
-            loginModal.classList.remove("active");
-            signupModal.classList.add("active");
-        });
-    }
+    // زر "حساب جديد" في الشريط الثابت: مغلق حالياً (disabled في الـ HTML)، مفيش أكشن عليه
 
     function showSignupMessage(text, type) {
         const msgBox = document.getElementById("signup-alert-msg");
@@ -1532,6 +1564,119 @@
         ]);
         return byStudentName.empty ? byName : byStudentName;
     }
+
+    // ==========================================
+    // 8. تعديل بيانات حساب اترفض مع السماح بالتعديل (needs_edit)
+    // ==========================================
+    const editModal = document.getElementById("edit-modal");
+    let editStudentDocId = null;
+
+    function openEditModal(docId, userData) {
+        editStudentDocId = docId;
+        document.getElementById("edit-reason-box").innerHTML =
+            '<i class="fas fa-triangle-exclamation"></i> تم رفض بياناتك من المعلم للسبب التالي، من فضلك صححه وأعد الإرسال:<br><strong>' +
+            (userData.rejectReason ? String(userData.rejectReason).replace(/</g, '&lt;') : 'برجاء مراجعة بياناتك.') + '</strong>';
+        document.getElementById("edit-name").value = userData.studentName || userData.name || "";
+        document.getElementById("edit-password").value = "";
+        document.getElementById("edit-password-confirm").value = "";
+        document.getElementById("edit-alert-msg").style.display = "none";
+        loginModal.classList.remove("active");
+        editModal.classList.add("active");
+    }
+
+    document.getElementById("close-edit-modal-btn").addEventListener("click", () => {
+        editModal.classList.remove("active");
+    });
+    editModal.addEventListener("click", (e) => {
+        if (e.target === editModal) editModal.classList.remove("active");
+    });
+
+    function showEditMessage(text, type) {
+        const msgBox = document.getElementById("edit-alert-msg");
+        if (!msgBox) return;
+        msgBox.innerText = text;
+        msgBox.style.display = "block";
+        if (type === "error") {
+            msgBox.style.backgroundColor = "rgba(255, 0, 0, 0.2)";
+            msgBox.style.color = "#ff6b6b";
+            msgBox.style.border = "1px solid rgba(255, 0, 0, 0.4)";
+        } else if (type === "warning") {
+            msgBox.style.backgroundColor = "rgba(234, 179, 8, 0.2)";
+            msgBox.style.color = "#fde047";
+            msgBox.style.border = "1px solid rgba(234, 179, 8, 0.4)";
+        }
+    }
+
+    document.getElementById("edit-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const editBtn = document.getElementById("edit-submit-btn");
+        const nameInput = document.getElementById("edit-name").value.trim();
+        const passInput = document.getElementById("edit-password").value;
+        const passConfirm = document.getElementById("edit-password-confirm").value;
+
+        if (!nameInput || !passInput || !passConfirm) {
+            showEditMessage("⚠️ يرجى ملء جميع الخانات!", "warning");
+            return;
+        }
+
+        const nameParts = nameInput.split(/\s+/).filter(Boolean);
+        if (nameParts.length < 3) {
+            showEditMessage("⚠️ يجب كتابة الاسم ثلاثي (مثال: أحمد محمد علي)!", "warning");
+            return;
+        }
+
+        if (!isPasswordValid(passInput)) {
+            showEditMessage("⚠️ كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام معاً.", "warning");
+            return;
+        }
+
+        if (passInput !== passConfirm) {
+            showEditMessage("⚠️ كلمة المرور وتأكيدها غير متطابقين!", "warning");
+            return;
+        }
+
+        editBtn.disabled = true;
+        editBtn.innerHTML = '<span>جاري الإرسال...</span> <i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            // لو الاسم الجديد مستخدم بالفعل عند طالب تاني (غير نفس السجل)، نمنع التعارض
+            const existingSnapshot = await findStudentByName(nameInput);
+            let conflict = false;
+            existingSnapshot.forEach(doc => {
+                if (doc.id !== editStudentDocId) conflict = true;
+            });
+            if (conflict) {
+                showEditMessage("❌ الاسم ده مستخدم بالفعل لحساب تاني.", "error");
+                editBtn.disabled = false;
+                editBtn.innerHTML = '<span>إعادة إرسال البيانات</span> <i class="fas fa-paper-plane"></i>';
+                return;
+            }
+
+            await db.collection("students").doc(editStudentDocId).update({
+                studentName: nameInput,
+                name: nameInput,
+                code: passInput,
+                examCode: passInput,
+                studentCode: passInput,
+                status: "pending",
+                accountStatus: "pending",
+                isApproved: false,
+                rejectReason: firebase.firestore.FieldValue.delete()
+            });
+
+            editModal.classList.remove("active");
+            editBtn.disabled = false;
+            editBtn.innerHTML = '<span>إعادة إرسال البيانات</span> <i class="fas fa-paper-plane"></i>';
+            showStatusModal("pending");
+
+        } catch (error) {
+            console.error("خطأ أثناء تعديل بيانات الحساب:", error);
+            showEditMessage("❌ حدث خطأ أثناء الإرسال. تأكد من اتصالك بالإنترنت.", "error");
+            editBtn.disabled = false;
+            editBtn.innerHTML = '<span>إعادة إرسال البيانات</span> <i class="fas fa-paper-plane"></i>';
+        }
+    });
 
     document.getElementById("signup-form").addEventListener("submit", async function (e) {
         e.preventDefault();
