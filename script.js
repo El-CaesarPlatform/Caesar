@@ -18,7 +18,7 @@
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyDSaHZfMovOtZVkv5HDtfsy4Kh_ttszSLI",
+    APIkey2: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
     authDomain: "el-kaiser-platform.firebaseapp.com",
     projectId: "el-kaiser-platform",
     storageBucket: "el-kaiser-platform.firebasestorage.app",
@@ -990,7 +990,8 @@ async function loadAssignedExam() {
                 version: activeExam.version || 1,
                 examTitle: activeExam.examCode || activeExam.title || activeExam.examName || "اختبار أونلاين",
                 duration: examDuration,
-                questions: convertedQuestions
+                questions: convertedQuestions,
+                surveyQuestions: Array.isArray(activeExam.surveyQuestions) ? activeExam.surveyQuestions : []
             };
 
             examsGrid.innerHTML += `
@@ -1354,18 +1355,23 @@ function showInstructionsPage() {
     document.getElementById('step-2').style.display = 'block';
 }
 
+// وضع "قفل شاشة الامتحان": بيخفي كل أقسام المنصة (بما فيها الرئيسية والمنتدى اللي كانت ناسيه الكود القديم)
+// عشان الطالب يفضل حابس في شاشة الامتحان بس ومايقدرش يشوف/يروح حتة تانية وهو بيمتحن
+function lockAllSectionsForExam() {
+    ['home-section', 'courses-section', 'exams-section', 'units-section', 'forum-section', 'results-section', 'account-section']
+        .forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.style.display = 'none';
+}
+
 function startExamActual() {
     document.getElementById('portal-modal').style.display = 'none';
     document.getElementById('quiz-wrapper-box').style.display = 'block';
 
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) sidebar.style.display = 'none';
-
-    if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
-    if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
-    if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
-    if (document.getElementById('units-section')) document.getElementById('units-section').style.display = 'none';
-    if (document.getElementById('courses-section')) document.getElementById('courses-section').style.display = 'none';
+    lockAllSectionsForExam();
 
     window.isExamRunning = true;
     window.__aiSig = { leaves: 0, paste: 0, copy: 0, hiddenMs: 0 };
@@ -1422,13 +1428,7 @@ function checkAndResumeRunningExam() {
         if (portalModal) portalModal.style.display = 'none';
         if (quizWrapper) quizWrapper.style.display = 'block';
         
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) sidebar.style.display = 'none';
-
-        if (document.getElementById('exams-section')) document.getElementById('exams-section').style.display = 'none';
-        if (document.getElementById('results-section')) document.getElementById('results-section').style.display = 'none';
-        if (document.getElementById('account-section')) document.getElementById('account-section').style.display = 'none';
-        if (document.getElementById('units-section')) document.getElementById('units-section').style.display = 'none';
+        lockAllSectionsForExam();
 
         window.isExamRunning = true;
         document.body.classList.add('exam-mode');
@@ -1971,12 +1971,14 @@ function calculateAndSend(bypassValidation = false) {
 
             archiveHistoryRecord(newHistoryRecord);
 
-            showSubmissionResultModal({
-                examTitle: currentExamTitle,
-                released: releaseNow,
-                scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
-                percent: finalPercent,
-                cancelled: cancelExam
+            maybeShowExamSurvey(currentActiveSubject, currentExamTitle, studentFullName, studentCode, () => {
+                showSubmissionResultModal({
+                    examTitle: currentExamTitle,
+                    released: releaseNow,
+                    scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
+                    percent: finalPercent,
+                    cancelled: cancelExam
+                });
             });
 
         }).catch((error) => {
@@ -1991,14 +1993,126 @@ function calculateAndSend(bypassValidation = false) {
         localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
         localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
         localStorage.removeItem('active_running_exam_session');
-        showSubmissionResultModal({
-            examTitle: currentExamTitle,
-            released: releaseNow,
-            scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
-            percent: finalPercent,
-                cancelled: cancelExam
+        maybeShowExamSurvey(currentActiveSubject, currentExamTitle, studentFullName, studentCode, () => {
+            showSubmissionResultModal({
+                examTitle: currentExamTitle,
+                released: releaseNow,
+                scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
+                percent: finalPercent,
+                    cancelled: cancelExam
+            });
         });
     }
+}
+
+// ==========================================
+// استبيان بعد الامتحان مباشرة + شاشة شكر بأنيميشن
+// ==========================================
+function maybeShowExamSurvey(examId, examTitle, studentName, studentCode, onDone) {
+    const examData = (typeof dynamicExamsDatabase !== 'undefined') ? dynamicExamsDatabase[examId] : null;
+    const questions = (examData && Array.isArray(examData.surveyQuestions)) ? examData.surveyQuestions.filter(q => q && q.trim()) : [];
+
+    if (!questions.length) { onDone(); return; }
+
+    const old = document.getElementById('exam-survey-modal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'exam-survey-modal';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9); backdrop-filter: blur(8px);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 100001; padding: 15px; direction: rtl; font-family: 'Cairo', sans-serif;
+    `;
+
+    const questionsHtml = questions.map((q, i) => `
+        <div style="margin-bottom: 16px; text-align: right;">
+            <label style="color:#e2e8f0; font-weight:700; display:block; margin-bottom:8px; font-size:0.95rem;">${i + 1}. ${escapeHtml(q)}</label>
+            <textarea class="survey-answer-input" data-q-index="${i}" rows="2" placeholder="اكتب إجابتك هنا..." style="width:100%; padding:10px 12px; border-radius:10px; background:#0b1121; color:#fff; border:1px solid rgba(255,255,255,0.15); font-family:'Cairo',sans-serif; resize:vertical;"></textarea>
+        </div>
+    `).join('');
+
+    overlay.innerHTML = `
+        <div style="background:#1e1e38; padding:26px; border-radius:20px; max-width:460px; width:95%; text-align:center; border:1px solid rgba(255,255,255,0.15); box-shadow:0 10px 40px rgba(0,0,0,0.6); max-height:88vh; overflow-y:auto;">
+            <div style="font-size:2.6rem; margin-bottom:6px;"><i class="fas fa-clipboard-question" style="color:#9d4edd;"></i></div>
+            <h3 style="color:#fff; margin:0 0 4px; font-size:1.25rem;">قبل ما تخرج، جاوب على استبيان سريع</h3>
+            <p style="color:#94a3b8; margin:0 0 18px; font-size:0.9rem;">${escapeHtml(examTitle)}</p>
+            <div id="survey-questions-list">${questionsHtml}</div>
+            <button id="submit-survey-btn" style="width:100%; margin-top:6px; padding:13px 20px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit; font-size:1rem;">
+                إرسال الإجابات <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('submit-survey-btn').addEventListener('click', function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = 'جاري الإرسال... <i class="fas fa-spinner fa-spin"></i>';
+
+        const answers = Array.from(document.querySelectorAll('.survey-answer-input')).map(el => ({
+            question: questions[parseInt(el.getAttribute('data-q-index'))],
+            answer: el.value.trim()
+        }));
+
+        const finish = () => {
+            overlay.remove();
+            showSurveyThankYou(() => onDone());
+        };
+
+        if (typeof db !== 'undefined') {
+            // بتتحفظ جوه نفس مستند إجابات الامتحان بتاع الطالب، عشان تتعرض مع بعض في الأدمن
+            const uniqueDocId = getUniqueDocId(studentCode || studentName, examId);
+            db.collection("students").doc(uniqueDocId).set({
+                surveyAnswers: answers,
+                surveySubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(finish).catch(() => finish());
+        } else {
+            finish();
+        }
+    });
+}
+
+function showSurveyThankYou(onDone) {
+    const overlay = document.createElement('div');
+    overlay.id = 'survey-thankyou-modal';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 100002; direction: rtl; font-family: 'Cairo', sans-serif;
+    `;
+    overlay.innerHTML = `
+        <style>
+            @keyframes thankYouPop {
+                0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+                60% { transform: scale(1.15) rotate(5deg); opacity: 1; }
+                100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            }
+            @keyframes thankYouFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+            #survey-thankyou-modal .ty-emoji { animation: thankYouPop 0.6s cubic-bezier(.34,1.56,.64,1) both, thankYouFloat 2s ease-in-out 0.6s infinite; }
+            #survey-thankyou-modal .ty-text { animation: thankYouPop 0.6s 0.15s cubic-bezier(.34,1.56,.64,1) both; }
+        </style>
+        <div style="text-align:center;">
+            <div class="ty-emoji" style="font-size:5rem; margin-bottom:10px;">🙏💜</div>
+            <h2 class="ty-text" style="color:#fff; font-size:1.6rem; margin:0;">شكراً لك!</h2>
+            <p class="ty-text" style="color:#94a3b8; margin-top:8px; font-size:0.95rem;">إجاباتك وصلتنا، تقييمك بيفرق معانا 🌟</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        overlay.style.transition = 'opacity 0.4s ease';
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.remove();
+            onDone();
+        }, 400);
+    }, 1800);
 }
 
 function showSubmissionResultModal(info) {

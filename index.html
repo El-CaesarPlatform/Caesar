@@ -126,7 +126,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(circle at center, #1b3a4b 0%, #0a151a 100%);
+            background: radial-gradient(circle at 50% 30%, #1b3a4b 0%, #0a151a 65%, #05090b 100%);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -135,6 +135,54 @@
             animation: fadeIn 0.4s ease forwards;
             padding: 20px;
             text-align: center;
+            overflow: hidden;
+        }
+
+        #splash-screen.splash-leaving {
+            animation: splashFadeOut 0.5s ease forwards;
+        }
+
+        @keyframes splashFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* جزيئات مضيئة عايمة في الخلفية */
+        .splash-particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .splash-particles span {
+            position: absolute;
+            bottom: -10%;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #00d2ff;
+            box-shadow: 0 0 8px 2px rgba(0, 210, 255, 0.8);
+            opacity: 0;
+            animation: floatParticle linear infinite;
+        }
+
+        .splash-particles span:nth-child(1)  { left: 6%;  width: 4px; height: 4px; animation-duration: 6s;  animation-delay: 0s; }
+        .splash-particles span:nth-child(2)  { left: 16%; width: 6px; height: 6px; animation-duration: 8s;  animation-delay: 1s; background:#9d4edd; box-shadow:0 0 8px 2px rgba(157,78,221,.8); }
+        .splash-particles span:nth-child(3)  { left: 28%; width: 3px; height: 3px; animation-duration: 5.5s;animation-delay: 2.2s; }
+        .splash-particles span:nth-child(4)  { left: 40%; width: 5px; height: 5px; animation-duration: 7.2s;animation-delay: 0.6s; }
+        .splash-particles span:nth-child(5)  { left: 52%; width: 4px; height: 4px; animation-duration: 6.4s;animation-delay: 1.8s; background:#9d4edd; box-shadow:0 0 8px 2px rgba(157,78,221,.8); }
+        .splash-particles span:nth-child(6)  { left: 64%; width: 6px; height: 6px; animation-duration: 8.5s;animation-delay: 0.3s; }
+        .splash-particles span:nth-child(7)  { left: 76%; width: 3px; height: 3px; animation-duration: 5s;  animation-delay: 2.6s; }
+        .splash-particles span:nth-child(8)  { left: 86%; width: 5px; height: 5px; animation-duration: 7.8s;animation-delay: 1.1s; background:#9d4edd; box-shadow:0 0 8px 2px rgba(157,78,221,.8); }
+        .splash-particles span:nth-child(9)  { left: 94%; width: 4px; height: 4px; animation-duration: 6.8s;animation-delay: 1.9s; }
+        .splash-particles span:nth-child(10) { left: 22%; width: 4px; height: 4px; animation-duration: 9s;  animation-delay: 2.9s; }
+
+        @keyframes floatParticle {
+            0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+            12%  { opacity: 1; }
+            85%  { opacity: 0.6; }
+            100% { transform: translateY(-110vh) scale(1.1); opacity: 0; }
         }
 
         .splash-logo-container {
@@ -144,6 +192,29 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            animation: splashLogoEntrance 0.9s cubic-bezier(.2, 1.4, .4, 1) forwards;
+        }
+
+        @keyframes splashLogoEntrance {
+            0%   { transform: scale(0.2) rotate(-35deg); opacity: 0; }
+            60%  { transform: scale(1.12) rotate(4deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .splash-logo-img {
+            width: 108px;
+            height: 108px;
+            border-radius: 50%;
+            object-fit: cover;
+            z-index: 2;
+            border: 3px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 25px rgba(0, 210, 255, 0.75), 0 0 55px rgba(157, 78, 221, 0.35);
+            animation: logoGlowPulse 2.2s ease-in-out infinite;
+        }
+
+        @keyframes logoGlowPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 210, 255, 0.65), 0 0 45px rgba(157, 78, 221, 0.3); }
+            50%      { box-shadow: 0 0 34px rgba(0, 210, 255, 0.95), 0 0 70px rgba(157, 78, 221, 0.55); }
         }
 
         .splash-ring {
@@ -167,6 +238,45 @@
             animation: spinRingReverse 3s linear infinite;
         }
 
+        /* علامة النجاح اللي بتظهر قبل الدخول مباشرة */
+        .splash-success-check {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+            opacity: 0;
+            transform: scale(0.5);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .splash-success-check i {
+            font-size: 3rem;
+            color: #2ee6a6;
+            text-shadow: 0 0 18px rgba(46, 230, 166, 0.9);
+        }
+
+        #splash-screen.splash-success .splash-success-check {
+            animation: successPop 0.6s cubic-bezier(.2, 1.6, .4, 1) forwards;
+        }
+
+        #splash-screen.splash-success .splash-ring,
+        #splash-screen.splash-success .splash-ring-outer {
+            animation-play-state: paused;
+            opacity: 0.25;
+            transition: opacity 0.4s ease;
+        }
+
+        @keyframes successPop {
+            0%   { opacity: 0; transform: scale(0.4); }
+            60%  { opacity: 1; transform: scale(1.15); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
         .splash-text {
             color: #ffffff;
             font-size: 2.4rem;
@@ -174,12 +284,19 @@
             text-shadow: 0 0 18px #00d2ff, 0 0 30px rgba(0, 210, 255, 0.5);
             z-index: 2;
             letter-spacing: 1px;
-            animation: pulseText 1.5s ease-in-out infinite alternate;
+            margin-top: 26px;
+            opacity: 0;
+            animation: splashTextIn 0.7s ease 0.35s forwards, pulseText 1.5s ease-in-out 1.1s infinite alternate;
+        }
+
+        @keyframes splashTextIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
         .splash-subtext {
             color: #e0f7fc;
-            margin-top: 35px;
+            margin-top: 18px;
             font-size: 1.1rem;
             font-weight: 700;
             letter-spacing: 0.5px;
@@ -187,6 +304,38 @@
             width: 100%;
             max-width: 90%;
             line-height: 1.6;
+            opacity: 0;
+            animation: splashTextIn 0.7s ease 0.6s forwards;
+            white-space: pre-line;
+        }
+
+        .splash-progress-wrap {
+            width: 220px;
+            max-width: 80%;
+            height: 6px;
+            margin-top: 26px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+            opacity: 0;
+            animation: splashTextIn 0.7s ease 0.75s forwards;
+        }
+
+        .splash-progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #00d2ff, #9d4edd);
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.8);
+        }
+
+        #splash-screen.splash-run .splash-progress-bar {
+            animation: splashProgressFill 2.1s cubic-bezier(.3, .1, .2, 1) forwards;
+        }
+
+        @keyframes splashProgressFill {
+            from { width: 0%; }
+            to   { width: 100%; }
         }
 
         @keyframes spinRing {
@@ -971,12 +1120,19 @@
 
 <!-- شاشة الانيميشن الخاصة بـ "القيصر" -->
 <div id="splash-screen">
+    <div class="splash-particles">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
     <div class="splash-logo-container">
         <div class="splash-ring"></div>
         <div class="splash-ring-outer"></div>
-        <div class="splash-text">القيصر</div>
+        <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="splash-logo-img">
+        <div class="splash-success-check"><i class="fas fa-circle-check"></i></div>
     </div>
+    <div class="splash-text">القيصر</div>
     <div class="splash-subtext" id="splash-user-welcome">جاري الدخول إلى المنصة...</div>
+    <div class="splash-progress-wrap"><div class="splash-progress-bar"></div></div>
 </div>
 
 <div id="hero">
@@ -1216,7 +1372,7 @@
     // 1. تهيئة Firebase
     // ==========================================
     const firebaseConfig = {
-        apiKey: "AIzaSyDSaHZfMovOtZVkv5HDtfsy4Kh_ttszSLI",
+        APIkey2: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
         authDomain: "el-kaiser-platform.firebaseapp.com",
         projectId: "el-kaiser-platform",
         storageBucket: "el-kaiser-platform.firebasestorage.app",
@@ -1372,11 +1528,22 @@
         
         if (splash) {
             splash.style.display = "flex";
+            // بنشغل التعبئة التدريجية وبعدين نبرز علامة النجاح قبل الدخول بلحظة
+            requestAnimationFrame(() => splash.classList.add("splash-run"));
+
+            setTimeout(() => {
+                splash.classList.add("splash-success");
+                if (splashSubtext) splashSubtext.innerText = `تم تسجيل الدخول بنجاح يا ${name} ✦`;
+            }, 1700);
+
+            setTimeout(() => {
+                splash.classList.add("splash-leaving");
+            }, 2250);
         }
 
         setTimeout(() => {
             window.location.href = "platform.html";
-        }, 2200);
+        }, 2700);
     }
 
     document.getElementById("login-form").addEventListener("submit", async function(e) {
