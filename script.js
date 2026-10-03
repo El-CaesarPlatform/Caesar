@@ -16,6 +16,7 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -2432,9 +2433,16 @@ function vpInjectStyles() {
 .vp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .vp-head strong{color:#fff;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .vp-head button{flex:none}
+.vp-help{text-align:center;margin-top:6px}
+.vp-help button{background:#334155;color:#fff;border:0;border-radius:8px;padding:5px 11px;font-family:inherit;font-size:.74rem;font-weight:700;cursor:pointer}
+.vp-help-note{color:#94a3b8;font-size:.66rem;margin-top:4px;line-height:1.5}
 @media (max-height:480px){
+  .vp-help-note{display:none}
+  .vp-help{margin-top:3px}
+  .vp-help button{padding:3px 9px;font-size:.68rem}
   #video-modal{padding:6px !important}
   .vp-wrap{width:min(100%,calc((100vh - 46px) * 16 / 9));width:min(100%,calc((100dvh - 46px) * 16 / 9))}
+  .vp-wrap.vp-has-help{width:min(100%,calc((100vh - 74px) * 16 / 9));width:min(100%,calc((100dvh - 74px) * 16 / 9))}
   .vp-head{margin-bottom:6px}
   .vp-head strong{font-size:.9rem}
   .vp-head button{padding:5px 12px !important;font-size:.85rem}
@@ -2473,7 +2481,7 @@ function openVideoModal(title, url) {
     modal.id = 'video-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.93);z-index:100000;display:flex;justify-content:center;align-items:center;padding:14px;direction:rtl;';
     modal.innerHTML = `
-        <div class="vp-wrap">
+        <div class="vp-wrap${isDrive ? ' vp-has-help' : ''}">
             <div class="vp-head">
                 <strong><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
                 <button onclick="closeVideoModal()" style="background:#e74c3c;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-xmark"></i> إغلاق</button>
@@ -2495,8 +2503,8 @@ function openVideoModal(title, url) {
                     <button class="vp-btn" id="vp-fs"><i class="fas fa-expand"></i></button>
                 </div>` : `<button id="vp-fs-float"><i class="fas fa-expand"></i></button>`}
             </div>
+            ${isDrive ? `<div class="vp-help"><button type="button" id="vp-reload"><i class="fas fa-rotate"></i> الفيديو مش بيشتغل؟ اضغط هنا</button><div class="vp-help-note">لو ظهرت رسالة خطأ: اقفل باقي حسابات جوجل أو جرّب متصفح تاني</div></div>` : ''}
         </div>
-            ${isDrive ? `<div style="text-align:center;margin-top:10px;"><button type="button" id="vp-reload" style="background:#334155;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;"><i class="fas fa-rotate"></i> الفيديو مش بيشتغل؟ اضغط هنا</button><div style="color:#94a3b8;font-size:.78rem;margin-top:6px;">لو ظهرت رسالة خطأ: اقفل باقي حسابات جوجل على المتصفح أو جرّب متصفح تاني</div></div>` : ''}
     `;
     modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
     document.body.appendChild(modal);

@@ -631,6 +631,16 @@
             padding-top: 22px !important;
         }
 
+        /* أثناء الامتحان: شاشة الامتحان بس، وباقي الأقسام والقائمة مخفية */
+        body.exam-mode .sidebar,
+        body.exam-mode #home-section,
+        body.exam-mode #forum-section,
+        body.exam-mode #courses-section,
+        body.exam-mode #units-section,
+        body.exam-mode #exams-section,
+        body.exam-mode #results-section,
+        body.exam-mode #account-section { display: none !important; }
+
         #quiz-wrapper-box {
             display: none;
             background: transparent;
