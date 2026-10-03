@@ -106,6 +106,9 @@
             justify-content: flex-start;
         }
 
+        .brand-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
+        .brand-row h2 { margin: 0; }
+        .brand-logo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-cyan, #00d2ff); box-shadow: 0 0 14px rgba(0,210,255,.35); flex: none; }
         .sidebar h2 {
             background: linear-gradient(90deg, var(--accent-cyan), var(--accent-neon-purple));
             -webkit-background-clip: text;
@@ -1582,7 +1585,7 @@
             <i class="fas fa-angle-right"></i>
         </button>
 
-        <h2>منصة القيصر</h2>
+        <div class="brand-row"><img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="brand-logo" onerror="this.style.display='none'"><h2>منصة القيصر</h2></div>
 
         <div class="user-box">
             <span style="font-size: 0.8rem; color: var(--text-sub); display: block; margin-bottom: 4px;">مرحباً بك مجدداً <i class="fas fa-hand"></i></span>

@@ -16,7 +16,6 @@
 // ==========================================
 // ==========================================
 // ==========================================
-// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -2497,6 +2496,7 @@ function openVideoModal(title, url) {
                 </div>` : `<button id="vp-fs-float"><i class="fas fa-expand"></i></button>`}
             </div>
         </div>
+            ${isDrive ? `<div style="text-align:center;margin-top:10px;"><button type="button" id="vp-reload" style="background:#334155;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;"><i class="fas fa-rotate"></i> الفيديو مش بيشتغل؟ اضغط هنا</button><div style="color:#94a3b8;font-size:.78rem;margin-top:6px;">لو ظهرت رسالة خطأ: اقفل باقي حسابات جوجل على المتصفح أو جرّب متصفح تاني</div></div>` : ''}
     `;
     modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
     document.body.appendChild(modal);
@@ -2538,6 +2538,15 @@ function openVideoModal(title, url) {
         setTimeout(setFsIcon, 150);
     };
     fsBtn.addEventListener('click', toggleFs);
+    const reloadBtn = modal.querySelector('#vp-reload');
+    if (reloadBtn) {
+        let tries = 0;
+        reloadBtn.addEventListener('click', () => {
+            tries++;
+            const f = modal.querySelector('#vp-stage iframe');
+            if (f) f.src = embed + '?authuser=' + ((tries - 1) % 3) + '&r=' + Date.now();
+        });
+    }
     _vp.onFs = setFsIcon;
     document.addEventListener('fullscreenchange', _vp.onFs);
     document.addEventListener('webkitfullscreenchange', _vp.onFs);
