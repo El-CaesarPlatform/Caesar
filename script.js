@@ -16,6 +16,7 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -2412,9 +2413,9 @@ function vpInjectStyles() {
     const st = document.createElement('style');
     st.id = 'vp-styles';
     st.textContent = `
-#vp-box{position:relative;width:100%;padding-top:56.25%;background:#000;border-radius:14px;overflow:hidden;user-select:none;-webkit-user-select:none}
-#vp-box:fullscreen,#vp-box.vp-pseudo-fs{position:fixed;inset:0;width:100%;height:100%;padding-top:0;border-radius:0;z-index:100001}
-#vp-box:-webkit-full-screen{width:100%;height:100%;padding-top:0;border-radius:0}
+#vp-box{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;user-select:none;-webkit-user-select:none}
+#vp-box:fullscreen,#vp-box.vp-pseudo-fs{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;aspect-ratio:auto;border-radius:0;z-index:100001}
+#vp-box:-webkit-full-screen{width:100%;height:100%;aspect-ratio:auto;border-radius:0}
 #vp-stage{position:absolute;inset:0}
 #vp-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 #vp-shield{position:absolute;inset:0 0 50px 0;z-index:2;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -2427,6 +2428,26 @@ function vpInjectStyles() {
 #vp-controls .vp-time{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 #vp-seek{flex:1;accent-color:#e74c3c;cursor:pointer}
 #vp-fs-float{position:absolute;top:8px;left:8px;z-index:6;background:rgba(0,0,0,.55);border-radius:8px}
+
+.vp-wrap{width:min(100%,calc((100vh - 70px) * 16 / 9));width:min(100%,calc((100dvh - 70px) * 16 / 9));max-width:900px}
+.vp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.vp-head strong{color:#fff;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.vp-head button{flex:none}
+@media (max-height:480px){
+  #video-modal{padding:6px !important}
+  .vp-wrap{width:min(100%,calc((100vh - 46px) * 16 / 9));width:min(100%,calc((100dvh - 46px) * 16 / 9))}
+  .vp-head{margin-bottom:6px}
+  .vp-head strong{font-size:.9rem}
+  .vp-head button{padding:5px 12px !important;font-size:.85rem}
+}
+@media (pointer:coarse){
+  #vp-controls{gap:2px;padding:10px 8px}
+  #vp-controls .vp-btn{font-size:20px;padding:8px 10px;min-width:42px;min-height:42px}
+  #vp-controls .vp-time{font-size:12px;min-width:38px}
+  #vp-seek{height:28px}
+  #vp-fs-float{font-size:20px;padding:8px 12px}
+}
+#vp-box:fullscreen #vp-controls,#vp-box.vp-pseudo-fs #vp-controls{padding-bottom:max(12px,env(safe-area-inset-bottom))}
 `;
     document.head.appendChild(st);
 }
@@ -2453,13 +2474,13 @@ function openVideoModal(title, url) {
     modal.id = 'video-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.93);z-index:100000;display:flex;justify-content:center;align-items:center;padding:14px;direction:rtl;';
     modal.innerHTML = `
-        <div style="width:100%;max-width:900px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <strong style="color:#fff;font-size:1.05rem;"><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
+        <div class="vp-wrap">
+            <div class="vp-head">
+                <strong><i class="fas fa-clapperboard"></i> ${escapeHtml(title)}</strong>
                 <button onclick="closeVideoModal()" style="background:#e74c3c;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-xmark"></i> إغلاق</button>
             </div>
             <div id="vp-box">
-                <div id="vp-stage">${isYT ? '<div id="vp-yt"></div>' : `<iframe src="${otherSrc}" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`}</div>
+                <div id="vp-stage">${isYT ? '<div id="vp-yt"></div>' : `<iframe src="${otherSrc}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`}</div>
                 ${isYT ? `<div id="vp-shield"><div id="vp-bigplay"><i class="fas fa-play"></i></div></div>` : ''}
                 ${isDrive ? '<div id="vp-corner"></div>' : ''}
                 <div id="vp-wm">${wmText}</div>
@@ -2498,15 +2519,19 @@ function openVideoModal(title, url) {
     const fsBtn = modal.querySelector('#vp-fs') || modal.querySelector('#vp-fs-float');
     const isFs = () => document.fullscreenElement === box || document.webkitFullscreenElement === box || box.classList.contains('vp-pseudo-fs');
     const setFsIcon = () => { fsBtn.innerHTML = '<i class="fas fa-' + (isFs() ? 'compress' : 'expand') + '"></i>'; };
+    const lockLandscape = () => { try { if (screen.orientation && screen.orientation.lock && window.matchMedia('(pointer:coarse)').matches) screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} };
+    const unlockOrientation = () => { try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} };
     const toggleFs = () => {
         if (isFs()) {
             if (box.classList.contains('vp-pseudo-fs')) box.classList.remove('vp-pseudo-fs');
             else if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            unlockOrientation();
         } else if (box.requestFullscreen) {
-            box.requestFullscreen().catch(() => box.classList.add('vp-pseudo-fs'));
+            box.requestFullscreen().then(lockLandscape).catch(() => { box.classList.add('vp-pseudo-fs'); lockLandscape(); });
         } else if (box.webkitRequestFullscreen) {
             box.webkitRequestFullscreen();
+            lockLandscape();
         } else {
             box.classList.add('vp-pseudo-fs');
         }
@@ -2574,7 +2599,7 @@ function openVideoModal(title, url) {
     const fallbackToPlainIframe = () => {
         if (!_vp || _vp.modal !== modal) return;
         const stage = modal.querySelector('#vp-stage');
-        stage.innerHTML = `<iframe src="${embed}" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
+        stage.innerHTML = `<iframe src="${embed}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
         const c = modal.querySelector('#vp-controls'); if (c) c.remove();
         if (shield) shield.remove();
         if (_vp.timer) clearInterval(_vp.timer);
@@ -2618,6 +2643,7 @@ function openVideoModal(title, url) {
 }
 
 function closeVideoModal() {
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
     if (_vp) {
         if (_vp.timer) clearInterval(_vp.timer);
         if (_vp.wmTimer) clearInterval(_vp.wmTimer);
