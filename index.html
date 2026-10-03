@@ -1639,6 +1639,10 @@
         if (item.status === "approved" || item.accountStatus === "approved" || item.isApproved === true) return "approved";
         if (item.status === "rejected" || item.accountStatus === "rejected") return "rejected";
         if (item.status === "needs_edit" || item.accountStatus === "needs_edit") return "needs_edit";
+        if ((item.hasSubmitted === true || item.isSubmitted === true) &&
+            item.status === undefined && item.accountStatus === undefined && item.isApproved === undefined) {
+            return "approved";
+        }
         return "pending";
     }
 

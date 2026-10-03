@@ -15,6 +15,7 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -369,7 +370,18 @@ function saveStoredHistory(currentList) {
 }
 
 function getHistoryRecordKey(r) {
+    // لازم الدمج والتفريد يكونوا بمعرّف الامتحان الثابت، مش بالسيريال العشوائي
+    // (السيريال بيتغيّر كل مرة الطالب يعيد الامتحان، فكان بيعمل صف مكرر بدل ما يحدّث نفس الصف)
+    if (r && r.examId) return String(r.examId);
     return String((r && (r.key || r.serial || r.id)) || '');
+}
+
+function prettifyExamName(name, totalQuestions) {
+    const n = (name || '').toString().trim();
+    // أسماء زي كود مستندات فايربيز العشوائي (حروف وأرقام متلخبطة من غير مسافات) مش اسم امتحان حقيقي
+    const looksLikeRawId = /^[A-Za-z0-9_-]{12,}$/.test(n) && !/\s/.test(n) && /[a-z]/.test(n) && /[A-Z0-9]/.test(n);
+    if (!n || looksLikeRawId) return "امتحان غير متاح حالياً (محذوف أو منتهي)";
+    return n;
 }
 
 function getHistoryRecordTime(r) {
@@ -581,7 +593,7 @@ function renderAccountHistoryTable() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="color: var(--accent-gold); font-weight: 800;">${row.serial || '---'}</td>
-            <td style="font-weight: 800; color: #ffffff;">${escapeHtml(row.examName)}</td>
+            <td style="font-weight: 800; color: #ffffff;">${escapeHtml(prettifyExamName(row.examName, row.totalQuestions))}</td>
             <td>${row.totalQuestions}</td>
             <td style="font-weight: 800; color: ${isUnderReview ? '#f1c40f' : 'var(--accent-cyan)'};">
                 ${row.percentage}
@@ -643,7 +655,7 @@ function openAnswersReviewModal(recordId) {
     reviewModal.innerHTML = `
         <div style="background: #0f1422; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
             <div style="padding: 16px 20px; background: #141c2c; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
-                <h4 style="color: #00f2fe; margin: 0; font-size: 1.1rem; font-weight: 800;"><i class="fas fa-book-open"></i> مراجعة إجابات: ${escapeHtml(item.examName)}</h4>
+                <h4 style="color: #00f2fe; margin: 0; font-size: 1.1rem; font-weight: 800;"><i class="fas fa-book-open"></i> مراجعة إجابات: ${escapeHtml(prettifyExamName(item.examName, item.totalQuestions))}</h4>
                 <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;"><i class="fas fa-xmark"></i></button>
             </div>
             <div style="padding: 18px; overflow-y: auto; flex: 1;">
