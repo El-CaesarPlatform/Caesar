@@ -12,8 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- مكتبات Firebase الأساسية -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
         * {
@@ -1743,6 +1743,22 @@
         return /^(?=.*[A-Za-z\u0600-\u06FF])(?=.*\d).{8,}$/.test(pass);
     }
 
+    // كلمة المرور هي كود الطالب، فلازم متتكررش بين طالبين (عشان كل طالب يشوف نتيجته هو بس)
+    async function isCodeTakenByOther(code, ownDocId, name) {
+        const norm = (v) => (v || "").toString().replace(/\s+/g, " ").trim();
+        const [a, b] = await Promise.all([
+            db.collection("students").where("studentCode", "==", code).get(),
+            db.collection("students").where("code", "==", code).get()
+        ]);
+        let taken = false;
+        [a, b].forEach(snap => snap.forEach(d => {
+            if (d.id === ownDocId) return;
+            const data = d.data();
+            if (norm(data.studentName || data.name) !== norm(name)) taken = true;
+        }));
+        return taken;
+    }
+
     async function findStudentByName(name) {
         // الاستعلامين بيتنفذوا مع بعض (بدل واحد ورا التاني) عشان الطلب يتسجل أسرع
         const [byStudentName, byName] = await Promise.all([
@@ -1842,6 +1858,13 @@
                 return;
             }
 
+            if (await isCodeTakenByOther(passInput, editStudentDocId, nameInput)) {
+                showEditMessage("⚠️ كلمة المرور دي مستخدمة، اختار كلمة مرور تانية.", "warning");
+                editBtn.disabled = false;
+                editBtn.innerHTML = '<span>إعادة إرسال البيانات</span> <i class="fas fa-paper-plane"></i>';
+                return;
+            }
+
             await db.collection("students").doc(editStudentDocId).update({
                 studentName: nameInput,
                 name: nameInput,
@@ -1922,6 +1945,12 @@
                     showSignupMessage("❌ لديك طلب إنشاء حساب مسجل بالفعل وهو قيد المراجعة، برجاء الانتظار.", "error");
                 }
 
+                resetSignupButton(signupBtn);
+                return;
+            }
+
+            if (await isCodeTakenByOther(passInput, null, nameInput)) {
+                showSignupMessage("⚠️ كلمة المرور دي مستخدمة، اختار كلمة مرور تانية.", "warning");
                 resetSignupButton(signupBtn);
                 return;
             }

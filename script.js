@@ -17,6 +17,9 @@
 // ==========================================
 // ==========================================
 // ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -28,6 +31,7 @@ const firebaseConfig = {
     appId: "1:639617459641:web:7804a357079b1b559c4268",
     measurementId: "G-B1E4Y13JBE"
 };
+
 
 // تهيئة Firebase
 let db;
@@ -438,6 +442,44 @@ async function archiveHistoryRecord(record) {
     }
 }
 
+// الاسم المخزّن في السجل يطابق اسم الطالب الحالي؟ (لو السجل مفيهوش اسم نعتبره مطابق)
+function recordBelongsToMe(data) {
+    const me = normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
+    const other = normalizeArabicText((data && (data.studentName || data.name)) || "");
+    return !me || !other || me === other;
+}
+
+async function fetchPracticeHistory(studentCode) {
+    if (typeof db === 'undefined' || !studentCode) return [];
+    try {
+        const snap = await db.collection("student_practice_results").where("studentCode", "==", studentCode).get();
+        const list = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d && d.record && d.record.examName && recordBelongsToMe(d)) list.push(d.record);
+        });
+        return list;
+    } catch (e) {
+        console.warn("تعذر قراءة نتائج التدريب:", e);
+        return [];
+    }
+}
+
+function savePracticeToServer(record) {
+    if (typeof db === 'undefined' || !record) return;
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    const name = (localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+    if (!code && !name) return;
+    try {
+        db.collection("student_practice_results").doc(getUniqueDocId(code || name, record.examId)).set({
+            studentCode: code,
+            studentName: name,
+            record: JSON.parse(JSON.stringify(record)),
+            createdAtMs: Date.now()
+        }).catch(e => console.warn("تعذر حفظ نتيجة التدريب:", e));
+    } catch (e) {}
+}
+
 async function fetchArchivedHistory(studentCode) {
     if (typeof db === 'undefined' || !studentCode) return [];
     try {
@@ -445,7 +487,7 @@ async function fetchArchivedHistory(studentCode) {
         const list = [];
         snap.forEach(doc => {
             const d = doc.data();
-            if (d && d.examName) {
+            if (d && d.examName && recordBelongsToMe(d)) {
                 const rec = { ...d };
                 delete rec.studentCode;
                 delete rec.studentName;
@@ -542,6 +584,7 @@ async function syncAccountWithFirebase() {
 
         try {
             archiveRecords = await fetchArchivedHistory(studentCode);
+            archiveRecords = archiveRecords.concat(await fetchPracticeHistory(studentCode));
         } catch (e) {
             archiveRecords = [];
         }
@@ -1836,7 +1879,8 @@ function calculateAndSend(bypassValidation = false) {
 
     // احفظ أخطاء أسئلة الاختيار للكورس الحالي حتى تظهر في تدريب "أسئلة من أخطائك".
     const practiceCourseId = window.currentCourseIdForExam || activeCourseId;
-    if (practiceCourseId && !String(currentActiveSubject).startsWith('mistake_practice_')) {
+    const practiceCourse = coursesCache.find(c => c.id === practiceCourseId);
+    if (practiceCourseId && practiceCourse && practiceCourse.isPaid === true && !String(currentActiveSubject).startsWith('mistake_practice_')) {
         const mistakeKey = getMistakeQuestionsStorageKey(practiceCourseId);
         let mistakeMap = {};
         try { mistakeMap = JSON.parse(localStorage.getItem(mistakeKey) || '{}') || {}; } catch (e) {}
@@ -1852,6 +1896,7 @@ function calculateAndSend(bypassValidation = false) {
             };
         });
         try { localStorage.setItem(mistakeKey, JSON.stringify(mistakeMap)); } catch (e) { console.warn('تعذر حفظ أسئلة الأخطاء:', e); }
+        saveMistakesToServer(practiceCourseId, mistakeMap);
     }
 
     const hasEssay = answersForAdmin.some(a => a.type === "essay");
@@ -1867,6 +1912,40 @@ function calculateAndSend(bypassValidation = false) {
 
     clearInterval(timerInterval);
     window.isExamRunning = false;
+
+    // تدريب "أسئلة من أخطائك": بيتسجل في النتايج زي أي امتحان، وكل محاولة ليها سجل مستقل (يقدر يكررها)
+    if (String(currentActiveSubject).startsWith('mistake_practice_')) {
+        pruneMasteredMistakes(activeQuestionsList, answersForAdmin);
+        try { sessionStorage.setItem('resume_course_id', window.currentCourseIdForExam || activeCourseId || ''); sessionStorage.setItem('open_tab_after_reload', 'units'); } catch (e) {}
+
+        // بيتسجل في حساب الطالب على السيرفر (مجموعة منفصلة) فيظهر له على أي تلفون، ومبيظهرش في لوحة الأدمن
+        const pNow = Date.now();
+        const pTime = new Date(pNow).toLocaleString('ar-EG', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        const pSerial = Math.floor(10000 + Math.random() * 90000).toString();
+        const pHistory = getStoredHistory();
+        const pRecord = {
+            id: `exam_${pNow}`, key: pSerial, serial: pSerial, examName: 'أسئلة من أخطائك',
+            totalQuestions: activeQuestionsList.length,
+            percentage: `% ${finalPercent}`,
+            score: `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 1)}`,
+            scoreNum: mcqScoreObtained, maxScoreNum: totalExamPointsPossible || 1,
+            solvedQuestions: solvedQuestionsCount, canReview: true,
+            startTime: pTime, endTime: pTime, durationTaken: '',
+            examId: currentActiveSubject, courseId: window.currentCourseIdForExam || null,
+            timestampMs: pNow, answers: answersForAdmin, isPractice: true
+        };
+        pHistory.unshift(pRecord);
+        saveStoredHistory(pHistory);
+        savePracticeToServer(pRecord);
+        localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
+        localStorage.removeItem('active_running_exam_session');
+        showSubmissionResultModal({
+            examTitle: 'أسئلة من أخطائك', released: true,
+            scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 1)}`,
+            percent: finalPercent, cancelled: false
+        });
+        return;
+    }
 
     let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "طالب مجهول";
     let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
@@ -2262,6 +2341,7 @@ async function loadFinishedExamStatsCache() {
         const snap = await db.collection("results_archive").where("studentCode", "==", code).get();
         snap.forEach(d => {
             const data = d.data();
+            if (!recordBelongsToMe(data)) return;
             if (data.examId && !finishedExamStatsCache.has(data.examId)) finishedExamStatsCache.set(data.examId, data);
         });
     } catch (e) {
@@ -2298,9 +2378,10 @@ async function loadExamLocksCache() {
             db.collection("students").where("studentCode", "==", code).get(),
             db.collection("students").where("code", "==", code).get()
         ]);
-        locksSnap.forEach(d => { const ex = d.data().examId; if (ex) examLockedIdsCache.add(ex); });
+        locksSnap.forEach(d => { const ld = d.data(); if (!recordBelongsToMe(ld)) return; const ex = ld.examId; if (ex) examLockedIdsCache.add(ex); });
         [byStudentCode, byCode].forEach(snap => snap.forEach(d => {
             const data = d.data();
+            if (!recordBelongsToMe(data)) return;
             const ex = data.examId || data.examCode;
             if (ex && (data.hasSubmitted === true || data.isSubmitted === true)) examLockedIdsCache.add(ex);
         }));
@@ -2832,11 +2913,12 @@ async function renderUnitsSection() {
         }
 
         box.innerHTML = units.map((unit, idx) => {
-            const items = Array.isArray(unit.items) ? unit.items : [];
+            // الفيديوهات متاحة في الكورس المدفوع فقط
+            const items = (Array.isArray(unit.items) ? unit.items : []).filter(it => it.type !== 'video');
             const rows = items.length === 0
                 ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
                 : items.map(it => buildUnitItemRowHtml(it, `openUnitItem('${unit.id}', '${it.id}')`)).join('');
-            return buildUnitAccordionHtml(unit, idx, rows);
+            return buildUnitAccordionHtml({ ...unit, items }, idx, rows);
         }).join('');
 
         clearInterval(unitsCountdownTimer);
@@ -2882,6 +2964,8 @@ function openUnitItem(unitId, itemId) {
     if (it.type === 'file') {
         window.open(it.url, '_blank', 'noopener');
     } else if (it.type === 'video') {
+        showCustomToast("<i class='fas fa-lock'></i> الفيديوهات متاحة في الكورس المدفوع فقط.", "warning");
+        return;
         if ((parseFloat(it.price) || 0) > 0 && !videoPurchasesCache.has(it.id)) {
             showCustomToast("<i class='fas fa-lock'></i> هذا الفيديو مدفوع، يرجى التواصل مع الدعم الفني لشراء الفيديو.", "warning");
             return;
@@ -2945,11 +3029,12 @@ async function renderCoursesSection() {
                 ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;"><i class="fas fa-check"></i></span>' : ''}
                 ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;"><i class="fas fa-graduation-cap"></i></div>'}
                 <div class="course-body">
+                  ${c.isPaid ? `<span style="display:inline-block;margin-bottom:6px;padding:3px 12px;border-radius:999px;background:rgba(255,190,11,.18);color:#ffda63;font-size:.78rem;font-weight:800;border:1px solid rgba(255,190,11,.4);"><i class="fas fa-gem"></i> كورس مدفوع${c.price ? ' — ' + escapeHtml(String(c.price)) + ' جنيه' : ''}</span>` : ''}
                   ${enrolled ? '<span class="course-status"><i class="fas fa-check"></i> مشترك في الكورس</span>' : ''}
                   <div class="course-grade">${escapeHtml(c.grade || 'كل الصفوف')}</div>
                   <h3>${escapeHtml(c.title || 'كورس بدون اسم')}</h3>
                   <p>${escapeHtml(c.description || 'محتوى تعليمي متكامل: فيديوهات وملفات وامتحانات.')}</p>
-                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '<i class="fas fa-bullseye"></i> دخول الكورس' : '<i class="fas fa-thumbtack"></i> اشترك في الكورس'}</button>
+                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '<i class="fas fa-bullseye"></i> دخول الكورس' : (c.isPaid ? '<i class="fas fa-lock"></i> تفاصيل الكورس المدفوع' : '<i class="fas fa-thumbtack"></i> اشترك في الكورس')}</button>
                 </div>
             </article>`;
         }).join('')}</div>`;
@@ -2961,6 +3046,7 @@ async function renderCoursesSection() {
 // <i class="fas fa-circle-check"></i> اشتراك مع مودال تأكيد
 async function requestCourseSubscription(courseId) {
     const course = coursesCache.find(c => c.id === courseId); if (!course) return;
+    if (course.isPaid === true) { showPaidCourseModal(course); return; }
     showSubscriptionConfirmModal(course, async () => {
         try {
             const key = currentStudentIdentity();
@@ -3014,6 +3100,54 @@ function showSubscriptionConfirmModal(course, onConfirm) {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
+// ===== الكورس المدفوع: شاشة التفاصيل + مقارنة بينه وبين الكورس العادي =====
+function buildCourseComparisonHtml(course) {
+    const yes = '<i class="fas fa-circle-check" style="color:#2ecc71;"></i>';
+    const no = '<i class="fas fa-circle-xmark" style="color:#e74c3c;"></i>';
+    const extra = (Array.isArray(course.features) ? course.features : []).filter(f => f && String(f).trim());
+    const rows = [
+        ['ملفات وامتحانات الكورس', true, true],
+        ['فيديوهات الكورس', false, true],
+        ['أسئلة من أخطائك (تدريب على الأسئلة اللي غلطت فيها)', false, true],
+        ...extra.map(f => [String(f), false, true])
+    ];
+    return `<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-top:6px;">
+        <thead><tr style="color:#94a3b8;">
+            <th style="text-align:right;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.12);">الميزة</th>
+            <th style="padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.12);">الكورس العادي</th>
+            <th style="padding:8px 6px;border-bottom:1px solid rgba(255,190,11,.4);color:#ffda63;"><i class="fas fa-gem"></i> المدفوع</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `<tr>
+            <td style="text-align:right;padding:9px 6px;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,.06);">${escapeHtml(r[0])}</td>
+            <td style="text-align:center;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.06);">${r[1] ? yes : no}</td>
+            <td style="text-align:center;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.06);">${r[2] ? yes : no}</td>
+        </tr>`).join('')}</tbody></table>`;
+}
+
+function showPaidCourseModal(course) {
+    const old = document.getElementById('paid-course-modal'); if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'paid-course-modal';
+    modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:100000;padding:16px;direction:rtl;font-family:'Cairo',sans-serif;`;
+    modal.innerHTML = `
+      <div style="background:linear-gradient(145deg,#1a2340,#0e1424);border:1px solid rgba(255,190,11,.45);border-radius:22px;padding:26px 22px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+        <div style="font-size:2.6rem;color:#ffda63;margin-bottom:6px;"><i class="fas fa-gem"></i></div>
+        <h3 style="color:#fff;margin:0 0 4px;font-size:1.25rem;">${escapeHtml(course.title)}</h3>
+        <div style="display:inline-block;margin:6px 0 12px;padding:4px 14px;border-radius:999px;background:rgba(255,190,11,.18);color:#ffda63;font-weight:800;border:1px solid rgba(255,190,11,.4);">هذا الكورس مدفوع${course.price ? ' — ' + escapeHtml(String(course.price)) + ' جنيه' : ''}</div>
+        <p style="color:#a0aec0;font-size:.88rem;line-height:1.8;margin:0 0 12px;">${escapeHtml(course.description || '')}</p>
+        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;margin-bottom:14px;">
+          <div style="color:#ffda63;font-weight:800;margin-bottom:4px;text-align:right;"><i class="fas fa-scale-balanced"></i> الفرق بين الكورس المدفوع والعادي</div>
+          ${buildCourseComparisonHtml(course)}
+        </div>
+        <div style="background:rgba(0,242,254,.07);border:1px solid rgba(0,242,254,.25);border-radius:12px;padding:12px;margin-bottom:16px;color:#cbd5e1;font-size:.85rem;line-height:1.9;">
+          <i class="fas fa-circle-info" style="color:#00f2fe;"></i> للاشتراك: ادفع قيمة الكورس وتواصل مع الدعم الفني، وبعد التأكد من الدفع هيتم فتح الكورس لحسابك مباشرة.
+        </div>
+        <button onclick="document.getElementById('paid-course-modal').remove()" style="width:100%;padding:13px;background:#334155;color:#fff;border:none;border-radius:14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:1rem;">تمام</button>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 async function renderSubscriptionsSection() {
     const box = document.getElementById('subscriptions-list'); if (!box) return;
     box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل اشتراكاتك...</p>';
@@ -3052,6 +3186,7 @@ async function renderHomeSection() {
             let courseTotal = 0, courseDone = 0;
             (course.units || []).forEach(unit => {
                 (unit.items || []).forEach(it => {
+                    if (it.type === 'video' && course.isPaid !== true) return;
                     courseTotal++;
                     let isDone = false;
                     if (it.type === 'exam') {
@@ -3158,6 +3293,9 @@ async function renderHomeActivityChart() {
 const originalRenderUnitsSection = renderUnitsSection;
 renderUnitsSection = async function() {
     if (!activeCourseId) {
+        try { const r = sessionStorage.getItem('resume_course_id'); if (r) { sessionStorage.removeItem('resume_course_id'); activeCourseId = r; } } catch (e) {}
+    }
+    if (!activeCourseId) {
         const banner = document.getElementById('active-course-banner');
         if (banner) {
             try {
@@ -3188,8 +3326,9 @@ renderUnitsSection = async function() {
     if (!course || !subscriptionsCache.has(course.id)) { activeCourseId = null; return renderUnitsSection(); }
 
     const banner = document.getElementById('active-course-banner');
-    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
+    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}${course.isPaid ? ' <span style="font-size:.7rem;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;margin-right:6px;"><i class="fas fa-gem"></i> مدفوع</span>' : ''}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
 
+    if (course.isPaid === true) { await syncMistakesFromServer(course.id); await loadReleasedExamIds(); }
     renderMistakePracticeCard(course);
 
     const units = (course.units || []).filter(u => u.isPublished !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -3200,11 +3339,12 @@ renderUnitsSection = async function() {
     }
 
     box.innerHTML = units.map((unit, idx) => {
-        const items = Array.isArray(unit.items) ? unit.items : [];
+        // الفيديوهات في الكورس المدفوع فقط، الكورس العادي بيعرض الملفات والامتحانات بس
+        const items = (Array.isArray(unit.items) ? unit.items : []).filter(it => course.isPaid === true || it.type !== 'video');
         const rows = items.length === 0
             ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
             : items.map(it => buildUnitItemRowHtml(it, `openCourseUnitItem('${course.id}', '${unit.id}', '${it.id}')`)).join('');
-        return buildUnitAccordionHtml(unit, idx, rows);
+        return buildUnitAccordionHtml({ ...unit, items }, idx, rows);
     }).join('');
 
     clearInterval(unitsCountdownTimer);
@@ -3215,10 +3355,68 @@ function getMistakeQuestionsStorageKey(courseId) {
     return `mistake_questions_${currentStudentIdentity()}_${courseId}`;
 }
 
+// ===== أخطاء الطالب بتتخزن على السيرفر عشان تظهر على أي تلفون/جهاز =====
+function mistakesServerDocId(courseId) { return getUniqueDocId(currentStudentIdentity(), 'mistakes_' + courseId); }
+
+function saveMistakesToServer(courseId, map) {
+    if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
+    const items = Object.entries(map || {}).map(([key, q]) => ({ key, ...q }));
+    db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).set({
+        courseId: courseId,
+        studentKey: currentStudentIdentity(),
+        studentName: localStorage.getItem('student_fullname') || '',
+        studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
+        items: items,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(e => console.warn('تعذر حفظ أسئلة الأخطاء على السيرفر:', e));
+}
+
+// السيرفر هو المرجع: لو فيه نسخة بنحمّلها على الجهاز، ولو مفيش بنرفع اللي على الجهاز
+async function syncMistakesFromServer(courseId) {
+    if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
+    const key = getMistakeQuestionsStorageKey(courseId);
+    try {
+        const snap = await db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).get();
+        if (snap.exists) {
+            const map = {};
+            (snap.data().items || []).forEach(it => { const { key: k, ...q } = it; if (k) map[k] = q; });
+            localStorage.setItem(key, JSON.stringify(map));
+        } else {
+            const local = JSON.parse(localStorage.getItem(key) || '{}') || {};
+            if (Object.keys(local).length) saveMistakesToServer(courseId, local);
+        }
+    } catch (e) { console.warn('تعذر تحميل أسئلة الأخطاء من السيرفر:', e); }
+}
+
+// الامتحانات اللي نتيجتها اتنشرت للطالب (الأخطاء مبتظهرش قبل كده عشان ميعرفش إنه غلط قبل النتيجة)
+let releasedExamIdsCache = null;
+
+async function loadReleasedExamIds() {
+    releasedExamIdsCache = new Set();
+    if (typeof db === 'undefined') return;
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    if (!code) return;
+    try {
+        const [a, b] = await Promise.all([
+            db.collection("students").where("studentCode", "==", code).get(),
+            db.collection("students").where("code", "==", code).get()
+        ]);
+        [a, b].forEach(snap => snap.forEach(d => {
+            const data = d.data();
+            if (!recordBelongsToMe(data)) return;
+            const released = data.showScore === true || data.showResult === true || data.isResultVisible === true;
+            const ex = data.examCode || data.examId;
+            if (ex && released && data.examCancelled !== true) releasedExamIdsCache.add(ex);
+        }));
+    } catch (e) { console.warn('تعذر فحص نشر النتايج:', e); }
+}
+
 function getCourseMistakeQuestions(courseId) {
     try {
         const value = JSON.parse(localStorage.getItem(getMistakeQuestionsStorageKey(courseId)) || '{}');
-        return Object.entries(value || {}).map(([key, question]) => ({ key, ...question }));
+        return Object.entries(value || {}).map(([key, question]) => ({ key, ...question }))
+            .filter(q => releasedExamIdsCache && releasedExamIdsCache.has(q.sourceExam))
+            .filter(q => Array.isArray(q.options) && q.options.length > 0 && q.correctAnswer); // اختيار من متعدد فقط، المقالي لأ
     } catch (e) { return []; }
 }
 
@@ -3228,24 +3426,44 @@ function renderMistakePracticeCard(course) {
     const box = document.createElement('section');
     box.id = 'mistake-practice-card';
     box.className = 'mistake-practice-card';
-    // الميزة مقفولة مؤقتاً (قريباً)
-    box.innerHTML = `
-      <div class="mistake-practice-copy">
-        <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
-        <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;font-size:.75rem;font-weight:800;">قريباً</span></h3><p>هذه الميزة ستتوفر قريباً.</p></div>
-      </div>
-      <button class="mistake-practice-btn" disabled><i class="fas fa-lock"></i> قريباً</button>`;
+
+    if (course.isPaid === true) {
+        // الكورس المدفوع: الميزة شغالة
+        const count = getCourseMistakeQuestions(course.id).length;
+        box.innerHTML = `
+          <div class="mistake-practice-copy">
+            <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
+            <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(46,204,113,.18);color:#2ecc71;font-size:.75rem;font-weight:800;"><i class="fas fa-gem"></i> مميزات الكورس المدفوع</span></h3>
+            <p>${count ? `عندك <b>${count}</b> ${count === 1 ? 'سؤال' : 'أسئلة'} غلطت فيهم في امتحانات الكورس. دلوقتي تقدر تتدرب عليهم.` : 'الأسئلة اللي هتغلط فيها هتظهر هنا بعد ما نتيجة الامتحان تتنشر، عشان تتدرب عليها.'}</p></div>
+          </div>
+          <button class="mistake-practice-btn" ${count ? '' : 'disabled'} onclick="startMistakePractice('${course.id}')"><i class="fas fa-play"></i> ابدأ التدريب</button>`;
+    } else {
+        // الكورس العادي: الميزة متاحة في المدفوع بس
+        const hasPaid = coursesCache.some(c => c.isPaid === true && courseMatchesStudent(c));
+        box.innerHTML = `
+          <div class="mistake-practice-copy">
+            <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
+            <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;font-size:.75rem;font-weight:800;"><i class="fas fa-gem"></i> للكورس المدفوع فقط</span></h3><p>هذه الميزة متاحة في الكورسات المدفوعة فقط.</p></div>
+          </div>
+          ${hasPaid ? `<button class="mistake-practice-btn" onclick="switchTab('courses')"><i class="fas fa-lock"></i> شوف الكورسات المدفوعة</button>` : `<button class="mistake-practice-btn" disabled><i class="fas fa-lock"></i> مقفولة</button>`}`;
+    }
     const banner = document.getElementById('active-course-banner');
     if (banner) banner.insertAdjacentElement('afterend', box);
 }
 
 function startMistakePractice(courseId) {
-    return showCustomToast('ميزة "أسئلة من أخطائك" ستتوفر قريباً.', 'warning');
+    const course = coursesCache.find(c => c.id === courseId);
+    if (!course || course.isPaid !== true) return showCustomToast('ميزة "أسئلة من أخطائك" متاحة في الكورسات المدفوعة فقط.', 'warning');
+    if (!subscriptionsCache.has(courseId)) return showCustomToast('لازم الكورس يكون مفتوح لحسابك الأول.', 'warning');
     const mistakes = getCourseMistakeQuestions(courseId);
     if (!mistakes.length) return showCustomToast('لسه مفيش أسئلة غلط في الكورس ده. بعد أول امتحان هتلاقيها هنا.', 'warning');
+    const old = document.querySelector('.mistake-practice-modal'); if (old) old.remove();
+    const counts = [1, 3, 5, 10].filter(n => n < mistakes.length);
+    counts.push(Math.min(mistakes.length, 10));
+    const options = Array.from(new Set(counts)).sort((a, b) => a - b);
     const modal = document.createElement('div');
     modal.className = 'mistake-practice-modal';
-    modal.innerHTML = `<div class="mistake-practice-dialog"><button class="mistake-practice-close" aria-label="إغلاق" onclick="this.closest('.mistake-practice-modal').remove()"><i class="fas fa-xmark"></i></button><span class="mistake-practice-icon"><i class="fas fa-list-check"></i></span><h3>اختار عدد الأسئلة</h3><p>عندك ${mistakes.length} ${mistakes.length === 1 ? 'سؤال متاح' : 'أسئلة متاحة'} من أخطائك.</p><div class="mistake-count-options">${[1,2].filter(n => n <= mistakes.length).map(n => `<button onclick="launchMistakePractice('${courseId}', ${n}); this.closest('.mistake-practice-modal').remove()">${n} ${n === 1 ? 'سؤال واحد' : 'سؤالين'}</button>`).join('')}</div></div>`;
+    modal.innerHTML = `<div class="mistake-practice-dialog"><button class="mistake-practice-close" aria-label="إغلاق" onclick="this.closest('.mistake-practice-modal').remove()"><i class="fas fa-xmark"></i></button><span class="mistake-practice-icon"><i class="fas fa-list-check"></i></span><h3>اختار عدد الأسئلة</h3><p>عندك ${mistakes.length} ${mistakes.length === 1 ? 'سؤال متاح' : 'أسئلة متاحة'} من أخطائك.</p><div class="mistake-count-options">${options.map(n => `<button onclick="launchMistakePractice('${courseId}', ${n}); this.closest('.mistake-practice-modal').remove()">${n === 1 ? 'سؤال واحد' : n + ' أسئلة'}</button>`).join('')}</div></div>`;
     document.body.appendChild(modal);
 }
 
@@ -3256,11 +3474,26 @@ function launchMistakePractice(courseId, amount) {
     const practiceId = `mistake_practice_${Date.now()}`;
     dynamicExamsDatabase[practiceId] = {
         version: 1, examTitle: 'أسئلة من أخطائك', duration: Math.max(2, chosen.length * 2),
-        questions: chosen.map(q => ({ section: 'general', type: 'choice', question: q.question,
-            imageUrl: q.imageUrl || '', options: q.options, correctAnswer: q.correctAnswer, points: q.points || 1 }))
+        questions: chosen.filter(q => Array.isArray(q.options) && q.options.length > 0).map(q => ({ section: 'general', type: 'choice', question: q.question,
+            imageUrl: q.imageUrl || '', options: q.options, correctAnswer: q.correctAnswer, points: q.points || 1,
+            mistakeKey: q.key }))
     };
     window.currentCourseIdForExam = courseId;
     resetPortalToStep1(practiceId, 'exam');
+}
+
+// بعد التدريب: السؤال اللي جاوب عليه صح بيتشال من قايمة الأخطاء، واللي غلط فيه بيفضل
+function pruneMasteredMistakes(questions, answers) {
+    const courseId = window.currentCourseIdForExam || activeCourseId;
+    try {
+        const key = getMistakeQuestionsStorageKey(courseId);
+        const map = JSON.parse(localStorage.getItem(key) || '{}') || {};
+        questions.forEach((q, i) => {
+            if (q.mistakeKey && answers[i] && answers[i].isCorrect === true) delete map[q.mistakeKey];
+        });
+        localStorage.setItem(key, JSON.stringify(map));
+        saveMistakesToServer(courseId, map);
+    } catch (e) { console.warn('تعذر تحديث أسئلة الأخطاء:', e); }
 }
 
 function exitCourse() { activeCourseId = null; renderUnitsSection(); }
@@ -3277,6 +3510,10 @@ function openCourseUnitItem(courseId, unitId, itemId) {
         window.open(it.url, '_blank', 'noopener');
         recordCourseActivity(courseId, it, 'opened');
     } else if (it.type === 'video') {
+        if (course.isPaid !== true) {
+            showCustomToast("<i class='fas fa-lock'></i> الفيديوهات متاحة في الكورس المدفوع فقط.", "warning");
+            return;
+        }
         if ((parseFloat(it.price) || 0) > 0 && !videoPurchasesCache.has(it.id)) {
             showCustomToast("<i class='fas fa-lock'></i> هذا الفيديو مدفوع، يرجى التواصل مع الدعم الفني لشراء الفيديو.", "warning");
             return;
