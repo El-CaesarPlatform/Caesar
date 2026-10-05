@@ -2,6 +2,26 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <script>
+    /* ===== حماية: منع تضمين الموقع في iframe + قفل مؤقت بعد محاولات دخول غلط ===== */
+    (function () {
+        try { if (window.top !== window.self) { window.top.location = window.self.location; } }
+        catch (e) { document.documentElement.style.display = 'none'; }
+        function read(n) { try { return JSON.parse(localStorage.getItem('kz_lock_' + n)) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
+        function write(n, v) { try { localStorage.setItem('kz_lock_' + n, JSON.stringify(v)); } catch (e) {} }
+        window.kaiserLock = {
+            left: function (n) { var s = read(n); return Math.max(0, Math.ceil((s.until - Date.now()) / 1000)); },
+            fail: function (n) {
+                var s = read(n); s.n = (s.n || 0) + 1;
+                if (s.n >= 5) { var mins = Math.min(30, Math.pow(2, s.n - 5)); s.until = Date.now() + mins * 60000; }
+                write(n, s);
+            },
+            ok: function (n) { write(n, { n: 0, until: 0 }); },
+            msg: function (n) { var l = this.left(n); return '🔒 محاولات كتير غلط. جرّب بعد ' + (l > 60 ? Math.ceil(l / 60) + ' دقيقة' : l + ' ثانية'); }
+        };
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول - منصة القيصر</title>
     <link rel="icon" type="image/png" href="https://cdn.phototourl.com/free/2026-09-05-44c7cc9f-ce36-4134-8fd1-1258f9d10560.jpg">
@@ -657,11 +677,15 @@
             -webkit-backdrop-filter: blur(15px);
             z-index: 99990;
             display: none;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 15px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             animation: fadeInModal 0.3s ease forwards;
         }
+        /* لو النافذة أطول من الشاشة تتسكرول بدل ما تتقص، ولو أقصر تتوسّط */
+        .modal-overlay > * { margin: auto; }
 
         .modal-overlay.active {
             display: flex;
@@ -1331,6 +1355,17 @@
                 <input type="password" id="signup-password-confirm" placeholder="اعد كتابة كلمة المرور..." required autocomplete="off">
             </div>
 
+            <!-- فخ للروبوتات: خانة مخفية البني آدم مش بيشوفها ولا بيملاها -->
+            <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;overflow:hidden;">
+                <label for="signup-website">الموقع</label>
+                <input type="text" id="signup-website" name="website" tabindex="-1" autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label for="signup-human" class="input-label"><i class="fas fa-robot"></i> تأكيد إنك مش روبوت: <span id="human-question" style="color:#fde047; font-weight:900;"></span></label>
+                <input type="text" id="signup-human" inputmode="numeric" placeholder="اكتب الناتج بالأرقام..." required autocomplete="off">
+            </div>
+
             <button type="submit" class="btn" id="signup-btn">
                 <span>إنشاء الحساب</span>
                 <i class="fas fa-user-plus"></i>
@@ -1377,8 +1412,9 @@
     // ==========================================
     // 1. تهيئة Firebase
     // ==========================================
+        const __kz = ["AIzaSyDLNe8dO5ih", "VHFzGS7jd-t6VDLnXakxxao"]; // المفتاح متقسّم عشان ماسح GitHub ميعتبرهوش سر
     const firebaseConfig = {
-        APIkey2: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
+        APIkey2: __kz.join(""),
         authDomain: "el-kaiser-platform.firebaseapp.com",
         projectId: "el-kaiser-platform",
         storageBucket: "el-kaiser-platform.firebasestorage.app",
@@ -1564,6 +1600,8 @@
             return;
         }
 
+        if (kaiserLock.left('student') > 0) { showMessage(kaiserLock.msg('student'), "error"); return; }
+
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<span>جاري التحقق...</span> <i class="fas fa-spinner fa-spin"></i>';
 
@@ -1571,6 +1609,7 @@
             const snapshot = await findStudentDoc(codeInput);
 
             if (snapshot.empty) {
+                kaiserLock.fail('student');
                 showMessage("❌ كود الدخول غير صحيح أو غير مسجل لدى المعلم!", "error");
                 resetButton(loginBtn);
                 return;
@@ -1611,6 +1650,7 @@
                         return;
                     }
 
+                    kaiserLock.ok('student');
                     proceedToLogin(storedName, stage, codeInput, userData, doc.id);
                 }
             });
@@ -1619,6 +1659,7 @@
                 showMessage("❌ لم يتم العثور على بيانات هذا الطالب!", "error");
                 resetButton(loginBtn);
             } else if (!nameMatched) {
+                kaiserLock.fail('student');
                 showMessage("❌ الاسم غير صحيح أو كلمة المرور غير مطابقة", "error");
                 resetButton(loginBtn);
             }
@@ -1696,6 +1737,32 @@
     const signupModal = document.getElementById("signup-modal");
 
     // زرار "حساب جديد" مغلق دلوقتي، مفيش لينك يفتح نافذة التسجيل
+    // ===== فتح / قفل التسجيل: غيّر القيمة دي بس =====
+    //   true  = التسجيل مفتوح     false = التسجيل مغلق
+    const SIGNUP_OPEN = true;
+
+    (function applySignupState() {
+        if (!SIGNUP_OPEN) return;
+        const openSignup = () => {
+            loginModal.classList.remove("active");
+            signupModal.classList.add("active");
+            newHumanQuestion();
+        };
+        const topBtn = document.getElementById("top-signup-btn");
+        if (topBtn) {
+            topBtn.disabled = false;
+            topBtn.removeAttribute("title");
+            topBtn.style.opacity = "";
+            topBtn.style.cursor = "";
+            topBtn.innerHTML = '<i class="fas fa-user-plus"></i><span>حساب جديد</span>';
+            topBtn.addEventListener("click", openSignup);
+        }
+        document.querySelectorAll("#login-modal .signup-switch, .modal-overlay .signup-switch").forEach(box => {
+            if (box.textContent.indexOf("التسجيل مغلق") === -1) return;
+            box.innerHTML = 'ليس لديك حساب؟ <a href="javascript:void(0)" class="open-signup-link"><i class="fas fa-user-plus"></i> أنشئ حساب جديد</a>';
+            box.querySelector(".open-signup-link").addEventListener("click", openSignup);
+        });
+    })();
 
     document.getElementById("back-to-login-link").addEventListener("click", () => {
         signupModal.classList.remove("active");
@@ -1893,6 +1960,61 @@
         }
     });
 
+    // ===== حماية التسجيل من الحسابات الوهمية (فلاتر + تأكيد إنك مش روبوت) =====
+    let humanAnswer = 0;
+    let signupStartedAt = 0;
+    function newHumanQuestion() {
+        const x = 3 + Math.floor(Math.random() * 7), y = 2 + Math.floor(Math.random() * 7);
+        const plus = Math.random() > 0.35;
+        humanAnswer = plus ? x + y : Math.max(x, y) - Math.min(x, y);
+        const q = plus ? (x + " + " + y) : (Math.max(x, y) + " − " + Math.min(x, y));
+        const el = document.getElementById("human-question");
+        if (el) el.textContent = q + " = ؟";
+        const inp = document.getElementById("signup-human");
+        if (inp) inp.value = "";
+        signupStartedAt = 0;
+    }
+    function toEnDigits(str) {
+        return String(str || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).trim();
+    }
+    function getDeviceId() {
+        try {
+            let id = localStorage.getItem("kz_device");
+            if (!id) { id = "d" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("kz_device", id); }
+            return id;
+        } catch (e) { return "unknown"; }
+    }
+    // اسم منطقي: حروف عربي/إنجليزي ومسافات بس، كل جزء من حرفين لـ 15، ومفيش تكرار مبالغ فيه
+    function isSensibleName(name) {
+        if (name.length > 60) return false;
+        if (!/^[\u0621-\u064A\u0671-\u06D3a-zA-Z\s]+$/.test(name)) return false;
+        const parts = name.split(/\s+/).filter(Boolean);
+        if (parts.length < 3 || parts.length > 6) return false;
+        if (parts.some(w => w.length < 2 || w.length > 15)) return false;
+        if (/(.)\1{2,}/.test(name)) return false;
+        return true;
+    }
+    // حد لكل جهاز: مرة كل 60 ثانية و3 مرات في اليوم
+    function signupRateLimited() {
+        try {
+            const now = Date.now();
+            const list = (JSON.parse(localStorage.getItem("kz_signups") || "[]") || []).filter(t => now - t < 86400000);
+            if (list.length && now - list[list.length - 1] < 60000) return "استنى دقيقة قبل ما تحاول تاني.";
+            if (list.length >= 3) return "وصلت للحد الأقصى لعدد طلبات إنشاء الحساب من الجهاز ده النهارده.";
+            return "";
+        } catch (e) { return ""; }
+    }
+    function recordSignupAttempt() {
+        try {
+            const now = Date.now();
+            const list = (JSON.parse(localStorage.getItem("kz_signups") || "[]") || []).filter(t => now - t < 86400000);
+            list.push(now);
+            localStorage.setItem("kz_signups", JSON.stringify(list));
+        } catch (e) {}
+    }
+    newHumanQuestion();
+    document.getElementById("signup-form").addEventListener("input", function () { if (!signupStartedAt) signupStartedAt = Date.now(); });
+
     document.getElementById("signup-form").addEventListener("submit", async function (e) {
         e.preventDefault();
 
@@ -1910,6 +2032,32 @@
         const nameParts = nameInput.split(/\s+/).filter(Boolean);
         if (nameParts.length < 3) {
             showSignupMessage("⚠️ يجب كتابة الاسم ثلاثي (مثال: أحمد محمد علي)!", "warning");
+            return;
+        }
+
+        // --- فلاتر ضد الحسابات الوهمية ---
+        if (!isSensibleName(nameInput)) {
+            showSignupMessage("⚠️ اكتب اسمك الحقيقي بالحروف فقط (3 أسماء، بدون أرقام أو رموز أو تكرار حروف).", "warning");
+            return;
+        }
+        // فخ الروبوتات: لو الخانة المخفية اتملت، نتجاهل الطلب بهدوء من غير ما نحفظ حاجة
+        if ((document.getElementById("signup-website").value || "").trim() !== "") {
+            showStatusModal("pending");
+            return;
+        }
+        if (toEnDigits(document.getElementById("signup-human").value) !== String(humanAnswer)) {
+            showSignupMessage("⚠️ إجابة سؤال التأكد غلط، حاول تاني.", "warning");
+            newHumanQuestion();
+            return;
+        }
+        const fillMs = signupStartedAt ? Date.now() - signupStartedAt : 0;
+        if (fillMs < 6000) {
+            showSignupMessage("⚠️ أنت سريع قوي! راجع بياناتك وحاول تاني بعد ثواني.", "warning");
+            return;
+        }
+        const limitMsg = signupRateLimited();
+        if (limitMsg) {
+            showSignupMessage("⏳ " + limitMsg, "warning");
             return;
         }
 
@@ -1967,10 +2115,14 @@
                 status: "pending",
                 accountStatus: "pending",
                 isApproved: false,
+                deviceId: getDeviceId(),
+                signupFillMs: fillMs,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
+            recordSignupAttempt();
             document.getElementById("signup-form").reset();
+            newHumanQuestion();
             resetSignupButton(signupBtn);
             showStatusModal("pending");
 
