@@ -421,6 +421,29 @@
             box-shadow: 0 0 35px rgba(0, 210, 255, 0.7);
         }
 
+        /* صورة واجهة التسجيل: بتظهر كاملة بكل حوافها من غير أي قص أو تدوير */
+        .platform-img.hero-register-img {
+            width: min(58vw, 230px);
+            height: auto;
+            max-width: 100%;
+            max-height: 32vh;
+            object-fit: contain;
+            border-radius: 20px;
+            border: 2px solid rgba(0, 210, 255, 0.85);
+            box-shadow: 0 8px 26px rgba(0, 210, 255, 0.28);
+        }
+
+        @media (min-width: 600px) {
+            .platform-img.hero-register-img {
+                width: 260px;
+                max-height: 300px;
+            }
+        }
+
+        .platform-img.hero-register-img:hover {
+            transform: none;
+        }
+
         /* ------------------ شريط الأخبار ------------------ */
         .news-ticker {
             background: rgba(255, 255, 255, 0.05);
@@ -568,10 +591,10 @@
         }
 
         .top-mini-brand img {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            object-fit: cover;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            object-fit: contain;
             border: 2px solid #00d2ff;
         }
 
@@ -735,6 +758,7 @@
 
         .modal-logo { width: 100%; display: flex; justify-content: center; margin-bottom: 10px; }
         .modal-platform-img { width: 84px; height: 84px; }
+        .platform-img.modal-register-img { border-radius: 14px; object-fit: contain; }
 
         .form-header {
             color: #00d2ff;
@@ -925,6 +949,24 @@
         }
 
         .helper-link i { color: #00d2ff; font-size: 0.82rem; }
+
+        /* ===== خطوات التسجيل (1 ← 2 ← 3) ===== */
+        .signup-steps { display:flex; align-items:flex-start; justify-content:center; margin:4px 0 20px; }
+        .signup-steps .st { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:74px; }
+        .signup-steps .st b { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+            background:rgba(255,255,255,0.07); border:2px solid rgba(255,255,255,0.18); color:#94a3b8; font-weight:900; font-size:1rem; transition:all .3s ease; }
+        .signup-steps .st small { font-size:0.74rem; color:#94a3b8; font-weight:700; transition:color .3s ease; }
+        .signup-steps .st.active b { background:linear-gradient(135deg,#00d2ff 0%,#0066ff 100%); border-color:#00d2ff; color:#fff; box-shadow:0 0 16px rgba(0,210,255,0.55); }
+        .signup-steps .st.active small { color:#00d2ff; }
+        .signup-steps .st.done b { background:#22c55e; border-color:#22c55e; color:#fff; }
+        .signup-steps .st.done small { color:#4ade80; }
+        .signup-steps .line { flex:1; max-width:56px; height:3px; margin-top:17px; border-radius:3px; background:rgba(255,255,255,0.14); transition:background .3s ease; }
+        .signup-steps .line.done { background:#22c55e; }
+        .signup-nav { display:flex; gap:10px; margin-top:6px; }
+        .signup-nav .btn { flex:1; }
+        .signup-nav .btn-prev { background:rgba(255,255,255,0.09); box-shadow:none; border:1px solid rgba(255,255,255,0.2); }
+        .signup-nav .btn-prev:hover:not(:disabled) { background:rgba(255,255,255,0.16); box-shadow:none; }
+        .signup-step { animation: fadeInModal 0.25s ease; }
 
         .btn {
             width: 100%;
@@ -1118,7 +1160,7 @@
 <!-- 🔝 شريط تسجيل الدخول الثابت (ظاهر دايماً فوق، سهل الوصول له من الموبايل) -->
 <header class="top-mini-nav">
     <div class="top-mini-brand">
-        <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار القيصر">
+        <img src="https://cdn.phototourl.com/member/2026-10-07-59f67aee-843b-4635-af6c-b4f2b5dfa5d6.png" alt="شعار القيصر">
         <span>القيصر</span>
     </div>
     <div class="top-nav-actions">
@@ -1164,9 +1206,9 @@
 
 <div id="hero">
     <div class="top-content">
-        <!-- صورة المنصة -->
+        <!-- صورة واجهة التسجيل -->
         <div class="platform-img-container">
-            <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="platform-img">
+            <img src="https://cdn.phototourl.com/member/2026-10-07-59f67aee-843b-4635-af6c-b4f2b5dfa5d6.png" alt="واجهة التسجيل" class="platform-img hero-register-img">
         </div>
 
         <h1 class="brand-title">منصة <span>القيصر</span> التعليمية</h1>
@@ -1223,7 +1265,7 @@
     <div class="login-container">
         <button type="button" class="close-modal-btn" id="close-modal-btn" title="إغلاق">&times;</button>
         
-        <div class="modal-logo"><img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="platform-img modal-platform-img"></div>
+        <div class="modal-logo"><img src="https://cdn.phototourl.com/member/2026-10-07-59f67aee-843b-4635-af6c-b4f2b5dfa5d6.png" alt="شعار منصة القيصر" class="platform-img modal-platform-img modal-register-img"></div>
         <div class="form-header">
             <i class="fas fa-user-graduate"></i>
             <span>تسجيل دخول الطالب</span>
@@ -1319,7 +1361,7 @@
     <div class="login-container">
         <button type="button" class="close-modal-btn" id="close-signup-modal-btn" title="إغلاق">&times;</button>
 
-        <div class="modal-logo"><img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="platform-img modal-platform-img"></div>
+        <div class="modal-logo"><img src="https://cdn.phototourl.com/member/2026-10-07-59f67aee-843b-4635-af6c-b4f2b5dfa5d6.png" alt="شعار منصة القيصر" class="platform-img modal-platform-img modal-register-img"></div>
         <div class="form-header">
             <i class="fas fa-user-plus"></i>
             <span>إنشاء حساب جديد</span>
@@ -1327,7 +1369,16 @@
 
         <div id="signup-alert-msg"></div>
 
-        <form id="signup-form">
+        <form id="signup-form" novalidate>
+            <div class="signup-steps" id="signup-steps">
+                <div class="st" data-step="1"><b>1</b><small>البيانات</small></div>
+                <div class="line" data-after="1"></div>
+                <div class="st" data-step="2"><b>2</b><small>كلمة المرور</small></div>
+                <div class="line" data-after="2"></div>
+                <div class="st" data-step="3"><b>3</b><small>التحقق</small></div>
+            </div>
+
+            <div class="signup-step" data-step="1">
             <div class="input-group">
                 <label for="signup-name" class="input-label"><i class="fas fa-user"></i> الاسم الثلاثي</label>
                 <input type="text" id="signup-name" placeholder="اكتب اسمك كاملاً كما هو مسجل لدى المعلم..." required autocomplete="off">
@@ -1344,6 +1395,9 @@
                 <span class="input-hint" style="color:#fde047;"><i class="fas fa-triangle-exclamation"></i> تنبيه: تأكد من اختيار صفك الدراسي الصحيح، حيث لا يمكن تغيير الصف بعد إنشاء الحساب.</span>
             </div>
 
+            </div>
+
+            <div class="signup-step" data-step="2" style="display:none;">
             <div class="input-group">
                 <label for="signup-password" class="input-label"><i class="fas fa-lock"></i> كلمة المرور</label>
                 <input type="password" id="signup-password" placeholder="اكتب كلمة مرور..." required autocomplete="off">
@@ -1355,6 +1409,9 @@
                 <input type="password" id="signup-password-confirm" placeholder="اعد كتابة كلمة المرور..." required autocomplete="off">
             </div>
 
+            </div>
+
+            <div class="signup-step" data-step="3" style="display:none;">
             <!-- فخ للروبوتات: خانة مخفية البني آدم مش بيشوفها ولا بيملاها -->
             <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;overflow:hidden;">
                 <label for="signup-website">الموقع</label>
@@ -1366,10 +1423,16 @@
                 <input type="text" id="signup-human" inputmode="numeric" placeholder="اكتب الناتج بالأرقام..." required autocomplete="off">
             </div>
 
-            <button type="submit" class="btn" id="signup-btn">
+            </div>
+
+            <div class="signup-nav">
+                <button type="button" class="btn btn-prev" id="signup-prev-btn" style="display:none;"><i class="fas fa-arrow-right"></i><span>السابق</span></button>
+                <button type="button" class="btn" id="signup-next-btn"><span>التالي</span><i class="fas fa-arrow-left"></i></button>
+            <button type="submit" class="btn" id="signup-btn" style="display:none;">
                 <span>إنشاء الحساب</span>
                 <i class="fas fa-user-plus"></i>
             </button>
+            </div>
         </form>
 
         <div class="signup-switch">
@@ -2015,8 +2078,60 @@
     newHumanQuestion();
     document.getElementById("signup-form").addEventListener("input", function () { if (!signupStartedAt) signupStartedAt = Date.now(); });
 
+    // ===== خطوات التسجيل: 1 (الاسم والصف) ← 2 (كلمة المرور) ← 3 (التحقق) =====
+    let signupStep = 1;
+    function hideSignupMessage() {
+        const box = document.getElementById("signup-alert-msg");
+        if (box) box.style.display = "none";
+    }
+    function setSignupStep(n) {
+        signupStep = n;
+        document.querySelectorAll("#signup-form .signup-step").forEach(el => {
+            el.style.display = (Number(el.dataset.step) === n) ? "" : "none";
+        });
+        document.querySelectorAll("#signup-steps .st").forEach(el => {
+            const k = Number(el.dataset.step);
+            el.classList.toggle("active", k === n);
+            el.classList.toggle("done", k < n);
+            el.querySelector("b").textContent = k < n ? "✓" : String(k);
+        });
+        document.querySelectorAll("#signup-steps .line").forEach(el => {
+            el.classList.toggle("done", Number(el.dataset.after) < n);
+        });
+        document.getElementById("signup-prev-btn").style.display = n > 1 ? "" : "none";
+        document.getElementById("signup-next-btn").style.display = n < 3 ? "" : "none";
+        document.getElementById("signup-btn").style.display = n === 3 ? "" : "none";
+        hideSignupMessage();
+        const first = document.querySelector('#signup-form .signup-step[data-step="' + n + '"] input, #signup-form .signup-step[data-step="' + n + '"] select');
+        if (first && n !== 1) { try { first.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    function validateSignupStep(n) {
+        if (n === 1) {
+            const name = document.getElementById("signup-name").value.trim();
+            const grade = document.getElementById("signup-grade").value;
+            if (!name || !grade) { showSignupMessage("⚠️ اكتب اسمك الثلاثي واختار صفك الدراسي!", "warning"); return false; }
+            if (name.split(/\s+/).filter(Boolean).length < 3) { showSignupMessage("⚠️ يجب كتابة الاسم ثلاثي (مثال: أحمد محمد علي)!", "warning"); return false; }
+            if (!isSensibleName(name)) { showSignupMessage("⚠️ اكتب اسمك الحقيقي بالحروف فقط (3 أسماء، بدون أرقام أو رموز أو تكرار حروف).", "warning"); return false; }
+        } else if (n === 2) {
+            const pass = document.getElementById("signup-password").value;
+            const conf = document.getElementById("signup-password-confirm").value;
+            if (!pass || !conf) { showSignupMessage("⚠️ اكتب كلمة المرور وأكّدها!", "warning"); return false; }
+            if (!isPasswordValid(pass)) { showSignupMessage("⚠️ كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام معاً.", "warning"); return false; }
+            if (pass !== conf) { showSignupMessage("⚠️ كلمة المرور وتأكيدها غير متطابقين!", "warning"); return false; }
+        }
+        return true;
+    }
+    function signupNext() { if (validateSignupStep(signupStep)) setSignupStep(Math.min(3, signupStep + 1)); }
+    document.getElementById("signup-next-btn").addEventListener("click", signupNext);
+    document.getElementById("signup-prev-btn").addEventListener("click", () => setSignupStep(Math.max(1, signupStep - 1)));
+    document.getElementById("signup-form").addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && signupStep < 3) { e.preventDefault(); signupNext(); }
+    });
+    setSignupStep(1);
+
     document.getElementById("signup-form").addEventListener("submit", async function (e) {
         e.preventDefault();
+        if (signupStep < 3) { signupNext(); return; }
 
         const signupBtn = document.getElementById("signup-btn");
         const nameInput = document.getElementById("signup-name").value.trim();
@@ -2123,6 +2238,7 @@
             recordSignupAttempt();
             document.getElementById("signup-form").reset();
             newHumanQuestion();
+            setSignupStep(1);
             resetSignupButton(signupBtn);
             showStatusModal("pending");
 
