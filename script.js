@@ -1,25 +1,3 @@
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
@@ -295,6 +273,28 @@ function generateQuestionsReviewHtml(answers, released = true) {
 
         const showCorrect = (isEssay ? !!crAns : (g.state !== 'correct' && !!crAns));
 
+        // اختيارات السؤال كلها: الصح أخضر، واختيار الطالب لو غلط أحمر
+        const opts = (!isEssay && Array.isArray(item.options)) ? item.options : [];
+        const norm = v => String(v == null ? '' : v).trim().toLowerCase();
+        const optionsHtml = opts.length ? `
+            <div style="display:flex; flex-direction:column; gap:7px; margin: 4px 0 10px;">
+                ${opts.map((o, oi) => {
+                    const isRight = norm(o) === norm(item.correctAnswer);
+                    const isMine = norm(o) === norm(item.studentAnswer);
+                    let bg = 'rgba(255,255,255,0.04)', bd = 'rgba(255,255,255,0.1)', col = '#cbd5e1', tag = '', ic = '<i class="far fa-circle"></i>';
+                    if (isRight) { bg = 'rgba(46,204,113,0.16)'; bd = '#2ecc71'; col = '#eafff3'; ic = '<i class="fas fa-circle-check" style="color:#2ecc71;"></i>'; tag = isMine ? 'اختيارك · صح' : 'الإجابة الصحيحة'; }
+                    else if (isMine) { bg = 'rgba(231,76,60,0.16)'; bd = '#e74c3c'; col = '#ffecea'; ic = '<i class="fas fa-circle-xmark" style="color:#e74c3c;"></i>'; tag = 'اختيارك · غلط'; }
+                    const tagColor = isRight ? '#2ecc71' : '#e74c3c';
+                    return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; background:${bg}; border:1px solid ${bd}; color:${col}; font-size:0.93rem; line-height:1.6;">
+                        <span style="flex:none; font-size:1.05rem;">${ic}</span>
+                        <span style="flex:1; white-space:pre-wrap; word-break:break-word;">${escapeHtml(o)}</span>
+                        ${tag ? `<span style="flex:none; font-size:0.74rem; font-weight:800; padding:3px 9px; border-radius:20px; background:rgba(0,0,0,0.45); color:${tagColor};">${tag}</span>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+            ${(!item.studentAnswer || item.studentAnswer === 'لم يحل') ? '<div style="color:#f1c40f; font-size:0.85rem; font-weight:700; margin-bottom:6px;"><i class="fas fa-triangle-exclamation"></i> لم تجب على هذا السؤال</div>' : ''}
+        ` : '';
+
         html += `
             <div style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${borderColor}; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
                 <div style="margin-bottom: 8px;">
@@ -303,10 +303,11 @@ function generateQuestionsReviewHtml(answers, released = true) {
                     </strong>
                 </div>
                 
+                ${optionsHtml}
                 <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
                         <span style="color: #cbd5e1; font-size: 0.9rem; white-space: pre-wrap;">
-                            إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>
+                            ${opts.length ? '' : `إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>`}
                         </span>
                         <span style="display:flex; gap:6px; flex-wrap:wrap;">
                             ${pointsBadge}
@@ -316,7 +317,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
                         </span>
                     </div>
 
-                    ${showCorrect ? `
+                    ${(showCorrect && !opts.length) || (isEssay && showCorrect) ? `
                         <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px; white-space: pre-wrap;">
                             <span style="color: #cbd5e1; font-size: 0.9rem;">
                                 ${isEssay ? 'الإجابة النموذجية' : 'الإجابة الصحيحة'}: <strong style="color: #00d2ff; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${escapeHtml(crAns)}</strong>
@@ -1873,7 +1874,8 @@ function calculateAndSend(bypassValidation = false) {
             modelAnswer: isChoice ? "" : (q.modelAnswer || ""),
             isCorrect: isCorrect,
             type: isChoice ? "choice" : "essay",
-            points: points
+            points: points,
+            options: (isChoice && Array.isArray(q.options)) ? q.options.map(o => String(o)) : []
         });
     });
 
@@ -1942,7 +1944,7 @@ function calculateAndSend(bypassValidation = false) {
         showSubmissionResultModal({
             examTitle: 'أسئلة من أخطائك', released: true,
             scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 1)}`,
-            percent: finalPercent, cancelled: false
+            percent: finalPercent, cancelled: false, answers: answersForAdmin
         });
         return;
     }
@@ -2069,7 +2071,8 @@ function calculateAndSend(bypassValidation = false) {
                     released: releaseNow,
                     scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
                     percent: finalPercent,
-                    cancelled: cancelExam
+                    cancelled: cancelExam,
+                    answers: answersForAdmin
                 });
             });
 
@@ -2091,7 +2094,8 @@ function calculateAndSend(bypassValidation = false) {
                 released: releaseNow,
                 scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
                 percent: finalPercent,
-                    cancelled: cancelExam
+                cancelled: cancelExam,
+                answers: answersForAdmin
             });
         });
     }
@@ -2208,6 +2212,71 @@ function showSurveyThankYou(onDone) {
 }
 
 function showSubmissionResultModal(info) {
+    // الامتحان الاختياري الكامل: النتيجة + كل الإجابات تظهر هنا مباشرة بدون ما الطالب يروح حسابه
+    if (info.released && !info.cancelled) { return showFullResultModal(info); }
+    return showSubmissionResultModalBasic(info);
+}
+
+function showFullResultModal(info) {
+    const old = document.getElementById('submission-result-modal');
+    if (old) old.remove();
+    const answers = Array.isArray(info.answers) ? info.answers : [];
+    const total = answers.length;
+    const correct = answers.filter(a => a.isCorrect === true).length;
+    const unsolved = answers.filter(a => a.type !== 'essay' && (!a.studentAnswer || a.studentAnswer === 'لم يحل')).length;
+    const wrong = Math.max(0, total - correct);
+    const pct = info.percent || 0;
+    const color = pct >= 85 ? '#2ecc71' : (pct >= 50 ? '#f1c40f' : '#e74c3c');
+    const cheer = pct >= 85 ? 'ممتاز! استمر 🔥' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن 💪' : 'متزعلش، راجع إجاباتك وهتتحسن ✨');
+    const R = 46, C = 2 * Math.PI * R, off = C * (1 - Math.min(100, Math.max(0, pct)) / 100);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'submission-result-modal';
+    overlay.style.cssText = `position: fixed; inset: 0; background: rgba(3,5,12,0.94); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 100000; padding: 12px; direction: rtl; font-family: 'Cairo', sans-serif;`;
+
+    const stat = (n, label, c, ic) => `<div style="flex:1; min-width:64px; background:rgba(255,255,255,0.04); border:1px solid ${c}55; border-radius:14px; padding:10px 6px; text-align:center;">
+        <div style="color:${c}; font-size:1.5rem; font-weight:900; line-height:1.2;">${n}</div>
+        <div style="color:#94a3b8; font-size:0.78rem; font-weight:700;"><i class="${ic}" style="color:${c};"></i> ${label}</div></div>`;
+
+    overlay.innerHTML = `
+        <div style="background:#0f1422; border:1px solid rgba(0,242,254,0.28); border-radius:22px; max-width:680px; width:100%; max-height:94vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 50px rgba(0,0,0,0.7);">
+            <div style="padding:20px 18px 14px; text-align:center; background:linear-gradient(180deg, rgba(0,136,255,0.14), transparent); flex:none;">
+                <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:2px;">تم تسليم الامتحان بنجاح ✅</div>
+                <h3 style="color:#fff; margin:0 0 12px; font-size:1.15rem; font-weight:800;">${escapeHtml(info.examTitle)}</h3>
+                <div style="display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;">
+                    <div style="position:relative; width:112px; height:112px;">
+                        <svg width="112" height="112" viewBox="0 0 112 112" style="transform:rotate(-90deg);">
+                            <circle cx="56" cy="56" r="${R}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="9"/>
+                            <circle cx="56" cy="56" r="${R}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
+                        </svg>
+                        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                            <div style="color:${color}; font-size:1.55rem; font-weight:900; line-height:1;">${pct}%</div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:#cbd5e1; font-size:0.85rem;">درجتك</div>
+                        <div style="color:${color}; font-size:1.8rem; font-weight:900;">${escapeHtml(info.scoreText)}</div>
+                        <div style="color:#cbd5e1; font-weight:700; font-size:0.9rem;">${cheer}</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+                    ${stat(correct, 'صح', '#2ecc71', 'fas fa-circle-check')}
+                    ${stat(wrong, 'غلط', '#e74c3c', 'fas fa-circle-xmark')}
+                    ${unsolved ? stat(unsolved, 'لم تحل', '#f1c40f', 'fas fa-circle-minus') : ''}
+                    ${stat(total, 'الأسئلة', '#00d2ff', 'fas fa-list-ol')}
+                </div>
+            </div>
+            <div style="padding:6px 16px 16px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch;">
+                ${generateQuestionsReviewHtml(answers, true)}
+            </div>
+            <div style="padding:12px; background:#141c2c; text-align:center; flex:none; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="closeSubmissionResultModal()" style="padding:11px 34px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit; font-size:1rem;">تمام</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+function showSubmissionResultModalBasic(info) {
     const old = document.getElementById('submission-result-modal');
     if (old) old.remove();
 
