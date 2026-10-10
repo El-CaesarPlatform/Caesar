@@ -770,6 +770,8 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 function logoutStudent() {
     if (!confirm("هل أنت متأكد من تسجيل الخروج؟")) return;
 
+    document.cookie = "kaiser_student_login=; Max-Age=0; path=/; SameSite=Lax";
+
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
