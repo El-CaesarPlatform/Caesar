@@ -1,5 +1,7 @@
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
+// <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
+// ==========================================
 const firebaseConfig = {
     APIkey2: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
     authDomain: "el-kaiser-platform.firebaseapp.com",
@@ -273,26 +275,31 @@ function generateQuestionsReviewHtml(answers, released = true) {
 
         const showCorrect = (isEssay ? !!crAns : (g.state !== 'correct' && !!crAns));
 
-        // اختيارات السؤال كلها: الصح أخضر، واختيار الطالب لو غلط أحمر
+        // اختيارات السؤال كلها بحروف أ ب ج د: الصح أخضر، واختيار الطالب لو غلط أحمر
         const opts = (!isEssay && Array.isArray(item.options)) ? item.options : [];
         const norm = v => String(v == null ? '' : v).trim().toLowerCase();
+        const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
+        const hasIdx = typeof item.studentIndex === 'number' && item.studentIndex >= 0;
+        const hasCorrIdx = typeof item.correctIndex === 'number' && item.correctIndex >= 0;
+        const unanswered = !item.studentAnswer || item.studentAnswer === 'لم يحل' || item.studentAnswer === 'لم يكتب إجابة';
         const optionsHtml = opts.length ? `
-            <div style="display:flex; flex-direction:column; gap:7px; margin: 4px 0 10px;">
+            <div style="display:flex; flex-direction:column; gap:8px; margin: 6px 0 4px;">
                 ${opts.map((o, oi) => {
-                    const isRight = norm(o) === norm(item.correctAnswer);
-                    const isMine = norm(o) === norm(item.studentAnswer);
-                    let bg = 'rgba(255,255,255,0.04)', bd = 'rgba(255,255,255,0.1)', col = '#cbd5e1', tag = '', ic = '<i class="far fa-circle"></i>';
-                    if (isRight) { bg = 'rgba(46,204,113,0.16)'; bd = '#2ecc71'; col = '#eafff3'; ic = '<i class="fas fa-circle-check" style="color:#2ecc71;"></i>'; tag = isMine ? 'اختيارك · صح' : 'الإجابة الصحيحة'; }
-                    else if (isMine) { bg = 'rgba(231,76,60,0.16)'; bd = '#e74c3c'; col = '#ffecea'; ic = '<i class="fas fa-circle-xmark" style="color:#e74c3c;"></i>'; tag = 'اختيارك · غلط'; }
-                    const tagColor = isRight ? '#2ecc71' : '#e74c3c';
-                    return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; background:${bg}; border:1px solid ${bd}; color:${col}; font-size:0.93rem; line-height:1.6;">
-                        <span style="flex:none; font-size:1.05rem;">${ic}</span>
-                        <span style="flex:1; white-space:pre-wrap; word-break:break-word;">${escapeHtml(o)}</span>
-                        ${tag ? `<span style="flex:none; font-size:0.74rem; font-weight:800; padding:3px 9px; border-radius:20px; background:rgba(0,0,0,0.45); color:${tagColor};">${tag}</span>` : ''}
+                    const mine = !unanswered && (hasIdx ? oi === item.studentIndex : norm(o) === norm(item.studentAnswer));
+                    let right = hasCorrIdx ? oi === item.correctIndex : norm(o) === norm(item.correctAnswer);
+                    if (mine && item.isCorrect === true) right = true;
+                    if (!mine && item.isCorrect === true && !hasIdx) right = right && norm(o) === norm(item.correctAnswer);
+                    let bg = 'rgba(255,255,255,0.035)', bd = 'rgba(255,255,255,0.09)', col = '#cbd5e1', badgeBg = 'rgba(255,255,255,0.08)', badgeCol = '#94a3b8', tag = '', tagCol = '', shadow = 'none';
+                    if (right) { bg = 'linear-gradient(90deg, rgba(46,204,113,0.20), rgba(46,204,113,0.07))'; bd = '#2ecc71'; col = '#f0fff6'; badgeBg = '#2ecc71'; badgeCol = '#04210f'; tag = mine ? '<i class="fas fa-check"></i> اختيارك وصح' : '<i class="fas fa-check"></i> الإجابة الصحيحة'; tagCol = '#2ecc71'; shadow = '0 0 14px rgba(46,204,113,0.18)'; }
+                    else if (mine) { bg = 'linear-gradient(90deg, rgba(231,76,60,0.22), rgba(231,76,60,0.07))'; bd = '#e74c3c'; col = '#fff1ef'; badgeBg = '#e74c3c'; badgeCol = '#2a0805'; tag = '<i class="fas fa-xmark"></i> اختيارك وغلط'; tagCol = '#ff6b5b'; shadow = '0 0 14px rgba(231,76,60,0.18)'; }
+                    return `<div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; background:${bg}; border:1.5px solid ${bd}; box-shadow:${shadow}; color:${col}; font-size:0.95rem; line-height:1.6;">
+                        <span style="flex:none; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:${badgeBg}; color:${badgeCol}; font-weight:900; font-size:0.9rem;">${letters[oi] || (oi + 1)}</span>
+                        <span style="flex:1; white-space:pre-wrap; word-break:break-word; font-weight:${(right || mine) ? '800' : '500'};">${escapeHtml(o)}</span>
+                        ${tag ? `<span style="flex:none; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:20px; background:rgba(0,0,0,0.5); color:${tagCol}; white-space:nowrap;">${tag}</span>` : ''}
                     </div>`;
                 }).join('')}
             </div>
-            ${(!item.studentAnswer || item.studentAnswer === 'لم يحل') ? '<div style="color:#f1c40f; font-size:0.85rem; font-weight:700; margin-bottom:6px;"><i class="fas fa-triangle-exclamation"></i> لم تجب على هذا السؤال</div>' : ''}
+            ${unanswered ? '<div style="color:#f1c40f; font-size:0.85rem; font-weight:800; margin:8px 0 2px;"><i class="fas fa-triangle-exclamation"></i> لم تجب على هذا السؤال</div>' : ''}
         ` : '';
 
         html += `
@@ -770,7 +777,9 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 function logoutStudent() {
     if (!confirm("هل أنت متأكد من تسجيل الخروج؟")) return;
 
+    // مسح "تذكّر الدخول" (الكوكي) عشان صفحة الدخول متدخلش الحساب القديم تلقائي
     document.cookie = "kaiser_student_login=; Max-Age=0; path=/; SameSite=Lax";
+    document.cookie = "kaiser_student_login=; Max-Age=0; path=/; domain=" + location.hostname + "; SameSite=Lax";
 
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -779,6 +788,7 @@ function logoutStudent() {
             key === "student_code" || key === "exam_code" || key === "code" ||
             key === "student_fullname" || key === "student_name" ||
             key === "student_stage" || key === "student_phone" || key === "parent_phone" ||
+            key === "student_doc_id" || key === "currentStudent" || key === "studentData" ||
             key.startsWith("finished_") ||
             key.startsWith("saved_exam_answers_") ||
             key.startsWith("active_running_exam_session") ||
@@ -1822,6 +1832,7 @@ function calculateAndSend(bypassValidation = false) {
         let correctionStatus = "";
         let isCorrect = false;
         let points = q.points || 1;
+        let studentIdx = -1, correctIdx = -1;
 
         totalExamPointsPossible += points;
         const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
@@ -1839,6 +1850,15 @@ function calculateAndSend(bypassValidation = false) {
                     correctText = q.options[q.correctAnswerIndex].toString().trim();
                 }
 
+                // ترتيب اختيار الطالب والإجابة الصح (عشان لو في اختيارات نصها واحد منلخبطش)
+                if (Array.isArray(q.options)) {
+                    const radios = Array.from(document.querySelectorAll(`input[name="q${qIndex}"]`));
+                    const ri = radios.findIndex(r => r.checked);
+                    studentIdx = (ri >= 0 && ri < q.options.length) ? ri : q.options.findIndex(o => String(o).trim() === studentValue.trim());
+                    correctIdx = (typeof q.correctAnswerIndex === "number" && q.options[q.correctAnswerIndex] !== undefined)
+                        ? q.correctAnswerIndex
+                        : q.options.findIndex(o => String(o).trim().toLowerCase() === correctText.toLowerCase());
+                }
                 if (studentValue.trim().toLowerCase() === correctText.toLowerCase()) {
                     mcqScoreObtained += points;
                     isCorrect = true;
@@ -1877,7 +1897,9 @@ function calculateAndSend(bypassValidation = false) {
             isCorrect: isCorrect,
             type: isChoice ? "choice" : "essay",
             points: points,
-            options: (isChoice && Array.isArray(q.options)) ? q.options.map(o => String(o)) : []
+            options: (isChoice && Array.isArray(q.options)) ? q.options.map(o => String(o)) : [],
+            studentIndex: studentIdx,
+            correctIndex: correctIdx
         });
     });
 
@@ -2226,53 +2248,57 @@ function showFullResultModal(info) {
     const total = answers.length;
     const correct = answers.filter(a => a.isCorrect === true).length;
     const unsolved = answers.filter(a => a.type !== 'essay' && (!a.studentAnswer || a.studentAnswer === 'لم يحل')).length;
-    const wrong = Math.max(0, total - correct);
+    const wrong = Math.max(0, total - correct - unsolved);
     const pct = info.percent || 0;
     const color = pct >= 85 ? '#2ecc71' : (pct >= 50 ? '#f1c40f' : '#e74c3c');
+    const grade = pct >= 85 ? 'ممتاز' : (pct >= 50 ? 'كويس' : 'محتاج مراجعة');
     const cheer = pct >= 85 ? 'ممتاز! استمر 🔥' : (pct >= 50 ? 'كويس! تقدر تبقى أحسن 💪' : 'متزعلش، راجع إجاباتك وهتتحسن ✨');
-    const R = 46, C = 2 * Math.PI * R, off = C * (1 - Math.min(100, Math.max(0, pct)) / 100);
+    const R = 52, C = 2 * Math.PI * R, off = C * (1 - Math.min(100, Math.max(0, pct)) / 100);
 
     const overlay = document.createElement('div');
     overlay.id = 'submission-result-modal';
-    overlay.style.cssText = `position: fixed; inset: 0; background: rgba(3,5,12,0.94); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 100000; padding: 12px; direction: rtl; font-family: 'Cairo', sans-serif;`;
+    overlay.style.cssText = `position: fixed; inset: 0; background: rgba(3,5,12,0.94); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: flex-start; z-index: 100000; padding: 14px 10px; direction: rtl; font-family: 'Cairo', sans-serif; overflow-y: auto; -webkit-overflow-scrolling: touch;`;
 
-    const stat = (n, label, c, ic) => `<div style="flex:1; min-width:64px; background:rgba(255,255,255,0.04); border:1px solid ${c}55; border-radius:14px; padding:10px 6px; text-align:center;">
-        <div style="color:${c}; font-size:1.5rem; font-weight:900; line-height:1.2;">${n}</div>
-        <div style="color:#94a3b8; font-size:0.78rem; font-weight:700;"><i class="${ic}" style="color:${c};"></i> ${label}</div></div>`;
+    const stat = (n, label, c, ic) => `<div style="flex:1; min-width:70px; background:linear-gradient(160deg, ${c}22, rgba(255,255,255,0.02)); border:1px solid ${c}66; border-radius:16px; padding:11px 6px; text-align:center;">
+        <div style="color:${c}; font-size:1.7rem; font-weight:900; line-height:1.1;">${n}</div>
+        <div style="color:#b6c2d6; font-size:0.78rem; font-weight:700; margin-top:2px;"><i class="${ic}" style="color:${c};"></i> ${label}</div></div>`;
 
     overlay.innerHTML = `
-        <div style="background:#0f1422; border:1px solid rgba(0,242,254,0.28); border-radius:22px; max-width:680px; width:100%; max-height:94vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 50px rgba(0,0,0,0.7);">
-            <div style="padding:20px 18px 14px; text-align:center; background:linear-gradient(180deg, rgba(0,136,255,0.14), transparent); flex:none;">
-                <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:2px;">تم تسليم الامتحان بنجاح ✅</div>
-                <h3 style="color:#fff; margin:0 0 12px; font-size:1.15rem; font-weight:800;">${escapeHtml(info.examTitle)}</h3>
-                <div style="display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;">
-                    <div style="position:relative; width:112px; height:112px;">
-                        <svg width="112" height="112" viewBox="0 0 112 112" style="transform:rotate(-90deg);">
-                            <circle cx="56" cy="56" r="${R}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="9"/>
-                            <circle cx="56" cy="56" r="${R}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
+        <div style="background:#0d1220; border:1px solid rgba(0,242,254,0.28); border-radius:24px; max-width:700px; width:100%; margin:auto; box-shadow:0 14px 60px rgba(0,0,0,0.75); overflow:hidden;">
+            <div style="padding:24px 18px 18px; text-align:center; background:radial-gradient(ellipse at top, ${color}30, transparent 70%), linear-gradient(180deg, rgba(0,136,255,0.12), transparent);">
+                <div style="display:inline-block; padding:4px 14px; border-radius:20px; background:rgba(46,204,113,0.14); color:#2ecc71; font-size:0.8rem; font-weight:800; margin-bottom:8px;"><i class="fas fa-circle-check"></i> تم تسليم الامتحان بنجاح</div>
+                <h3 style="color:#fff; margin:0 0 16px; font-size:1.2rem; font-weight:900;">${escapeHtml(info.examTitle)}</h3>
+                <div style="display:flex; align-items:center; justify-content:center; gap:22px; flex-wrap:wrap;">
+                    <div style="position:relative; width:136px; height:136px; filter:drop-shadow(0 0 14px ${color}66);">
+                        <svg width="136" height="136" viewBox="0 0 136 136" style="transform:rotate(-90deg);">
+                            <circle cx="68" cy="68" r="${R}" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="11"/>
+                            <circle cx="68" cy="68" r="${R}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}">
+                                <animate attributeName="stroke-dashoffset" from="${C}" to="${off}" dur="1.1s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1"/>
+                            </circle>
                         </svg>
                         <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                            <div style="color:${color}; font-size:1.55rem; font-weight:900; line-height:1;">${pct}%</div>
+                            <div style="color:${color}; font-size:2rem; font-weight:900; line-height:1;">${pct}%</div>
+                            <div style="color:#b6c2d6; font-size:0.78rem; font-weight:800; margin-top:2px;">${grade}</div>
                         </div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="color:#cbd5e1; font-size:0.85rem;">درجتك</div>
-                        <div style="color:${color}; font-size:1.8rem; font-weight:900;">${escapeHtml(info.scoreText)}</div>
-                        <div style="color:#cbd5e1; font-weight:700; font-size:0.9rem;">${cheer}</div>
+                        <div style="color:#94a3b8; font-size:0.85rem; font-weight:700;">درجتك</div>
+                        <div style="color:${color}; font-size:2.3rem; font-weight:900; line-height:1.2; text-shadow:0 0 18px ${color}55;">${escapeHtml(info.scoreText)}</div>
+                        <div style="color:#e2e8f0; font-weight:800; font-size:0.95rem; margin-top:2px;">${cheer}</div>
                     </div>
                 </div>
-                <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
-                    ${stat(correct, 'صح', '#2ecc71', 'fas fa-circle-check')}
-                    ${stat(wrong, 'غلط', '#e74c3c', 'fas fa-circle-xmark')}
+                <div style="display:flex; gap:9px; margin-top:18px; flex-wrap:wrap;">
+                    ${stat(correct, 'إجابات صح', '#2ecc71', 'fas fa-circle-check')}
+                    ${stat(wrong, 'إجابات غلط', '#e74c3c', 'fas fa-circle-xmark')}
                     ${unsolved ? stat(unsolved, 'لم تحل', '#f1c40f', 'fas fa-circle-minus') : ''}
-                    ${stat(total, 'الأسئلة', '#00d2ff', 'fas fa-list-ol')}
+                    ${stat(total, 'عدد الأسئلة', '#00d2ff', 'fas fa-list-ol')}
                 </div>
             </div>
-            <div style="padding:6px 16px 16px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch;">
+            <div style="padding:2px 14px 6px;">
                 ${generateQuestionsReviewHtml(answers, true)}
             </div>
-            <div style="padding:12px; background:#141c2c; text-align:center; flex:none; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button onclick="closeSubmissionResultModal()" style="padding:11px 34px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit; font-size:1rem;">تمام</button>
+            <div style="position:sticky; bottom:0; padding:12px; background:linear-gradient(180deg, rgba(13,18,32,0), #0d1220 40%); text-align:center;">
+                <button onclick="closeSubmissionResultModal()" style="padding:12px 44px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:14px; font-weight:900; cursor:pointer; font-family:inherit; font-size:1.05rem; box-shadow:0 6px 22px rgba(0,136,255,0.4);">تمام</button>
             </div>
         </div>`;
     document.body.appendChild(overlay);

@@ -1731,7 +1731,7 @@
             const stage = userData.stage || userData.grade || userData.studentStage || "الصف الثاني الثانوي";
             const status = getAccountStatus(userData);
 
-            if (storedName !== remembered.name || storedCode !== String(remembered.code).trim()) {
+            if (normName(storedName) !== normName(remembered.name) || storedCode !== String(remembered.code).trim()) {
                 clearRememberedLogin();
                 resetButton(loginBtn);
                 return;
@@ -1809,6 +1809,19 @@
         }, transitionTime);
     }
 
+    // مقارنة الأسماء بشكل متسامح: أ/إ/آ=ا، ى=ي، ة=ه، من غير تشكيل ولا مسافات زيادة
+    function normName(v) {
+        return String(v || "")
+            .replace(/[\u064B-\u0652\u0640]/g, "")
+            .replace(/[أإآٱ]/g, "ا")
+            .replace(/ى/g, "ي")
+            .replace(/ة/g, "ه")
+            .replace(/[\u200B-\u200F\u202A-\u202E\u00A0]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+    }
+
     document.getElementById("login-form").addEventListener("submit", async function(e) {
         e.preventDefault();
         
@@ -1846,7 +1859,7 @@
 
                 studentFound = true;
 
-                if (nameInput === storedName) {
+                if (normName(nameInput) === normName(storedName)) {
                     nameMatched = true;
 
                     const accStatus = getAccountStatus(userData);
