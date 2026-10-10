@@ -566,18 +566,19 @@ async function syncAccountWithFirebase() {
                     ? docData.answers.filter(a => a.studentAnswer && a.studentAnswer !== "لم يحل" && a.studentAnswer !== "لم يكتب إجابة").length 
                     : (docData.correctCount || totalQuestions);
 
+                const isCancelled = docData.examCancelled === true;
                 return {
                     id: docData.id,
                     key: docData.serial ? String(docData.serial) : String(docData.id),
                     serial: (docData.serial || (20000 + idx)).toString(),
                     examName: docData.examName || docData.examTitle || docData.title || "اختبار أونلاين",
                     totalQuestions: totalQuestions,
-                    percentage: isApproved ? `% ${percentage}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح',
-                    score: isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>',
+                    percentage: isCancelled ? 'ملغي' : (isApproved ? `% ${percentage}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح'),
+                    score: isCancelled ? 'ملغي' : (isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>'),
                     scoreNum: Number(score) || 0,
                     maxScoreNum: Number(maxScore) || 10,
                     solvedQuestions: solvedCount,
-                    canReview: isApproved,
+                    canReview: isApproved && !isCancelled,
                     startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
                     endTime: docData.submittedAt || 'تم التسليم',
                     durationTaken: docData.durationTaken || '',
@@ -641,21 +642,22 @@ function renderAccountHistoryTable() {
     }
 
     history.forEach((row) => {
-        const isUnderReview = !row.canReview || (row.score && row.score.includes('قيد التصحيح'));
+        const isCancelledRow = row.score === 'ملغي' || row.percentage === 'ملغي';
+        const isUnderReview = !isCancelledRow && (!row.canReview || (row.score && row.score.includes('قيد التصحيح')));
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="color: var(--accent-gold); font-weight: 800;">${row.serial || '---'}</td>
             <td style="font-weight: 800; color: #ffffff;">${escapeHtml(prettifyExamName(row.examName, row.totalQuestions))}</td>
             <td>${row.totalQuestions}</td>
-            <td style="font-weight: 800; color: ${isUnderReview ? '#f1c40f' : 'var(--accent-cyan)'};">
+            <td style="font-weight: 800; color: ${isCancelledRow ? '#ef4444' : (isUnderReview ? '#f1c40f' : 'var(--accent-cyan)')};">
                 ${row.percentage}
             </td>
-            <td style="font-weight: 800; color: ${isUnderReview ? '#f1c40f' : '#2ecc71'};">
-                ${isUnderReview ? '<i class="fas fa-hourglass-half"></i>' : '<i class="fas fa-trophy"></i>'} ${row.score}
+            <td style="font-weight: 800; color: ${isCancelledRow ? '#ef4444' : (isUnderReview ? '#f1c40f' : '#2ecc71')};">
+                ${isCancelledRow ? '<i class="fas fa-ban"></i> امتحانك ملغي - تواصل مع الدعم' : (isUnderReview ? '<i class="fas fa-hourglass-half"></i> ' + row.score : '<i class="fas fa-trophy"></i> ' + row.score)}
             </td>
             <td>${row.solvedQuestions}</td>
             <td>
-                ${(row.answers && row.answers.length > 0)
+                ${(!isCancelledRow && row.answers && row.answers.length > 0)
                     ? `<button class="tag-answers-btn" onclick="openAnswersReviewModal('${row.id || row.serial}')">عرض الاجابات</button>` 
                     : `<span class="tag-answers-disabled" style="color: #ff0055; font-weight: 700; font-size: 0.82rem;">--الاجابات غير متاحة--</span>`}
             </td>
@@ -1932,7 +1934,7 @@ function calculateAndSend(bypassValidation = false) {
     if ((sig.paste || 0) >= 1) aiReasons.push('لصق نص ' + sig.paste + ' مرة');
     if ((sig.copy || 0) >= 1) aiReasons.push('نسخ نص ' + sig.copy + ' مرة');
     const aiSuspected = aiReasons.length > 0;
-    const cancelExam = aiSuspected && !hasEssay;
+    const cancelExam = aiSuspected; // أي استخدام AI = الامتحان ملغي (حتى لو فيه مقالي)
     const releaseNow = !hasEssay && !cancelExam;
     const finalPercent = totalExamPointsPossible > 0 ? Math.round((mcqScoreObtained / totalExamPointsPossible) * 100) : 0;
 
@@ -2897,7 +2899,10 @@ function buildUnitItemRowHtml(it, openCallExpr) {
             const stats = finishedExamStatsCache.get(it.examId);
             if (stats) {
                 const released = stats.canReview === true;
-                const scoreChip = released
+                const cancelledChip = stats.score === 'ملغي';
+                const scoreChip = cancelledChip
+                    ? `<div class="exam-result-chip" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.4);"><i class="fas fa-ban"></i> <b>امتحانك ملغي - تواصل مع الدعم</b></div>`
+                    : released
                     ? `<div class="exam-result-chip score"><i class="fas fa-trophy"></i> <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
                     : `<div class="exam-result-chip pending"><i class="fas fa-hourglass-half"></i> <b>قيد التصحيح</b></div>`;
                 const metaChips = [];
