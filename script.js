@@ -216,8 +216,8 @@ function generateQuestionsReviewHtml(answers, released = true) {
     if (!answers || !Array.isArray(answers) || answers.length === 0) return '';
 
     let html = `
-        <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
-            <h5 style="color: #00d2ff; font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; text-align: right; display: flex; align-items: center; gap: 8px;">
+        <div class="review-question-list" style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
+            <h5 class="review-list-title" style="color: #00d2ff; font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; text-align: right; display: flex; align-items: center; gap: 8px;">
                 ${released ? '<i class="fas fa-pen-to-square"></i> تفاصيل الأسئلة ونموذج الإجابة:' : '<i class="fas fa-pen-to-square"></i> إجاباتك اللي سلّمتها:'}
             </h5>
             ${released ? '' : `<p style="color:#f1c40f; font-size:0.85rem; margin: -6px 0 14px; text-align:right;"><i class="fas fa-lock"></i> الصح والغلط والدرجات هتظهر بعد ما المعلم يعتمد النتيجة.</p>`}
@@ -232,7 +232,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
 
         if (!released) {
             html += `
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid #64748b; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
+                <div class="review-question" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid #64748b; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
                     <div style="margin-bottom: 8px;">
                         <strong style="color: #fff; font-size: 0.98rem; line-height: 1.6;">س${index + 1}: ${escapeHtml(qText)}</strong>
                     </div>
@@ -273,7 +273,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
             ? ''
             : `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.5); padding: 3px 9px; border-radius: 6px; color: ${borderColor}; font-weight: bold;"><i class="fas fa-bullseye"></i> ${fmtPts(g.earned)} من ${fmtPts(g.points)}</span>`;
 
-        const showCorrect = (isEssay ? !!crAns : (g.state !== 'correct' && !!crAns));
+        const showCorrect = !!crAns;
 
         // اختيارات السؤال كلها بحروف أ ب ج د: الصح أخضر، واختيار الطالب لو غلط أحمر
         const opts = (!isEssay && Array.isArray(item.options)) ? item.options : [];
@@ -282,6 +282,8 @@ function generateQuestionsReviewHtml(answers, released = true) {
         const hasIdx = typeof item.studentIndex === 'number' && item.studentIndex >= 0;
         const hasCorrIdx = typeof item.correctIndex === 'number' && item.correctIndex >= 0;
         const unanswered = !item.studentAnswer || item.studentAnswer === 'لم يحل' || item.studentAnswer === 'لم يكتب إجابة';
+        const studentChoiceFound = opts.some((option, optionIndex) => !unanswered && (hasIdx ? optionIndex === item.studentIndex : norm(option) === norm(item.studentAnswer)));
+        const correctChoiceFound = opts.some((option, optionIndex) => hasCorrIdx ? optionIndex === item.correctIndex : norm(option) === norm(item.correctAnswer));
         const optionsHtml = opts.length ? `
             <div style="display:flex; flex-direction:column; gap:8px; margin: 6px 0 4px;">
                 ${opts.map((o, oi) => {
@@ -290,9 +292,9 @@ function generateQuestionsReviewHtml(answers, released = true) {
                     if (mine && item.isCorrect === true) right = true;
                     if (!mine && item.isCorrect === true && !hasIdx) right = right && norm(o) === norm(item.correctAnswer);
                     let bg = 'rgba(255,255,255,0.035)', bd = 'rgba(255,255,255,0.09)', col = '#cbd5e1', badgeBg = 'rgba(255,255,255,0.08)', badgeCol = '#94a3b8', tag = '', tagCol = '', shadow = 'none';
-                    if (right) { bg = 'linear-gradient(90deg, rgba(46,204,113,0.20), rgba(46,204,113,0.07))'; bd = '#2ecc71'; col = '#f0fff6'; badgeBg = '#2ecc71'; badgeCol = '#04210f'; tag = mine ? '<i class="fas fa-check"></i> اختيارك وصح' : '<i class="fas fa-check"></i> الإجابة الصحيحة'; tagCol = '#2ecc71'; shadow = '0 0 14px rgba(46,204,113,0.18)'; }
+                    if (right) { bg = 'linear-gradient(90deg, rgba(46,204,113,0.20), rgba(46,204,113,0.07))'; bd = '#2ecc71'; col = '#f0fff6'; badgeBg = '#2ecc71'; badgeCol = '#04210f'; tag = mine ? '<i class="fas fa-check"></i> اختيارك • الإجابة الصحيحة' : '<i class="fas fa-check"></i> الإجابة الصحيحة'; tagCol = '#2ecc71'; shadow = '0 0 14px rgba(46,204,113,0.18)'; }
                     else if (mine) { bg = 'linear-gradient(90deg, rgba(231,76,60,0.22), rgba(231,76,60,0.07))'; bd = '#e74c3c'; col = '#fff1ef'; badgeBg = '#e74c3c'; badgeCol = '#2a0805'; tag = '<i class="fas fa-xmark"></i> اختيارك وغلط'; tagCol = '#ff6b5b'; shadow = '0 0 14px rgba(231,76,60,0.18)'; }
-                    return `<div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; background:${bg}; border:1.5px solid ${bd}; box-shadow:${shadow}; color:${col}; font-size:0.95rem; line-height:1.6;">
+                    return `<div class="review-option" style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; background:${bg}; border:1.5px solid ${bd}; box-shadow:${shadow}; color:${col}; font-size:0.95rem; line-height:1.6;">
                         <span style="flex:none; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:${badgeBg}; color:${badgeCol}; font-weight:900; font-size:0.9rem;">${letters[oi] || (oi + 1)}</span>
                         <span style="flex:1; white-space:pre-wrap; word-break:break-word; font-weight:${(right || mine) ? '800' : '500'};">${escapeHtml(o)}</span>
                         ${tag ? `<span style="flex:none; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:20px; background:rgba(0,0,0,0.5); color:${tagCol}; white-space:nowrap;">${tag}</span>` : ''}
@@ -303,7 +305,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
         ` : '';
 
         html += `
-            <div style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${borderColor}; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
+            <div class="review-question" style="background: ${boxBg}; border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid ${borderColor}; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
                 <div style="margin-bottom: 8px;">
                     <strong style="color: #fff; font-size: 0.98rem; line-height: 1.6;">
                         س${index + 1}: ${escapeHtml(qText)}
@@ -314,7 +316,7 @@ function generateQuestionsReviewHtml(answers, released = true) {
                 <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
                         <span style="color: #cbd5e1; font-size: 0.9rem; white-space: pre-wrap;">
-                            ${opts.length ? '' : `إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>`}
+                            ${opts.length && studentChoiceFound ? '' : `إجابتك: <strong style="color: ${borderColor}; font-size: 0.95rem;">${escapeHtml(stAns)}</strong>`}
                         </span>
                         <span style="display:flex; gap:6px; flex-wrap:wrap;">
                             ${pointsBadge}
@@ -324,12 +326,11 @@ function generateQuestionsReviewHtml(answers, released = true) {
                         </span>
                     </div>
 
-                    ${(showCorrect && !opts.length) || (isEssay && showCorrect) ? `
-                        <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px; white-space: pre-wrap;">
-                            <span style="color: #cbd5e1; font-size: 0.9rem;">
-                                ${isEssay ? 'الإجابة النموذجية' : 'الإجابة الصحيحة'}: <strong style="color: #00d2ff; text-shadow: 0 0 5px rgba(0,210,255,0.3);">${escapeHtml(crAns)}</strong>
-                            </span>
-                        </div>
+                    ${(showCorrect && (!opts.length || !correctChoiceFound)) || (isEssay && showCorrect) ? `
+                        <div class="review-key-answer">
+    <span class="review-key-label">${isEssay ? 'الإجابة النموذجية' : 'الإجابة الصحيحة'}</span>
+    <strong>${escapeHtml(crAns)}</strong>
+</div>
                     ` : ''}
                 </div>
             </div>
@@ -669,7 +670,73 @@ function renderAccountHistoryTable() {
     });
 }
 
-function openAnswersReviewModal(recordId) {
+function getAnswersReviewSummary(item) {
+    const answers = Array.isArray(item.answers) ? item.answers.filter(Boolean) : [];
+    const counts = { correct: 0, wrong: 0, partial: 0, pending: 0 };
+    let earnedPoints = 0;
+    let possiblePoints = 0;
+
+    answers.forEach(answer => {
+        const grade = getAnswerGrade(answer);
+        if (Object.prototype.hasOwnProperty.call(counts, grade.state)) counts[grade.state]++;
+        if (grade.earned !== null) {
+            earnedPoints += Number(grade.earned) || 0;
+            possiblePoints += Number(grade.points) || 0;
+        }
+    });
+
+    const score = Number(item.scoreNum);
+    const maxScore = Number(item.maxScoreNum);
+    let percentage = null;
+    if (item.scoreNum !== undefined && item.scoreNum !== null && item.maxScoreNum !== undefined && Number.isFinite(score) && Number.isFinite(maxScore) && maxScore > 0) {
+        percentage = Math.round((score / maxScore) * 100);
+    } else {
+        const storedPercent = String(item.percentage || "").match(/\d+(?:\.\d+)?/);
+        if (storedPercent) percentage = Math.round(Number(storedPercent[0]));
+        else if (possiblePoints > 0) percentage = Math.round((earnedPoints / possiblePoints) * 100);
+        else if (answers.length) percentage = Math.round((counts.correct / answers.length) * 100);
+    }
+    if (percentage !== null) percentage = Math.max(0, Math.min(100, percentage));
+
+    const rawScore = String(item.score || "").replace(/<[^>]*>/g, "").trim();
+    const scoreText = rawScore || (item.scoreNum !== undefined && item.maxScoreNum !== undefined
+        ? `${fmtPts(score)} من ${fmtPts(maxScore)}`
+        : "النتيجة معتمدة");
+
+    return { answers, counts, percentage, scoreText };
+}
+
+function getAnswersWithQuestionData(record) {
+    const answers = Array.isArray(record && record.answers) ? record.answers : [];
+    const examId = String(record && (record.examId || record.id) || '');
+    const examName = String(record && (record.examName || record.examTitle) || '');
+    const norm = value => String(value == null ? '' : value).replace(/^\s*س\s*\d+\s*[:.)-]?\s*/i, '').trim().toLowerCase();
+    const rawExams = Array.isArray(window.__allExamsRaw) ? window.__allExamsRaw : [];
+    const rawExam = rawExams.find(exam => String(exam.id || '') === examId || String(exam.examCode || '') === examId || String(exam.title || '') === examName || String(exam.examName || '') === examName);
+    const cachedExam = (typeof dynamicExamsDatabase !== 'undefined' && examId) ? dynamicExamsDatabase[examId] : null;
+    const sourceQuestions = (cachedExam && cachedExam.questions) || (rawExam && rawExam.questions) || [];
+    const liveQuestions = Array.isArray(activeQuestionsList) ? activeQuestionsList : [];
+    const otherExamQuestions = rawExams.filter(exam => exam !== rawExam).flatMap(exam => Array.isArray(exam.questions) ? exam.questions : []);
+
+    return answers.map((answer, index) => {
+        const isEssay = answer.type === 'essay' || !!answer.modelAnswer;
+        if (isEssay) return { ...answer, type: 'essay' };
+        const savedOptions = Array.isArray(answer.options) ? answer.options : [];
+
+        const findMatch = list => list.find(q => norm(q.question || q.text || q.questionText) === norm(answer.question));
+        const source = findMatch(sourceQuestions) || findMatch(liveQuestions) || findMatch(otherExamQuestions) || sourceQuestions[index] || liveQuestions[index];
+        if (!source) return answer;
+        const rawOptions = savedOptions.length ? savedOptions : (Array.isArray(source.options) ? source.options : (Array.isArray(source.choices) ? source.choices : []));
+        const options = rawOptions.map(option => String(option && typeof option === 'object' ? (option.text || option.label || option.value || '') : option)).filter(Boolean);
+        const rawCorrectIndex = source.correctAnswerIndex ?? source.correctIndex ?? answer.correctIndex;
+        const correctIndex = Number.isInteger(Number(rawCorrectIndex)) ? Number(rawCorrectIndex) : -1;
+        const sourceCorrect = source.correctAnswer || source.answer || answer.correctAnswer || '';
+        const correctAnswer = correctIndex >= 0 && options[correctIndex] !== undefined ? options[correctIndex] : sourceCorrect;
+        return { ...answer, type: 'choice', options, correctIndex, correctAnswer };
+    });
+}
+async function openAnswersReviewModal(recordId) {
+    try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
     const history = getStoredHistory();
     const item = history.find(h => (h.id === recordId || h.serial === recordId));
     
@@ -680,45 +747,55 @@ function openAnswersReviewModal(recordId) {
 
     const released = item.canReview === true;
 
+    const reviewItem = { ...item, answers: getAnswersWithQuestionData(item) };
+    const summary = getAnswersReviewSummary(reviewItem);
     let reviewModal = document.getElementById('answers-review-modal');
     if (!reviewModal) {
         reviewModal = document.createElement('div');
         reviewModal.id = 'answers-review-modal';
-        reviewModal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(5, 6, 8, 0.94);
-            backdrop-filter: blur(10px);
-            z-index: 99999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 18px;
-            direction: rtl;
-        `;
         document.body.appendChild(reviewModal);
     }
+    reviewModal.className = 'answers-review-overlay';
+    reviewModal.setAttribute('role', 'dialog');
+    reviewModal.setAttribute('aria-modal', 'true');
+    reviewModal.setAttribute('aria-labelledby', 'answers-review-title');
+    if (!reviewModal.dataset.closeHandlers) {
+        reviewModal.addEventListener('click', event => {
+            if (event.target === reviewModal) reviewModal.style.display = 'none';
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && reviewModal.style.display === 'flex') reviewModal.style.display = 'none';
+        });
+        reviewModal.dataset.closeHandlers = 'true';
+    }
 
-    const scoreBanner = released
-        ? `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.25); border-radius: 12px; color:#fff; font-weight:800;"><i class="fas fa-trophy"></i> درجتك: <span style="color:#2ecc71;">${escapeHtml(item.score)}</span></div>`
-        : `<div style="text-align:center; margin-bottom: 14px; padding: 12px; background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.3); border-radius: 12px; color:#f1c40f; font-weight:800;"><i class="fas fa-hourglass-half"></i> النتيجة قيد التصحيح</div>`;
+    const scoreSummary = released
+        ? `<section class="review-result-card" aria-label="ملخص نتيجتك">
+                <div class="review-result-top">
+                    <div><span class="review-score-label"><i class="fas fa-trophy"></i> درجتك النهائية</span><div class="review-score-main"><strong>${escapeHtml(summary.scoreText)}</strong><span>درجة</span></div></div>
+                    <div class="review-percent" aria-label="النسبة المئوية ${summary.percentage === null ? 'غير متاحة' : summary.percentage + ' بالمئة'}"><strong>${summary.percentage === null ? '—' : '%' + summary.percentage}</strong><small>النسبة</small></div>
+                </div>
+                <div class="review-progress" role="progressbar" aria-label="النسبة المئوية" aria-valuenow="${summary.percentage || 0}" aria-valuemin="0" aria-valuemax="100"><span style="width:${summary.percentage || 0}%"></span></div>
+                <div class="review-count-grid">
+                    <div class="review-count correct"><span class="review-count-icon"><i class="fas fa-check"></i></span><div><strong>${summary.counts.correct}</strong><small>إجابة صحيحة</small></div></div>
+                    <div class="review-count wrong"><span class="review-count-icon"><i class="fas fa-xmark"></i></span><div><strong>${summary.counts.wrong}</strong><small>إجابة خاطئة</small></div></div>
+                    <div class="review-count total"><span class="review-count-icon"><i class="fas fa-list-ol"></i></span><div><strong>${summary.answers.length}</strong><small>إجمالي الأسئلة</small></div></div>
+                </div>
+                ${(summary.counts.partial || summary.counts.pending) ? `<div class="review-extra">${summary.counts.partial ? `<span><i class="fas fa-star-half-stroke"></i> درجات جزئية: ${summary.counts.partial}</span>` : ''}${summary.counts.pending ? `<span><i class="fas fa-hourglass-half"></i> قيد المراجعة: ${summary.counts.pending}</span>` : ''}</div>` : ''}
+            </section>`
+        : `<div class="review-pending-banner"><i class="fas fa-hourglass-half"></i> النتيجة قيد التصحيح، وستظهر الدرجة بعد اعتمادها.</div>`;
 
     reviewModal.innerHTML = `
-        <div style="background: #0f1422; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;">
-            <div style="padding: 16px 20px; background: #141c2c; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
-                <h4 style="color: #00f2fe; margin: 0; font-size: 1.1rem; font-weight: 800;"><i class="fas fa-book-open"></i> مراجعة إجابات: ${escapeHtml(prettifyExamName(item.examName, item.totalQuestions))}</h4>
-                <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="background: none; border: none; color: #fff; font-size: 1.4rem; cursor: pointer;"><i class="fas fa-xmark"></i></button>
+        <div class="answers-review-dialog">
+            <header class="answers-review-header">
+                <h4 class="answers-review-title" id="answers-review-title"><i class="fas fa-book-open"></i> مراجعة إجابات: ${escapeHtml(prettifyExamName(item.examName, item.totalQuestions))}</h4>
+                <button class="answers-review-close" type="button" aria-label="إغلاق مراجعة الإجابات" onclick="document.getElementById('answers-review-modal').style.display='none'"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </header>
+            <div class="answers-review-body">
+                ${scoreSummary}
+                ${generateQuestionsReviewHtml(summary.answers, released)}
             </div>
-            <div style="padding: 18px; overflow-y: auto; flex: 1;">
-                ${scoreBanner}
-                ${generateQuestionsReviewHtml(item.answers, released)}
-            </div>
-            <div style="padding: 12px; background: #141c2c; text-align: center;">
-                <button onclick="document.getElementById('answers-review-modal').style.display='none'" style="padding: 8px 24px; background: #0088ff; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">إغلاق</button>
-            </div>
+            <footer class="answers-review-footer"><button type="button" onclick="document.getElementById('answers-review-modal').style.display='none'">إغلاق</button></footer>
         </div>
     `;
 
@@ -892,31 +969,42 @@ async function updateStudentLastActive() {
 
 function createConfirmSubmitModal() {
     if (document.getElementById('submit-confirm-modal')) return;
+    if (!document.getElementById('submit-confirm-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'submit-confirm-modal-styles';
+        style.textContent = `
+            #submit-confirm-modal { position:fixed; inset:0; z-index:10000; display:none; align-items:center; justify-content:center; padding:20px; direction:rtl; font-family:'Cairo',sans-serif; background:rgba(3,9,20,.78); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+            #submit-confirm-modal .submit-confirm-card { position:relative; width:min(100%,460px); overflow:hidden; padding:30px; text-align:center; color:#eef7ff; background:linear-gradient(145deg,#17263b,#101827 72%); border:1px solid rgba(53,211,239,.28); border-radius:26px; box-shadow:0 28px 90px rgba(0,0,0,.55),0 0 45px rgba(0,201,229,.10); animation:submitConfirmIn .28s cubic-bezier(.2,.8,.2,1) both; }
+            #submit-confirm-modal .submit-confirm-card:before { content:''; position:absolute; inset:0 18% auto; height:2px; background:linear-gradient(90deg,transparent,#27d7f2,transparent); }
+            #submit-confirm-modal .submit-confirm-icon { display:grid; place-items:center; width:64px; height:64px; margin:0 auto 16px; color:#4de3f2; font-size:25px; background:rgba(23,207,234,.12); border:1px solid rgba(52,218,239,.26); border-radius:20px; box-shadow:0 0 28px rgba(0,210,240,.12); }
+            #submit-confirm-modal .submit-confirm-title { margin:0 0 10px; color:#f5fbff; font-size:clamp(1.2rem,4vw,1.55rem); font-weight:900; }
+            #submit-confirm-modal .submit-confirm-copy { margin:0 auto 24px; max-width:360px; color:#b7c5d8; line-height:1.9; font-size:.98rem; }
+            #submit-confirm-modal .submit-confirm-copy strong { color:#4de3f2; }
+            #submit-confirm-modal .submit-confirm-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+            #submit-confirm-modal .submit-confirm-btn { min-height:52px; padding:12px 16px; border:1px solid transparent; border-radius:15px; color:#fff; font:800 .95rem 'Cairo',sans-serif; cursor:pointer; transition:transform .18s ease,filter .18s ease,box-shadow .18s ease; }
+            #submit-confirm-modal .submit-confirm-btn:hover { transform:translateY(-2px); filter:brightness(1.08); }
+            #submit-confirm-modal .submit-confirm-btn:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+            #submit-confirm-modal .submit-confirm-btn--submit { background:linear-gradient(135deg,#13b981,#08a878); box-shadow:0 9px 24px rgba(8,184,127,.22); }
+            #submit-confirm-modal .submit-confirm-btn--review { color:#dce7f5; background:#202d40; border-color:#35445a; }
+            @keyframes submitConfirmIn { from { opacity:0; transform:translateY(12px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+            @media(max-width:480px) { #submit-confirm-modal { padding:16px; } #submit-confirm-modal .submit-confirm-card { padding:25px 19px 20px; border-radius:22px; } #submit-confirm-modal .submit-confirm-actions { grid-template-columns:1fr; gap:9px; } #submit-confirm-modal .submit-confirm-btn { min-height:49px; } }
+            @media(prefers-reduced-motion:reduce) { #submit-confirm-modal .submit-confirm-card { animation:none; } #submit-confirm-modal .submit-confirm-btn { transition:none; } }
+        `;
+        document.head.appendChild(style);
+    }
     const modal = document.createElement('div');
     modal.id = 'submit-confirm-modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        backdrop-filter: blur(6px);
-        padding: 15px;
-        direction: rtl;
-        font-family: 'Cairo', sans-serif;
-    `;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'submit-confirm-title');
     modal.innerHTML = `
-        <div style="background: #1e1e38; padding: 28px; border-radius: 16px; max-width: 440px; width: 95%; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
-            <h3 style="color: #00d2ff; margin-bottom: 15px; font-size: 1.3rem; font-weight:900;"><i class="fas fa-triangle-exclamation"></i> تأكيد تسليم الامتحان</h3>
-            <p id="confirm-modal-text" style="color: #cbd5e1; margin-bottom: 25px; line-height: 1.6; font-size: 1rem;"></p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="confirmFinalSubmit()" style="flex: 1; padding: 12px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">تأكيد التسليم <i class="fas fa-rocket"></i></button>
-                <button onclick="closeConfirmSubmitModal()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.95rem;">استنى / مراجعة <i class="fas fa-arrow-right"></i></button>
+        <div class="submit-confirm-card">
+            <div class="submit-confirm-icon"><i class="fas fa-clipboard-check"></i></div>
+            <h3 class="submit-confirm-title" id="submit-confirm-title">تأكد من تسليم امتحانك</h3>
+            <p id="confirm-modal-text" class="submit-confirm-copy"></p>
+            <div class="submit-confirm-actions">
+                <button class="submit-confirm-btn submit-confirm-btn--submit" onclick="confirmFinalSubmit()"><i class="fas fa-paper-plane"></i> تسليم الامتحان</button>
+                <button class="submit-confirm-btn submit-confirm-btn--review" onclick="closeConfirmSubmitModal()"><i class="fas fa-arrow-right"></i> الرجوع للمراجعة</button>
             </div>
         </div>
     `;
@@ -1296,7 +1384,6 @@ function switchTab(tab) {
         'courses': { btn: document.getElementById('tab-btn-courses'), sec: document.getElementById('courses-section') },
         'exams': { btn: document.getElementById('tab-btn-exams'), sec: document.getElementById('exams-section') },
         'units': { btn: document.getElementById('tab-btn-units'), sec: document.getElementById('units-section') },
-        'forum': { btn: document.getElementById('tab-btn-forum'), sec: document.getElementById('forum-section') },
         'results': { btn: document.getElementById('tab-btn-results'), sec: document.getElementById('results-section') },
         'account': { btn: document.getElementById('tab-btn-account'), sec: document.getElementById('account-section') }
     };
@@ -1318,7 +1405,6 @@ function switchTab(tab) {
         updateProfileUI();
         syncAccountWithFirebase();
         renderStudentPerformanceSummary();
-        renderSubscriptionsSection();
     }
 
     if (tab === 'units') {
@@ -1426,10 +1512,10 @@ function showInstructionsPage() {
     document.getElementById('step-2').style.display = 'block';
 }
 
-// وضع "قفل شاشة الامتحان": بيخفي كل أقسام المنصة (بما فيها الرئيسية والمنتدى اللي كانت ناسيه الكود القديم)
+// وضع "قفل شاشة الامتحان": بيخفي كل أقسام المنصة أثناء أداء الامتحان
 // عشان الطالب يفضل حابس في شاشة الامتحان بس ومايقدرش يشوف/يروح حتة تانية وهو بيمتحن
 function lockAllSectionsForExam() {
-    ['home-section', 'courses-section', 'exams-section', 'units-section', 'forum-section', 'results-section', 'account-section']
+    ['home-section', 'courses-section', 'exams-section', 'units-section', 'results-section', 'account-section']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -2932,14 +3018,13 @@ function buildUnitItemRowHtml(it, openCallExpr) {
     } else if (it.type === 'video') {
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
-        const remaining = it.maxViews ? Math.max(it.maxViews - watched, 0) : null;
         const price = parseFloat(it.price) || 0;
         const purchased = videoPurchasesCache.has(it.id);
 
         const statParts = [];
         if (desc) statParts.push(`<i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}`);
         if (it.durationMin) statParts.push(`<i class="fas fa-stopwatch"></i> مدة الفيديو: ${it.durationMin} دقيقة`);
-        if (remaining !== null) statParts.push(`<i class="fas fa-eye"></i> المشاهدات المتبقية لك: ${remaining}`);
+        if (watched > 0) statParts.push(`<i class="fas fa-circle-check" style="color:#2ecc71"></i> تمت المشاهدة بنجاح`);
         if (price > 0) statParts.push(`<i class="fas fa-tag"></i> السعر: ${price} جنيه`);
         if (price > 0 && purchased) statParts.push(`<i class="fas fa-circle-check"></i> تم شراء هذا الفيديو`);
         if (statParts.length) detailsHtml = `<div class="unit-row-stats">${statParts.map(x => `<span>${x}</span>`).join('')}</div>`;
@@ -2948,8 +3033,8 @@ function buildUnitItemRowHtml(it, openCallExpr) {
             label = '<i class="fas fa-lock"></i> اشترِ الفيديو';
             rowExtraClass = ' unit-row-locked';
             reasonHtml = `<div class="unit-row-sub" style="color:#f1c40f;"><i class="fas fa-circle-info"></i> فيديو مدفوع (${price} جنيه) — يرجى التواصل مع الدعم الفني لشراء الفيديو</div>`;
-        } else if (remaining === 0) {
-            label = 'انتهت مرات المشاهدة'; disabled = true;
+        } else if (watched > 0) {
+            label = '<i class="fas fa-rotate-right"></i> مشاهدة مرة أخرى';
         }
     } else if (desc) {
         detailsHtml = `<div class="unit-row-stats"><span><i class="fas fa-pen-to-square"></i> ${escapeHtml(desc)}</span></div>`;
@@ -3250,15 +3335,81 @@ function showPaidCourseModal(course) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
+function getSubscriptionStartDate(subscription) {
+    if (!subscription) return null;
+    const value = subscription.enrolledAt || subscription.subscriptionStartedAt || subscription.startDate || subscription.createdAt || subscription.approvedAt || subscription.timestamp;
+    if (!value) return null;
+    let date = value;
+    if (typeof value.toDate === 'function') date = value.toDate();
+    else if (!(value instanceof Date)) date = new Date(value);
+    return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
+}
+
+function addSubscriptionMonths(date, months) {
+    const result = new Date(date);
+    const day = result.getDate();
+    result.setDate(1);
+    result.setMonth(result.getMonth() + months);
+    const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+    result.setDate(Math.min(day, lastDay));
+    return result;
+}
+
+function formatSubscriptionDate(date) {
+    return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function getSubscriptionRemainingText(expiry, now = new Date()) {
+    if (expiry <= now) return `انتهى الاشتراك منذ ${Math.max(1, Math.ceil((now - expiry) / 86400000))} يوم`;
+    let months = 0;
+    while (months < 3 && addSubscriptionMonths(now, months + 1) <= expiry) months++;
+    const anchor = addSubscriptionMonths(now, months);
+    const days = Math.max(0, Math.ceil((expiry - anchor) / 86400000));
+    if (!months && !days) return 'ينتهي خلال أقل من يوم';
+    if (months && days) return `متبقي ${months} ${months === 1 ? 'شهر' : 'شهور'} و${days} يوم`;
+    if (months) return `متبقي ${months} ${months === 1 ? 'شهر' : 'شهور'}`;
+    return `متبقي ${days} يوم`;
+}
+
 async function renderSubscriptionsSection() {
     const box = document.getElementById('subscriptions-list'); if (!box) return;
     box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل اشتراكاتك...</p>';
-    try { await loadCourseData(); const mine = coursesCache.filter(c => subscriptionsCache.has(c.id));
-        if (!mine.length) { box.innerHTML = '<div class="subscription-summary">لم تشترك في أي كورس بعد. اختَر كورساً من صفحة «الكورسات».</div>'; return; }
-        box.innerHTML = `<div class="subscription-summary">أنت مشترك في <b>${mine.length}</b> كورس. علامة <i class="fas fa-check"></i> بجوار الكورس تؤكد اشتراكك.</div><div class="courses-grid">${mine.map(c => `<article class="course-card" style="position:relative;">${c.image ? `<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;border:2px solid #fff;"><i class="fas fa-check"></i></span>` : ''}<div class="course-body"><span class="course-status"><i class="fas fa-check"></i> اشتراك نشط</span><div class="course-grade">${escapeHtml(c.grade || '')}</div><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description || '')}</p><button class="course-btn" onclick="enterCourse('${c.id}')">دخول الكورس <i class="fas fa-arrow-right"></i></button></div></article>`).join('')}</div>`;
-    } catch(e) { box.innerHTML = '<p style="color:#ff718d;text-align:center;">تعذر تحميل الاشتراكات.</p>'; }
+    try {
+        await loadCourseData();
+        const mine = coursesCache.filter(course => subscriptionsCache.has(course.id));
+        if (!mine.length) {
+            box.innerHTML = '<div class="subscription-summary">لم تشترك في أي كورس بعد. اختَر كورساً من صفحة «الكورسات».</div>';
+            return;
+        }
+        const now = new Date();
+        box.innerHTML = `<div class="subscription-summary">أنت مشترك في <b>${mine.length}</b> كورس. مدة الاشتراك 3 شهور من تاريخ تفعيل كل كورس.</div><div class="my-subscription-list">${mine.map(course => {
+            const subscription = subscriptionsCache.get(course.id);
+            const start = getSubscriptionStartDate(subscription);
+            const expiry = start ? addSubscriptionMonths(start, 3) : null;
+            const expired = !!expiry && expiry <= now;
+            const status = expired ? 'اشتراك منتهي' : 'اشتراك نشط';
+            const startText = start ? formatSubscriptionDate(start) : 'تاريخ التفعيل غير مسجل';
+            const expiryText = expiry ? formatSubscriptionDate(expiry) : 'يبدأ حساب المدة من تاريخ التفعيل المسجل';
+            const remainingText = expiry ? getSubscriptionRemainingText(expiry, now) : 'مدة الاشتراك 3 شهور من تاريخ التفعيل';
+            return `<article class="my-subscription-card"><span class="my-subscription-status ${expired ? 'expired' : ''}"><i class="fas ${expired ? 'fa-circle-xmark' : 'fa-circle-check'}"></i> ${status}</span><h4>${escapeHtml(course.title || 'كورس بدون اسم')}</h4><p><i class="fas fa-calendar-plus"></i> بداية الاشتراك: ${escapeHtml(startText)}</p><p><i class="fas fa-calendar-xmark"></i> تاريخ الانتهاء: ${escapeHtml(expiryText)}</p><p class="my-subscription-countdown ${expired ? 'expired' : ''}"><i class="fas fa-hourglass-half"></i> ${escapeHtml(remainingText)}</p><button class="course-btn" onclick="enterCourse('${course.id}')">دخول الكورس <i class="fas fa-arrow-left"></i></button></article>`;
+        }).join('')}</div>`;
+    } catch (e) {
+        box.innerHTML = '<p style="color:#ff718d;text-align:center;">تعذر تحميل الاشتراكات.</p>';
+    }
 }
 
+function toggleStudentSubscriptions() {
+    const section = document.getElementById('account-subscriptions-section');
+    if (!section) return;
+    const open = section.style.display === 'none' || !section.style.display;
+    section.style.display = open ? 'block' : 'none';
+    const toggle = document.querySelector('button[onclick*="toggleStudentSubscriptions"]');
+    if (toggle) toggle.setAttribute('aria-expanded', String(open));
+    if (open) {
+        renderSubscriptionsSection();
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
 async function enterCourse(courseId) {
     if (!subscriptionsCache.has(courseId)) { await loadCourseData(); if (!subscriptionsCache.has(courseId)) return requestCourseSubscription(courseId); }
     activeCourseId = courseId;
@@ -3622,12 +3773,16 @@ function openCourseUnitItem(courseId, unitId, itemId) {
         }
         const viewKey = 'video_views_' + it.id;
         const watched = parseInt(localStorage.getItem(viewKey) || '0', 10);
-        if (it.maxViews && watched >= it.maxViews) {
-            showCustomToast("<i class='fas fa-lock'></i> خلّصت عدد مرات المشاهدة المتاحة لهذا الفيديو.", "warning");
-            return;
-        }
+        const confirmKey = `video_watch_confirmed_${currentStudentIdentity()}_${it.id}`;
+        const firstConfirmation = localStorage.getItem(confirmKey) !== '1';
         localStorage.setItem(viewKey, String(watched + 1));
         openVideoModal(it.title, it.url);
+        if (firstConfirmation) {
+            localStorage.setItem(confirmKey, '1');
+            showCustomToast("<i class='fas fa-circle-check'></i> تمت مشاهدة الفيديو بنجاح.", 'success');
+            const toast = document.getElementById('custom-toast-notification');
+            if (toast) toast.style.zIndex = '100002';
+        }
         recordCourseActivity(courseId, it, 'watched');
         renderUnitsSection();
     } else if (it.type === 'exam') {
@@ -3654,3 +3809,19 @@ window.__aiSig = { leaves: 0, paste: 0, copy: 0, hiddenMs: 0 };
     document.addEventListener('paste', function () { if (window.isExamRunning) window.__aiSig.paste++; }, true);
     document.addEventListener('copy', function () { if (window.isExamRunning) window.__aiSig.copy++; }, true);
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

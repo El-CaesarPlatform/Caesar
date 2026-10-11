@@ -544,10 +544,6 @@
         .home-courses-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
         .home-courses-header a { color:var(--accent-cyan); font-weight:800; font-size:.9rem; cursor:pointer; text-decoration:none; }
 
-        .coming-soon-box { text-align:center; padding:60px 20px; color:var(--text-sub); }
-        .coming-soon-box i { font-size:3rem; color:var(--accent-cyan); margin-bottom:16px; display:block; }
-        .coming-soon-box h3 { color:#fff; margin-bottom:10px; }
-
         /* تصغير القائمة الجانبية */
         .sidebar-collapse-btn { display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:var(--text-sub); cursor:pointer; margin-bottom:14px; transition:all .25s ease; }
         .sidebar-collapse-btn:hover { color:var(--accent-cyan); border-color:var(--accent-cyan); }
@@ -634,7 +630,6 @@
         /* أثناء الامتحان: شاشة الامتحان بس، وباقي الأقسام والقائمة مخفية */
         body.exam-mode .sidebar,
         body.exam-mode #home-section,
-        body.exam-mode #forum-section,
         body.exam-mode #courses-section,
         body.exam-mode #units-section,
         body.exam-mode #exams-section,
@@ -1346,6 +1341,17 @@
             border-color: var(--accent-cyan);
         }
 
+        .account-subscriptions-section { width: 100%; margin-top: 16px; padding: 14px; border: 1px solid rgba(0,242,254,.18); border-radius: 16px; background: rgba(0,0,0,.18); text-align: right; }
+        .account-subscriptions-section h3 { margin: 0 0 12px !important; color: var(--accent-cyan) !important; font-size: 1rem !important; }
+        .my-subscription-list { display: grid; gap: 10px; margin-top: 12px; }
+        .my-subscription-card { padding: 13px; border: 1px solid rgba(0,242,254,.18); border-radius: 14px; background: linear-gradient(145deg,rgba(17,34,52,.92),rgba(12,18,31,.96)); text-align: right; }
+        .my-subscription-card h4 { margin: 8px 0; color: #fff; font-size: .95rem; line-height: 1.6; }
+        .my-subscription-card p { margin: 4px 0; color: #aebbd0; font-size: .77rem; line-height: 1.7; }
+        .my-subscription-status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; color: #3de49b; background: rgba(39,209,129,.12); font-size: .7rem; font-weight: 900; }
+        .my-subscription-status.expired { color: #ff8791; background: rgba(239,68,68,.12); }
+        .my-subscription-countdown { margin-top: 8px !important; color: #52dcf2 !important; font-weight: 900; }
+        .my-subscription-countdown.expired { color: #ff8791 !important; }
+        .my-subscription-card .course-btn { margin-top: 10px; padding: 8px 10px; font-size: .78rem; }
         /* كارت جدول النتائج الحقيقية فقط */
         .account-results-card {
             background: #0f1422;
@@ -1573,6 +1579,391 @@
             .modal-content { padding: 22px 16px; }
             .subscription-summary { padding: 14px; font-size: 0.9rem; }
         }
+
+        /* تحسين واجهة المنصة مع الحفاظ على الأقسام والبيانات الحالية */
+        body:not(.exam-mode) {
+            background-color: #0b0c10;
+            background-image:
+                radial-gradient(ellipse at 12% 0%, rgba(0, 210, 255, 0.09), transparent 38%),
+                radial-gradient(ellipse at 100% 100%, rgba(105, 75, 190, 0.08), transparent 42%);
+        }
+        body:not(.exam-mode) .sidebar:not(.collapsed) {
+            width: 270px;
+            padding: 22px 16px;
+            background: linear-gradient(180deg, rgba(0, 210, 255, 0.045), transparent 38%), rgba(5, 6, 8, 0.97);
+            border-left: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: -12px 0 38px rgba(0, 0, 0, 0.14);
+        }
+        .brand-row { gap: 9px; margin-bottom: 18px; }
+        .brand-logo { width: 42px; height: 42px; }
+        .sidebar h2 { font-size: 1.42rem; margin-bottom: 0; }
+        .user-box {
+            margin: 0 0 22px;
+            padding: 15px 12px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.10), rgba(157, 78, 221, 0.09));
+            border: 1px solid rgba(0, 210, 255, 0.16);
+            box-shadow: none;
+        }
+        .sidebar-menu li {
+            min-height: 45px;
+            margin-bottom: 6px;
+            padding: 10px 13px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+        .sidebar-menu li.active, .sidebar-menu li:hover {
+            transform: none;
+            background: rgba(0, 210, 255, 0.10);
+            border-color: rgba(0, 210, 255, 0.20);
+            box-shadow: inset -3px 0 #00d2ff;
+        }
+        body:not(.exam-mode) .main-content {
+            min-width: 0;
+            padding: 30px clamp(18px, 3.1vw, 42px) 40px;
+        }
+        .section-title {
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 1.55rem;
+        }
+        .section-title > i { color: var(--accent-cyan); font-size: 1.15em; }
+        .section-title::after { opacity: 0.42; }
+        .home-stats-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            min-height: 94px;
+            padding: 17px 19px;
+            border: 1px solid rgba(0, 210, 255, 0.16);
+            border-radius: 17px;
+            background: linear-gradient(145deg, rgba(25, 35, 52, 0.98), rgba(14, 20, 32, 0.98));
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .stat-card:hover { transform: translateY(-2px); border-color: rgba(0, 210, 255, 0.34); }
+        .stat-card .stat-num { color: #fff; font-size: 1.8rem; line-height: 1.2; }
+        .stat-card .stat-label { color: #aebbd0; font-size: 0.82rem; }
+        .stat-card .stat-icon {
+            width: 43px;
+            height: 43px;
+            border-radius: 14px;
+            color: var(--accent-cyan);
+            background: rgba(0, 210, 255, 0.12);
+            font-size: 1.05rem;
+        }
+        .home-main-grid {
+            grid-template-columns: minmax(225px, 0.72fr) minmax(0, 1.6fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .progress-card, .chart-card {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            background: linear-gradient(155deg, rgba(25, 34, 51, 0.96), rgba(13, 18, 29, 0.98));
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+        }
+        .progress-card { padding: 22px 18px; }
+        .progress-card .progress-title { margin-bottom: 8px; font-size: 0.86rem; }
+        .progress-card .progress-value { margin-bottom: 12px; color: var(--accent-cyan); font-size: 2rem; }
+        .progress-bar-track { height: 9px; margin-bottom: 12px; background: rgba(255, 255, 255, 0.09); }
+        .progress-bar-fill { background: linear-gradient(90deg, #00a8ff, #00d2ff); }
+        .progress-card .progress-desc { font-size: 0.78rem; }
+        .chart-card { padding: 19px; }
+        .chart-card h3 { margin-bottom: 10px; font-size: 1rem; }
+        .chart-legend { flex-wrap: wrap; gap: 8px 15px; font-size: 0.76rem; }
+        .chart-card canvas { max-height: 220px; }
+        .home-courses-header { gap: 12px; margin: 0 0 12px; }
+        .home-courses-header .section-title { font-size: 1.2rem; }
+        .home-courses-header a { white-space: nowrap; font-size: 0.82rem; }
+        .courses-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+        .course-card {
+            position: relative;
+            isolation: isolate;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(0, 210, 255, 0.14);
+            border-radius: 21px;
+            background: linear-gradient(150deg, #1a2940, #0d1422 78%);
+            box-shadow: 0 15px 34px rgba(0, 0, 0, 0.28), inset 0 1px rgba(255, 255, 255, 0.035);
+            transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+        }
+        .course-card::before {
+            content: "";
+            position: absolute;
+            z-index: 3;
+            top: 0;
+            right: 10%;
+            width: 80%;
+            height: 2px;
+            pointer-events: none;
+            background: linear-gradient(90deg, transparent, rgba(0, 210, 255, 0.85), rgba(157, 78, 221, 0.65), transparent);
+        }
+        .course-card::after {
+            content: "";
+            position: absolute;
+            z-index: 0;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 100% 0, rgba(0, 210, 255, 0.09), transparent 42%);
+        }
+        .course-card:hover { transform: translateY(-4px); border-color: rgba(0, 210, 255, 0.42); box-shadow: 0 21px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(0, 210, 255, 0.07); }
+        .course-cover { position: relative; z-index: 1; aspect-ratio: 16 / 8.5; object-fit: cover; border-bottom: 1px solid rgba(0, 210, 255, 0.16); background: linear-gradient(135deg, #111b2c, #17263b); color: var(--accent-cyan); }
+        .course-body { position: relative; z-index: 2; display: flex; flex: 1; flex-direction: column; align-items: stretch; padding: 19px; }
+        .course-grade { display: inline-flex; align-self: flex-start; padding: 4px 10px; border: 1px solid rgba(0, 210, 255, 0.18); border-radius: 999px; background: rgba(0, 210, 255, 0.08); font-size: 0.76rem; }
+        .course-body h3 { margin: 9px 0 5px; font-size: 1.18rem; line-height: 1.55; }
+        .course-body p { flex: 1; min-height: 48px; color: #aab6c9; font-size: 0.84rem; }
+        .course-status { align-self: flex-start; padding: 5px 10px; border: 1px solid rgba(0, 245, 212, 0.17); border-radius: 999px; background: rgba(0, 245, 212, 0.10); font-size: 0.75rem; }
+        .course-btn {
+            min-height: 44px;
+            padding: 10px 13px;
+            border-radius: 11px;
+            background: linear-gradient(105deg, #08b9d5, #087fff 70%, #4268e8);
+            box-shadow: 0 9px 22px rgba(0, 136, 255, 0.22), inset 0 1px rgba(255, 255, 255, 0.16);
+            font-family: inherit;
+            font-size: 0.87rem;
+            font-weight: 800;
+            transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+        }
+        .course-btn:hover { transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 12px 26px rgba(0, 136, 255, 0.28); }
+        .subscription-summary {
+            margin-bottom: 16px;
+            padding: 14px 17px;
+            border: 1px solid rgba(0, 210, 255, 0.15);
+            border-radius: 14px;
+            background: rgba(0, 210, 255, 0.06);
+            color: #c1ccdb;
+            line-height: 1.8;
+        }
+        .course-hero {
+            margin-bottom: 17px;
+            padding: 17px 19px;
+            border: 1px solid rgba(0, 210, 255, 0.17);
+            border-radius: 16px;
+            background: linear-gradient(105deg, rgba(0, 136, 255, 0.13), rgba(157, 78, 221, 0.08));
+        }
+        .course-hero h3 { margin: 0; font-size: 1.05rem; line-height: 1.7; }
+        .exam-card {
+            min-height: 300px;
+            padding: 24px;
+            border: 1px solid rgba(0, 210, 255, 0.20);
+            border-radius: 21px;
+            background: radial-gradient(circle at 0 0, rgba(0, 210, 255, 0.12), transparent 35%), linear-gradient(145deg, #17243a, #0e1422 78%);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+        }
+        .exam-card::after { top: 20px; right: 22px; padding: 6px 11px; font-size: 0.72rem; }
+        .exam-card h3 { top: 20px; left: 22px; padding: 6px 10px; font-size: 0.75rem; }
+        .exam-card h4 { margin: 72px 0 14px; font-size: 1.28rem; }
+        .exam-card p { margin-bottom: 17px; padding: 13px 15px; border-radius: 13px; background: rgba(5, 10, 20, 0.55); font-size: 0.87rem; }
+        .exam-card .btn-exam { min-height: 48px; border-radius: 12px; background: linear-gradient(100deg, #00b9dc, #087fff); box-shadow: 0 9px 22px rgba(0, 136, 255, 0.2); font-size: 0.92rem; }
+        .exam-card .btn-exam:hover { transform: translateY(-1px); }
+        .unit-acc { margin-bottom: 13px; overflow: hidden; border: 1px solid rgba(0, 210, 255, 0.14); border-radius: 16px; background: rgba(17, 24, 39, 0.82); }
+        .unit-acc-head { padding: 15px 17px; }
+        .unit-acc.open .unit-acc-head { background: linear-gradient(90deg, rgba(0, 136, 255, 0.13), rgba(157, 78, 221, 0.09)); }
+        .unit-acc-title { font-size: 1.02rem; }
+        .unit-acc-chevron { width: 30px; height: 30px; background: rgba(0, 210, 255, 0.10); color: var(--accent-cyan); }
+        .unit-acc-body { padding: 12px 13px 5px; }
+        .unit-row {
+            min-height: 62px;
+            margin-bottom: 9px;
+            padding: 11px 13px;
+            border: 1px solid rgba(255, 255, 255, 0.055);
+            border-right: 3px solid rgba(255, 255, 255, 0.15);
+            border-bottom-width: 1px;
+            border-radius: 12px;
+            background: rgba(7, 11, 19, 0.72);
+        }
+        .unit-row-video { border-right-color: #ff6b86; }
+        .unit-row-exam { border-right-color: var(--accent-gold); }
+        .unit-row-file { border-right-color: #73849e; }
+        .unit-row-icon { width: 38px; height: 38px; border-radius: 12px; color: var(--accent-cyan); background: rgba(0, 210, 255, 0.10); }
+        .unit-row-title { font-size: 0.91rem; }
+        .unit-row-btn { min-height: 38px; padding: 8px 13px; border-radius: 10px; background: #087fff; }
+        .unit-row-exam .unit-row-btn:not(:disabled) { color: #101010; background: var(--accent-gold); }
+        .unit-row-done .unit-row-btn { color: #fff; background: #176b4c; }
+        .exam-result-panel { border-radius: 12px; box-shadow: none; }
+        .account-profile-card, .account-results-card { border-radius: 18px; }
+        .modal-content { border-radius: 18px; box-shadow: 0 24px 65px rgba(0, 0, 0, 0.45); }
+
+        @media (max-width: 900px) {
+            .home-main-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+            .home-stats-grid { gap: 10px; }
+            .stat-card { padding: 14px; }
+        }
+        @media (max-width: 768px) {
+            body:not(.exam-mode) .sidebar { width: 100%; gap: 8px; padding: 10px 12px; }
+            .sidebar > div { gap: 7px; }
+            .brand-row { justify-content: flex-start; margin-bottom: 0; }
+            .brand-logo { width: 34px; height: 34px; }
+            .sidebar h2 { font-size: 1rem; }
+            .user-box { padding: 7px 11px; }
+            .sidebar-menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+            .sidebar-menu li { min-width: 0; min-height: 39px; padding: 7px 4px; font-size: 0.73rem; }
+            .sidebar-menu li > span:first-child { font-size: 0.9rem; }
+            body:not(.exam-mode) .main-content { padding: 19px 15px 28px; }
+            .section-title { font-size: 1.28rem; margin-bottom: 16px; }
+            .home-main-grid { grid-template-columns: 1fr; }
+            .progress-card { order: 0; }
+            .chart-card { order: 1; }
+            .exam-card { min-height: 280px; padding: 20px; }
+            .exam-card h4 { margin-top: 70px; font-size: 1.14rem; }
+        }
+        @media (max-width: 480px) {
+            body:not(.exam-mode) .sidebar { padding: 8px 9px; }
+            .sidebar > div { gap: 6px; }
+            .brand-row { gap: 7px; }
+            .sidebar h2 { font-size: 0.91rem; }
+            .user-box h3 { font-size: 0.84rem !important; }
+            .sidebar-menu { gap: 4px; }
+            .sidebar-menu li { min-height: 37px; gap: 4px; font-size: 0.67rem; }
+            body:not(.exam-mode) .main-content { padding: 15px 11px 24px; }
+            .home-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .stat-card { min-height: 79px; padding: 11px; border-radius: 14px; }
+            .stat-card .stat-num { font-size: 1.48rem; }
+            .stat-card .stat-label { font-size: 0.71rem; }
+            .stat-card .stat-icon { width: 36px; height: 36px; border-radius: 11px; font-size: 0.9rem; }
+            .home-courses-header { align-items: flex-start; }
+            .home-courses-header .section-title { font-size: 1rem; }
+            .home-courses-header a { font-size: 0.75rem; }
+            .courses-grid { grid-template-columns: 1fr; }
+            .course-cover { aspect-ratio: 16 / 8; }
+            .unit-row { gap: 8px; }
+            .unit-row-title { min-width: 0; font-size: 0.86rem; }
+            .unit-row-btn { font-size: 0.77rem; }
+            .exam-card { min-height: 270px; padding: 17px; border-radius: 17px; }
+            .exam-card::after { top: 15px; right: 14px; }
+            .exam-card h3 { top: 15px; left: 14px; }
+            .exam-card h4 { margin-top: 67px; font-size: 1.03rem; }
+            .exam-card p { padding: 11px; font-size: 0.8rem; }
+            .subscription-summary { padding: 12px; }
+        }
+
+        /* نافذة مراجعة الإجابات والنتيجة */
+        #answers-review-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            direction: rtl;
+            background: rgba(3, 7, 14, 0.84);
+            backdrop-filter: blur(14px);
+        }
+        .answers-review-dialog {
+            display: flex;
+            flex-direction: column;
+            width: min(100%, 780px);
+            max-height: min(88vh, 820px);
+            overflow: hidden;
+            border: 1px solid rgba(0, 210, 255, 0.25);
+            border-radius: 22px;
+            background: linear-gradient(145deg, #111a2b, #0b111e 72%);
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.58), 0 0 38px rgba(0, 210, 255, 0.08);
+            animation: reviewDialogIn 0.22s ease-out;
+        }
+        @keyframes reviewDialogIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .answers-review-header, .answers-review-footer {
+            flex: none;
+            background: rgba(21, 31, 48, 0.96);
+        }
+        .answers-review-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 16px 21px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .answers-review-title { margin: 0; color: #eaf8ff; font-size: 1.03rem; font-weight: 900; line-height: 1.6; }
+        .answers-review-title i { margin-left: 7px; color: var(--accent-cyan); }
+        .answers-review-close {
+            display: grid;
+            place-items: center;
+            flex: none;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            color: #d4e4f3;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: .18s ease;
+        }
+        .answers-review-close:hover { color: #fff; background: rgba(255, 82, 104, 0.18); border-color: rgba(255, 82, 104, 0.35); }
+        .answers-review-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px; }
+        .review-result-card {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 19px;
+            padding: 19px;
+            border: 1px solid rgba(0, 210, 255, 0.22);
+            border-radius: 18px;
+            background: radial-gradient(circle at 100% 0, rgba(0, 210, 255, 0.13), transparent 42%), linear-gradient(120deg, rgba(17, 39, 57, 0.98), rgba(17, 24, 39, 0.98));
+        }
+        .review-result-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+        .review-score-label { display: block; margin-bottom: 5px; color: #aebbd0; font-size: .82rem; font-weight: 700; }
+        .review-score-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+        .review-score-main strong { color: #fff; font-size: clamp(1.55rem, 4vw, 2.1rem); line-height: 1.25; font-weight: 900; }
+        .review-score-main span { color: #9badc2; font-size: .9rem; font-weight: 700; }
+        .review-percent { display: grid; place-items: center; flex: none; width: 82px; height: 82px; border: 1px solid rgba(0, 210, 255, 0.30); border-radius: 50%; color: var(--accent-cyan); background: rgba(0, 210, 255, 0.09); box-shadow: inset 0 0 20px rgba(0, 210, 255, 0.07); }
+        .review-percent strong { font-size: 1.18rem; font-weight: 900; }
+        .review-percent small { margin-top: -15px; color: #aebbd0; font-size: .65rem; }
+        .review-progress { height: 7px; margin-top: 16px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, 0.10); }
+        .review-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #00a8ff, #35e0b1); box-shadow: 0 0 16px rgba(0, 210, 255, .38); }
+        .review-count-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
+        .review-count {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            padding: 12px 13px;
+            border: 1px solid rgba(255, 255, 255, 0.075);
+            border-radius: 13px;
+            background: rgba(5, 10, 19, 0.46);
+        }
+        .review-count-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 11px; font-size: .91rem; }
+        .review-count.correct .review-count-icon { color: #3de49b; background: rgba(39, 209, 129, .13); }
+        .review-count.wrong .review-count-icon { color: #ff7881; background: rgba(239, 68, 68, .13); }
+        .review-count.total .review-count-icon { color: #53d8f1; background: rgba(0, 210, 255, .12); }
+        .review-count strong { display: block; color: #f5f8ff; font-size: 1.12rem; font-weight: 900; line-height: 1.2; }
+        .review-count small { display: block; margin-top: 3px; color: #9eacc0; font-size: .72rem; }
+        .review-extra { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+        .review-extra span { padding: 5px 9px; border-radius: 8px; color: #f5d477; background: rgba(255, 190, 11, .10); font-size: .72rem; font-weight: 800; }
+        .review-pending-banner { margin-bottom: 15px; padding: 13px 15px; border: 1px solid rgba(255, 190, 11, .25); border-radius: 13px; color: #ffe08a; background: rgba(255, 190, 11, .08); font-weight: 800; }
+        .review-question-list { margin-top: 0 !important; padding-top: 0 !important; border-top: 0 !important; }
+        .review-list-title { margin: 0 0 13px !important; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); color: #e8f5ff !important; font-size: 1rem !important; }
+        .review-question { border-radius: 15px !important; box-shadow: 0 8px 22px rgba(0,0,0,.15); }
+        .review-key-answer { display: flex; flex: 0 0 auto; align-self: flex-start; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; width: fit-content; max-width: 100%; min-height: 0 !important; height: auto !important; margin-top: 8px; padding: 7px 10px; border: 1px solid rgba(0,210,255,.24); border-right: 3px solid #00d2ff; border-radius: 10px; background: rgba(0,210,255,.07); }
+        .review-key-answer .review-key-label { display: inline; color: #b9c9da !important; font-size: .78rem !important; font-weight: 800; }
+        .review-key-answer strong { display: inline; margin: 0; color: #54e2ff !important; font-size: .84rem; line-height: 1.55; overflow-wrap: anywhere; }
+        .review-option { flex-wrap: wrap; }
+        .review-option > span:nth-child(2) { min-width: 45%; }
+        .review-question > div:first-child strong { font-size: 1rem !important; }
+        @media (max-width: 600px) { .review-question { padding: 10px !important; margin-bottom: 10px !important; } .review-question > div:first-child { margin-bottom: 6px !important; } .review-option { gap: 7px !important; padding: 8px 9px !important; font-size: .82rem !important; } .review-option > span:first-child { width: 26px !important; height: 26px !important; } .review-option > span:last-child { white-space: normal !important; } .review-key-answer { margin-top: 6px; padding: 6px 8px; } }
+        .answers-review-footer { display: flex; justify-content: center; padding: 12px 18px; border-top: 1px solid rgba(255,255,255,.08); }
+        .answers-review-footer button { min-width: 120px; min-height: 42px; border: 0; border-radius: 11px; color: #07131a; background: linear-gradient(100deg, #17c5e3, #0785f7); font-family: inherit; font-size: .9rem; font-weight: 900; cursor: pointer; transition: filter .18s ease, transform .18s ease; }
+        .answers-review-footer button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        @media (max-width: 600px) {
+            #answers-review-modal { padding: 6px; }
+            .answers-review-dialog { width: 100%; max-height: 90vh; border-radius: 15px; }
+            .answers-review-header { padding: 12px 14px; }
+            .answers-review-title { font-size: .88rem; }
+            .answers-review-body { padding: 9px; }
+            .review-result-card { padding: 11px; margin-bottom: 12px; border-radius: 13px; }
+            .review-percent { width: 68px; height: 68px; }
+            .review-count-grid { gap: 7px; }
+            .review-count { flex-direction: column; align-items: flex-start; gap: 7px; padding: 10px; }
+            .review-count small { font-size: .66rem; }
+        }
+        @media (max-width: 370px) {
+            .review-count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .review-count.total { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+        }
     </style>
 </head>
 <body>
@@ -1608,7 +1999,6 @@
             <li class="active" id="tab-btn-home" onclick="switchTab('home')"><span aria-hidden="true"><i class="fas fa-house"></i></span><span class="menu-label">الرئيسية</span></li>
             <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true"><i class="fas fa-graduation-cap"></i></span><span class="menu-label">الكورسات</span></li>
             <li id="tab-btn-units" onclick="switchTab('units')"><span aria-hidden="true"><i class="fas fa-book"></i></span><span class="menu-label">المحتوى التعليمي</span></li>
-            <li id="tab-btn-forum" onclick="switchTab('forum')"><span aria-hidden="true"><i class="fas fa-comments"></i></span><span class="menu-label">المنتدى</span></li>
             <li id="tab-btn-account" onclick="switchTab('account')"><span aria-hidden="true"><i class="fas fa-user"></i></span><span class="menu-label">حسابي</span></li>
             <li id="tab-btn-logout" onclick="logoutStudent()" style="margin-top:6px; color:#ff6b6b;"><span aria-hidden="true"><i class="fas fa-right-from-bracket" style="color:#ff6b6b;"></i></span><span class="menu-label" style="color:#ff6b6b;">تسجيل الخروج</span></li>
         </ul>
@@ -1660,16 +2050,6 @@
             <a onclick="switchTab('courses')">عرض الكورسات <i class="fas fa-arrow-left"></i></a>
         </div>
         <div id="home-subscriptions-list"></div>
-    </div>
-
-    <!-- المنتدى (قريباً) -->
-    <div id="forum-section" style="display:none;">
-        <h2 class="section-title"><i class="fas fa-comments"></i> المنتدى</h2>
-        <div class="coming-soon-box">
-            <i class="fas fa-comments"></i>
-            <h3>المنتدى قريباً</h3>
-            <p>هنا هتقدر تتناقش مع زمايلك وتسأل أسئلتك.. تابعنا قريباً!</p>
-        </div>
     </div>
 
     <!-- الكورسات: تظهر قبل المحتوى العلمي -->
@@ -1749,11 +2129,17 @@
                         </span>
                         <span><i class="fas fa-chevron-left"></i></span>
                     </button>
+
+                <button class="account-action-btn" type="button" aria-expanded="false" onclick="toggleStudentSubscriptions()" style="margin-top:10px;">
+                    <span style="display:flex;align-items:center;gap:8px;"><i class="fas fa-bookmark" style="color:var(--accent-cyan);"></i> اشتراكي</span>
+                    <span><i class="fas fa-chevron-down"></i></span>
+                </button>
                 </div>
-                <div style="margin-top:20px;text-align:right;">
-                    <h3 style="font-size:1.05rem;color:var(--accent-cyan);margin-bottom:12px;"><i class="fas fa-circle-check"></i> اشتراكاتي</h3>
-                    <div id="subscriptions-list"></div>
-                </div>
+
+            <div id="account-subscriptions-section" class="account-subscriptions-section" style="display:none;">
+                <h3><i class="fas fa-circle-check"></i> اشتراكي</h3>
+                <div id="subscriptions-list"></div>
+            </div>
             </div>
 
             <!-- جدول نتائج الطالب الحقيقية -->
@@ -1917,3 +2303,10 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
