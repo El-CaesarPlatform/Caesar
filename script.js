@@ -3646,18 +3646,32 @@ function getMistakeQuestionsStorageKey(courseId) {
     return `mistake_questions_${currentStudentIdentity()}_${courseId}`;
 }
 
+// الأسئلة التي أتقنها الطالب لا تُعاد من نتائج الامتحانات القديمة أو نسخة السيرفر.
+function getMasteredMistakesStorageKey(courseId) {
+    return `mastered_mistake_questions_${currentStudentIdentity()}_${courseId}`;
+}
+
+function getMasteredMistakeKeys(courseId) {
+    try {
+        const keys = JSON.parse(localStorage.getItem(getMasteredMistakesStorageKey(courseId)) || '[]');
+        return new Set(Array.isArray(keys) ? keys : []);
+    } catch (e) { return new Set(); }
+}
+
 // ===== أخطاء الطالب بتتخزن على السيرفر عشان تظهر على أي تلفون/جهاز =====
 function mistakesServerDocId(courseId) { return getUniqueDocId(currentStudentIdentity(), 'mistakes_' + courseId); }
 
 function saveMistakesToServer(courseId, map) {
     if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
     const items = Object.entries(map || {}).map(([key, q]) => ({ key, ...q }));
+    const masteredKeys = Array.from(getMasteredMistakeKeys(courseId));
     db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).set({
         courseId: courseId,
         studentKey: currentStudentIdentity(),
         studentName: localStorage.getItem('student_fullname') || '',
         studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
         items: items,
+        masteredKeys: masteredKeys,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(e => console.warn('تعذر حفظ أسئلة الأخطاء على السيرفر:', e));
 }
@@ -3669,8 +3683,12 @@ async function syncMistakesFromServer(courseId) {
     try {
         const snap = await db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).get();
         if (snap.exists) {
+            const serverData = snap.data() || {};
+            const mastered = getMasteredMistakeKeys(courseId);
+            (Array.isArray(serverData.masteredKeys) ? serverData.masteredKeys : []).forEach(k => mastered.add(k));
+            localStorage.setItem(getMasteredMistakesStorageKey(courseId), JSON.stringify(Array.from(mastered)));
             const map = {};
-            (snap.data().items || []).forEach(it => { const { key: k, ...q } = it; if (k) map[k] = q; });
+            (serverData.items || []).forEach(it => { const { key: k, ...q } = it; if (k && !mastered.has(k)) map[k] = q; });
             localStorage.setItem(key, JSON.stringify(map));
         } else {
             const local = JSON.parse(localStorage.getItem(key) || '{}') || {};
@@ -3705,7 +3723,9 @@ async function loadReleasedExamIds() {
 function getCourseMistakeQuestions(courseId) {
     try {
         const value = JSON.parse(localStorage.getItem(getMistakeQuestionsStorageKey(courseId)) || '{}');
+        const mastered = getMasteredMistakeKeys(courseId);
         return Object.entries(value || {}).map(([key, question]) => ({ key, ...question }))
+            .filter(q => !mastered.has(q.key))
             .filter(q => releasedExamIdsCache && releasedExamIdsCache.has(q.sourceExam))
             .filter(q => Array.isArray(q.options) && q.options.length > 0 && q.correctAnswer); // اختيار من متعدد فقط، المقالي لأ
     } catch (e) { return []; }
@@ -3746,6 +3766,7 @@ async function backfillMistakesFromPastResults(course) {
 
     let mistakeMap = {};
     try { mistakeMap = JSON.parse(localStorage.getItem(getMistakeQuestionsStorageKey(course.id)) || '{}') || {}; } catch (e) {}
+    const masteredMistakes = getMasteredMistakeKeys(course.id);
     let added = 0;
 
     records.forEach(record => {
@@ -3778,7 +3799,7 @@ async function backfillMistakesFromPastResults(course) {
 
             const questionText = answer.question || answer.text || answer.questionText || `سؤال ${index + 1}`;
             const stableKey = `${examId}_${index}_${String(questionText).slice(0, 80)}`;
-            if (mistakeMap[stableKey]) return;
+            if (mistakeMap[stableKey] || masteredMistakes.has(stableKey)) return;
             mistakeMap[stableKey] = {
                 question: questionText,
                 options: answer.options,
@@ -3854,9 +3875,14 @@ function pruneMasteredMistakes(questions, answers) {
     try {
         const key = getMistakeQuestionsStorageKey(courseId);
         const map = JSON.parse(localStorage.getItem(key) || '{}') || {};
+        const mastered = getMasteredMistakeKeys(courseId);
         questions.forEach((q, i) => {
-            if (q.mistakeKey && answers[i] && answers[i].isCorrect === true) delete map[q.mistakeKey];
+            if (q.mistakeKey && answers[i] && answers[i].isCorrect === true) {
+                delete map[q.mistakeKey];
+                mastered.add(q.mistakeKey);
+            }
         });
+        localStorage.setItem(getMasteredMistakesStorageKey(courseId), JSON.stringify(Array.from(mastered)));
         localStorage.setItem(key, JSON.stringify(map));
         saveMistakesToServer(courseId, map);
     } catch (e) { console.warn('تعذر تحديث أسئلة الأخطاء:', e); }
