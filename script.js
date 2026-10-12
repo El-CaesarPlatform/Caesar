@@ -3,7 +3,7 @@
 // <i class="fas fa-bolt"></i> 1. إعدادات وتصريح Firebase
 // ==========================================
 const firebaseConfig = {
-    APIkey2: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
+    apiKey: "AIzaSyDLNe8dO5ihVHFzGS7jd-t6VDLnXakxxao",
     authDomain: "el-kaiser-platform.firebaseapp.com",
     projectId: "el-kaiser-platform",
     storageBucket: "el-kaiser-platform.firebasestorage.app",
@@ -15,6 +15,7 @@ const firebaseConfig = {
 
 // تهيئة Firebase
 let db;
+let studentAuthPromise = null;
 if (typeof firebase !== 'undefined') {
     try {
         if (!firebase.apps.length) {
@@ -24,6 +25,26 @@ if (typeof firebase !== 'undefined') {
     } catch (e) {
         console.error("خطأ أثناء تهيئة Firebase:", e);
     }
+}
+
+// دخول Firebase مجهول للطالب: يوفّر UID موثّقاً لحماية سجل الأخطاء على هذا المتصفح.
+async function ensureStudentFirebaseAuth() {
+    if (typeof firebase === 'undefined' || !firebase.auth) {
+        throw new Error('Firebase Authentication غير محمّل');
+    }
+    if (!studentAuthPromise) {
+        studentAuthPromise = (async () => {
+            const auth = firebase.auth();
+            try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+            if (auth.currentUser) return auth.currentUser;
+            const credential = await auth.signInAnonymously();
+            return credential.user;
+        })().catch(error => {
+            studentAuthPromise = null;
+            throw error;
+        });
+    }
+    return studentAuthPromise;
 }
 
 // ==========================================
@@ -3659,21 +3680,25 @@ function getMasteredMistakeKeys(courseId) {
 }
 
 // ===== أخطاء الطالب بتتخزن على السيرفر عشان تظهر على أي تلفون/جهاز =====
-function mistakesServerDocId(courseId) { return getUniqueDocId(currentStudentIdentity(), 'mistakes_' + courseId); }
+function mistakesServerDocId(courseId, authUid) { return getUniqueDocId(authUid, 'mistakes_' + courseId); }
 
-function saveMistakesToServer(courseId, map) {
+async function saveMistakesToServer(courseId, map) {
     if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
-    const items = Object.entries(map || {}).map(([key, q]) => ({ key, ...q }));
-    const masteredKeys = Array.from(getMasteredMistakeKeys(courseId));
-    db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).set({
-        courseId: courseId,
-        studentKey: currentStudentIdentity(),
-        studentName: localStorage.getItem('student_fullname') || '',
-        studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
-        items: items,
-        masteredKeys: masteredKeys,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(e => console.warn('تعذر حفظ أسئلة الأخطاء على السيرفر:', e));
+    try {
+        const user = await ensureStudentFirebaseAuth();
+        const items = Object.entries(map || {}).map(([key, q]) => ({ key, ...q }));
+        const masteredKeys = Array.from(getMasteredMistakeKeys(courseId));
+        await db.collection('student_mistakes').doc(mistakesServerDocId(courseId, user.uid)).set({
+            authUid: user.uid,
+            courseId: courseId,
+            studentKey: currentStudentIdentity(),
+            studentName: localStorage.getItem('student_fullname') || '',
+            studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
+            items: items,
+            masteredKeys: masteredKeys,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) { console.warn('تعذر حفظ أسئلة الأخطاء على السيرفر:', e); }
 }
 
 // السيرفر هو المرجع: لو فيه نسخة بنحمّلها على الجهاز، ولو مفيش بنرفع اللي على الجهاز
@@ -3681,7 +3706,8 @@ async function syncMistakesFromServer(courseId) {
     if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
     const key = getMistakeQuestionsStorageKey(courseId);
     try {
-        const snap = await db.collection('student_mistakes').doc(mistakesServerDocId(courseId)).get();
+        const user = await ensureStudentFirebaseAuth();
+        const snap = await db.collection('student_mistakes').doc(mistakesServerDocId(courseId, user.uid)).get();
         if (snap.exists) {
             const serverData = snap.data() || {};
             const mastered = getMasteredMistakeKeys(courseId);
