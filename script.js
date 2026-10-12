@@ -1378,6 +1378,7 @@ function switchTab(tab) {
         showCustomToast("<i class='fas fa-triangle-exclamation'></i> عذراً! لا يمكنك التنقل بين الأقسام أثناء أداء الامتحان.", "warning");
         return;
     }
+    closeMobileSidebar();
 
     const tabs = {
         'home': { btn: document.getElementById('tab-btn-home'), sec: document.getElementById('home-section') },
@@ -1418,6 +1419,32 @@ function toggleSidebarCollapse() {
     const sb = document.getElementById('app-sidebar');
     if (sb) sb.classList.toggle('collapsed');
 }
+
+function toggleMobileSidebar() {
+    const isOpen = document.body.classList.toggle('mobile-sidebar-open');
+    const button = document.getElementById('mobile-sidebar-toggle');
+    if (button) {
+        button.setAttribute('aria-expanded', String(isOpen));
+        button.setAttribute('aria-label', isOpen ? 'إغلاق القائمة' : 'فتح القائمة');
+        button.innerHTML = `<i class="fas ${isOpen ? 'fa-xmark' : 'fa-bars'}" aria-hidden="true"></i>`;
+    }
+}
+
+function closeMobileSidebar() {
+    document.body.classList.remove('mobile-sidebar-open');
+    const button = document.getElementById('mobile-sidebar-toggle');
+    if (button) {
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'فتح القائمة');
+        button.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
+    }
+}
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && document.body.classList.contains('mobile-sidebar-open')) {
+        closeMobileSidebar();
+    }
+});
 
 // <i class="fas fa-circle-check"></i> متوسّط النتائج بتصميم احترافي وألوان
 function renderStudentPerformanceSummary() {
@@ -1994,7 +2021,7 @@ function calculateAndSend(bypassValidation = false) {
     // احفظ أخطاء أسئلة الاختيار للكورس الحالي حتى تظهر في تدريب "أسئلة من أخطائك".
     const practiceCourseId = window.currentCourseIdForExam || activeCourseId;
     const practiceCourse = coursesCache.find(c => c.id === practiceCourseId);
-    if (practiceCourseId && practiceCourse && practiceCourse.isPaid === true && !String(currentActiveSubject).startsWith('mistake_practice_')) {
+    if (practiceCourseId && practiceCourse && !String(currentActiveSubject).startsWith('mistake_practice_')) {
         const mistakeKey = getMistakeQuestionsStorageKey(practiceCourseId);
         let mistakeMap = {};
         try { mistakeMap = JSON.parse(localStorage.getItem(mistakeKey) || '{}') || {}; } catch (e) {}
@@ -2986,11 +3013,20 @@ function buildUnitItemRowHtml(it, openCallExpr) {
             if (stats) {
                 const released = stats.canReview === true;
                 const cancelledChip = stats.score === 'ملغي';
+                const earnedScore = Number(stats.scoreNum ?? stats.finalScore ?? stats.mcqScore);
+                const possibleScore = Number(stats.maxScoreNum ?? stats.maxScore ?? stats.maxExamScore);
+                const percentMatch = String(stats.percentage || '').match(/\d+(?:\.\d+)?/);
+                const resultPercent = Number.isFinite(earnedScore) && Number.isFinite(possibleScore) && possibleScore > 0
+                    ? Math.max(0, Math.min(100, Math.round((earnedScore / possibleScore) * 100)))
+                    : (percentMatch ? Math.max(0, Math.min(100, Math.round(Number(percentMatch[0])))) : null);
                 const scoreChip = cancelledChip
                     ? `<div class="exam-result-chip" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.4);"><i class="fas fa-ban"></i> <b>امتحانك ملغي - تواصل مع الدعم</b></div>`
                     : released
-                    ? `<div class="exam-result-chip score"><i class="fas fa-trophy"></i> <b>${escapeHtml(stats.score || '')}</b>${stats.percentage ? ' (' + escapeHtml(stats.percentage) + ')' : ''}</div>`
+                    ? `<div class="exam-result-chip score"><span><i class="fas fa-trophy"></i> درجتك</span><b>${escapeHtml(stats.score || '')}</b>${resultPercent !== null ? `<strong class="exam-result-percent">${resultPercent}%</strong>` : ''}</div>`
                     : `<div class="exam-result-chip pending"><i class="fas fa-hourglass-half"></i> <b>قيد التصحيح</b></div>`;
+                const progressHtml = released && !cancelledChip && resultPercent !== null
+                    ? `<div class="exam-result-progress" role="progressbar" aria-label="نسبة نتيجة الامتحان" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${resultPercent}"><div class="exam-result-progress-fill" style="width:${resultPercent}%"></div></div>`
+                    : '';
                 const metaChips = [];
                 if (stats.startTime) metaChips.push(`<span><i class="fas fa-circle"></i> بدأ: ${escapeHtml(stats.startTime)}</span>`);
                 if (stats.endTime) metaChips.push(`<span><i class="fas fa-flag-checkered"></i> سلّم: ${escapeHtml(stats.endTime)}</span>`);
@@ -2998,6 +3034,7 @@ function buildUnitItemRowHtml(it, openCallExpr) {
                 detailsHtml += `
                     <div class="exam-result-panel">
                         ${scoreChip}
+                        ${progressHtml}
                         ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
                         ${released && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')"><i class="fas fa-clipboard-list"></i> عرض تفاصيل الإجابة</button>` : ''}
                     </div>`;
@@ -3295,7 +3332,7 @@ function buildCourseComparisonHtml(course) {
     const rows = [
         ['ملفات وامتحانات الكورس', true, true],
         ['فيديوهات الكورس', false, true],
-        ['أسئلة من أخطائك (تدريب على الأسئلة اللي غلطت فيها)', false, true],
+        ['أسئلة من أخطائك (تدريب على الأسئلة اللي غلطت فيها)', true, true],
         ...extra.map(f => [String(f), false, true])
     ];
     return `<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-top:6px;">
@@ -3581,7 +3618,8 @@ renderUnitsSection = async function() {
     const banner = document.getElementById('active-course-banner');
     if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}${course.isPaid ? ' <span style="font-size:.7rem;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;margin-right:6px;"><i class="fas fa-gem"></i> مدفوع</span>' : ''}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
 
-    if (course.isPaid === true) { await syncMistakesFromServer(course.id); await loadReleasedExamIds(); }
+    await Promise.all([syncMistakesFromServer(course.id), loadReleasedExamIds()]);
+    await backfillMistakesFromPastResults(course);
     renderMistakePracticeCard(course);
 
     const units = (course.units || []).filter(u => u.isPublished !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -3673,40 +3711,115 @@ function getCourseMistakeQuestions(courseId) {
     } catch (e) { return []; }
 }
 
+// استيراد أخطاء الامتحانات القديمة المنشورة إلى التدريب، مع حفظ نسخة محلية ومنع التكرار.
+async function backfillMistakesFromPastResults(course) {
+    if (!course || !course.id) return;
+    const examIds = new Set();
+    (course.units || []).forEach(unit => (unit.items || []).forEach(item => {
+        if (item && item.type === 'exam' && item.examId) examIds.add(String(item.examId));
+    }));
+    if (!examIds.size) return;
+
+    const code = (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim();
+    const records = getStoredHistory().slice();
+
+    if (typeof db !== 'undefined' && code) {
+        const queries = [
+            db.collection('students').where('studentCode', '==', code).get(),
+            db.collection('students').where('code', '==', code).get(),
+            db.collection('results_archive').where('studentCode', '==', code).get()
+        ];
+        const snapshots = await Promise.all(queries.map(query => query.catch(error => {
+            console.warn('تعذر قراءة بعض نتائج الامتحانات السابقة:', error);
+            return null;
+        })));
+        snapshots.forEach((snapshot, index) => {
+            if (!snapshot) return;
+            snapshot.forEach(doc => {
+                const data = doc.data() || {};
+                if (!recordBelongsToMe(data)) return;
+                if (index < 2 && data.hasSubmitted !== true && data.isSubmitted !== true && !(Array.isArray(data.answers) && data.answers.length)) return;
+                records.push({ ...data, id: data.id || doc.id });
+            });
+        });
+    }
+
+    let mistakeMap = {};
+    try { mistakeMap = JSON.parse(localStorage.getItem(getMistakeQuestionsStorageKey(course.id)) || '{}') || {}; } catch (e) {}
+    let added = 0;
+
+    records.forEach(record => {
+        if (!record || !recordBelongsToMe(record)) return;
+        const examId = String(record.examId || record.examCode || '');
+        if (!examId || examId.startsWith('mistake_practice_') || !examIds.has(examId) || record.examCancelled === true || record.score === 'ملغي' || record.percentage === 'ملغي') return;
+        const released = record.canReview === true || record.showScore === true || record.showResult === true || record.isResultVisible === true;
+        if (!released) return;
+
+        const rawAnswers = record.answers || record.answersList || [];
+        const answersRecord = { ...record, examId };
+        if (!Array.isArray(answersRecord.answers) && rawAnswers) answersRecord.answers = Array.isArray(rawAnswers) ? rawAnswers : Object.values(rawAnswers);
+        // النتائج الأقدم لم تكن تحفظ الاختيارات داخل الإجابة؛ استرجعها من نسخة الامتحان الأصلية.
+        const answers = getAnswersWithQuestionData(answersRecord);
+        answers.forEach((answer, index) => {
+            if (!answer || !Array.isArray(answer.options) || !answer.options.length) return;
+            const answerType = String(answer.type || '').toLowerCase();
+            if (answerType && !['choice', 'mcq', 'multiple-choice', 'multiple choice'].includes(answerType)) return;
+
+            const correctAnswer = answer.correctAnswer || (Number.isInteger(answer.correctIndex) ? answer.options[answer.correctIndex] : '');
+            let wrong = answer.isCorrect === false;
+            if (answer.isCorrect !== true && answer.isCorrect !== false) {
+                if (Number.isInteger(answer.studentIndex) && Number.isInteger(answer.correctIndex)) {
+                    wrong = answer.studentIndex !== answer.correctIndex;
+                } else if (answer.studentAnswer != null && correctAnswer) {
+                    wrong = normalizeArabicText(answer.studentAnswer) !== normalizeArabicText(correctAnswer);
+                }
+            }
+            if (!wrong || !correctAnswer) return;
+
+            const questionText = answer.question || answer.text || answer.questionText || `سؤال ${index + 1}`;
+            const stableKey = `${examId}_${index}_${String(questionText).slice(0, 80)}`;
+            if (mistakeMap[stableKey]) return;
+            mistakeMap[stableKey] = {
+                question: questionText,
+                options: answer.options,
+                correctAnswer: correctAnswer,
+                imageUrl: answer.imageUrl || '',
+                points: answer.points || 1,
+                sourceExam: examId
+            };
+            releasedExamIdsCache.add(examId);
+            added++;
+        });
+    });
+
+    if (added) {
+        const storageKey = getMistakeQuestionsStorageKey(course.id);
+        try { localStorage.setItem(storageKey, JSON.stringify(mistakeMap)); } catch (e) { console.warn('تعذر حفظ الأسئلة القديمة على الجهاز:', e); }
+        saveMistakesToServer(course.id, mistakeMap);
+    }
+}
+
 function renderMistakePracticeCard(course) {
     const old = document.getElementById('mistake-practice-card');
     if (old) old.remove();
     const box = document.createElement('section');
     box.id = 'mistake-practice-card';
     box.className = 'mistake-practice-card';
-
-    if (course.isPaid === true) {
-        // الكورس المدفوع: الميزة شغالة
-        const count = getCourseMistakeQuestions(course.id).length;
-        box.innerHTML = `
-          <div class="mistake-practice-copy">
-            <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
-            <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(46,204,113,.18);color:#2ecc71;font-size:.75rem;font-weight:800;"><i class="fas fa-gem"></i> مميزات الكورس المدفوع</span></h3>
-            <p>${count ? `عندك <b>${count}</b> ${count === 1 ? 'سؤال' : 'أسئلة'} غلطت فيهم في امتحانات الكورس. دلوقتي تقدر تتدرب عليهم.` : 'الأسئلة اللي هتغلط فيها هتظهر هنا بعد ما نتيجة الامتحان تتنشر، عشان تتدرب عليها.'}</p></div>
-          </div>
-          <button class="mistake-practice-btn" ${count ? '' : 'disabled'} onclick="startMistakePractice('${course.id}')"><i class="fas fa-play"></i> ابدأ التدريب</button>`;
-    } else {
-        // الكورس العادي: الميزة متاحة في المدفوع بس
-        const hasPaid = coursesCache.some(c => c.isPaid === true && courseMatchesStudent(c));
-        box.innerHTML = `
-          <div class="mistake-practice-copy">
-            <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
-            <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;font-size:.75rem;font-weight:800;"><i class="fas fa-gem"></i> للكورس المدفوع فقط</span></h3><p>هذه الميزة متاحة في الكورسات المدفوعة فقط.</p></div>
-          </div>
-          ${hasPaid ? `<button class="mistake-practice-btn" onclick="switchTab('courses')"><i class="fas fa-lock"></i> شوف الكورسات المدفوعة</button>` : `<button class="mistake-practice-btn" disabled><i class="fas fa-lock"></i> مقفولة</button>`}`;
-    }
+    const count = getCourseMistakeQuestions(course.id).length;
+    box.innerHTML = `
+      <div class="mistake-practice-copy">
+        <span class="mistake-practice-icon"><i class="fas fa-lightbulb"></i></span>
+        <div><h3>أسئلة من أخطائك <span style="display:inline-block;margin-right:6px;padding:2px 10px;border-radius:999px;background:rgba(46,204,113,.16);color:#55e6a5;font-size:.75rem;font-weight:800;"><i class="fas fa-unlock"></i> متاحة لكل الطلاب</span></h3>
+        <p>${count ? `عندك <b>${count}</b> ${count === 1 ? 'سؤال' : 'أسئلة'} غلطت فيهم في امتحانات الكورس. تدرب عليهم هنا.` : 'الأسئلة اللي هتغلط فيها هتظهر هنا بعد نشر نتيجة الامتحان.'}</p></div>
+      </div>
+      <button class="mistake-practice-btn" ${count ? '' : 'disabled'} onclick="startMistakePractice('${course.id}')"><i class="fas fa-play"></i> ابدأ التدريب</button>`;
     const banner = document.getElementById('active-course-banner');
     if (banner) banner.insertAdjacentElement('afterend', box);
 }
 
 function startMistakePractice(courseId) {
     const course = coursesCache.find(c => c.id === courseId);
-    if (!course || course.isPaid !== true) return showCustomToast('ميزة "أسئلة من أخطائك" متاحة في الكورسات المدفوعة فقط.', 'warning');
+    if (!course) return showCustomToast('الكورس غير متاح حالياً.', 'warning');
     if (!subscriptionsCache.has(courseId)) return showCustomToast('لازم الكورس يكون مفتوح لحسابك الأول.', 'warning');
     const mistakes = getCourseMistakeQuestions(courseId);
     if (!mistakes.length) return showCustomToast('لسه مفيش أسئلة غلط في الكورس ده. بعد أول امتحان هتلاقيها هنا.', 'warning');

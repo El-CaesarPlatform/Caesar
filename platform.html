@@ -1580,6 +1580,82 @@
             .subscription-summary { padding: 14px; font-size: 0.9rem; }
         }
 
+        /* قائمة جانبية قابلة للفتح على الشاشات الصغيرة */
+        #mobile-sidebar-toggle, #mobile-sidebar-backdrop { display: none; }
+        @media (max-width: 768px) {
+            body { flex-direction: row; overflow-x: hidden; }
+            body:not(.exam-mode) .main-content { min-width: 0; width: 100%; }
+            body:not(.exam-mode) #app-sidebar {
+                position: fixed;
+                z-index: 10021;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: min(320px, 86vw);
+                max-width: 86vw;
+                height: 100vh;
+                height: 100dvh;
+                padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+                overflow-y: auto;
+                overflow-x: hidden;
+                border: 0;
+                border-left: 1px solid rgba(0, 210, 255, .24);
+                border-radius: 0 0 0 22px;
+                box-shadow: -18px 0 55px rgba(0,0,0,.48);
+                transform: translateX(110%);
+                visibility: hidden;
+                transition: transform .28s cubic-bezier(.2,.8,.2,1), visibility .28s;
+            }
+            body:not(.exam-mode).mobile-sidebar-open #app-sidebar {
+                transform: translateX(0);
+                visibility: visible;
+            }
+            body:not(.exam-mode) #app-sidebar > div { display: flex; flex-direction: column; gap: 14px; }
+            body:not(.exam-mode) #app-sidebar .sidebar-collapse-btn { display: none; }
+            body:not(.exam-mode) #app-sidebar .brand-row { justify-content: flex-start; margin: 2px 0 4px; }
+            body:not(.exam-mode) #app-sidebar .user-box { margin: 0 0 8px; padding: 14px 12px; }
+            body:not(.exam-mode) #app-sidebar .user-box span { display: block; }
+            body:not(.exam-mode) #app-sidebar .sidebar-menu { display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 0; }
+            body:not(.exam-mode) #app-sidebar .sidebar-menu li {
+                width: 100%; min-height: 48px; justify-content: flex-start; text-align: right;
+                gap: 12px; padding: 11px 14px; margin: 0; font-size: .9rem; white-space: normal;
+            }
+            #mobile-sidebar-toggle {
+                position: fixed;
+                display: grid;
+                place-items: center;
+                top: calc(12px + env(safe-area-inset-top));
+                right: 12px;
+                z-index: 10023;
+                width: 48px;
+                height: 48px;
+                padding: 0;
+                border: 1px solid rgba(0, 220, 245, .38);
+                border-radius: 15px;
+                color: #dffaff;
+                background: linear-gradient(145deg, rgba(22,38,58,.97), rgba(9,16,28,.97));
+                box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 18px rgba(0,210,255,.12);
+                font-size: 1.15rem;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+            #mobile-sidebar-toggle:active { transform: scale(.96); }
+            #mobile-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 10020;
+                background: rgba(1,5,12,.62);
+                backdrop-filter: blur(3px);
+                -webkit-backdrop-filter: blur(3px);
+            }
+            body.mobile-sidebar-open #mobile-sidebar-backdrop { display: block; }
+            body.exam-mode #mobile-sidebar-toggle,
+            body.exam-mode #mobile-sidebar-backdrop { display: none !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body:not(.exam-mode) #app-sidebar { transition: none; }
+        }
+
         /* تحسين واجهة المنصة مع الحفاظ على الأقسام والبيانات الحالية */
         body:not(.exam-mode) {
             background-color: #0b0c10;
@@ -1964,6 +2040,30 @@
             .review-count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .review-count.total { grid-column: 1 / -1; flex-direction: row; align-items: center; }
         }
+
+        /* نتائج الامتحان: تخطيط أفقي وشريط نسبة الدرجة */
+        .exam-result-chip.score { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; }
+        .exam-result-percent { margin-inline-start:auto; color:#00f2fe; font-size:1.02rem; font-weight:900; }
+        .exam-result-progress { width:100%; height:9px; margin-top:10px; overflow:hidden; border-radius:999px; background:rgba(148,163,184,.2); box-shadow:inset 0 1px 3px rgba(0,0,0,.35); }
+        .exam-result-progress-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#08b9d5,#087fff 65%,#8b5cf6); box-shadow:0 0 13px rgba(0,210,255,.42); transition:width .7s cubic-bezier(.2,.8,.2,1); }
+        .exam-result-meta span { min-width:0; overflow-wrap:anywhere; line-height:1.7; }
+        @media (max-width:600px) {
+            .unit-row.unit-row-done { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; }
+            .unit-row-done .unit-row-icon { display:none; }
+            .unit-row-done .unit-row-main { grid-column:1; grid-row:1; width:100%; min-width:0; }
+            .unit-row-done .unit-row-btn { grid-column:2; grid-row:1; align-self:center; max-width:118px; min-height:42px; padding:8px 10px; white-space:normal; line-height:1.35; font-size:.74rem; }
+            .unit-row-done .exam-result-panel { width:100%; box-sizing:border-box; margin-top:9px; padding:11px; border-radius:13px; }
+            .unit-row-done .exam-result-chip.score { gap:5px 9px; font-size:.88rem; }
+            .unit-row-done .exam-result-chip.score b { font-size:.96rem; }
+            .unit-row-done .exam-result-percent { font-size:.92rem; }
+            .unit-row-done .exam-result-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 10px; }
+            .unit-row-done .exam-result-meta span { font-size:.7rem; }
+        }
+        @media (max-width:370px) {
+            .unit-row.unit-row-done { grid-template-columns:minmax(0,1fr) 82px; gap:7px; padding:9px; }
+            .unit-row-done .unit-row-btn { width:82px; font-size:.68rem; }
+            .unit-row-done .exam-result-meta { grid-template-columns:1fr; }
+        }
     </style>
 </head>
 <body>
@@ -2004,6 +2104,11 @@
         </ul>
     </div>
 </div>
+
+<button type="button" id="mobile-sidebar-toggle" aria-label="فتح القائمة" aria-controls="app-sidebar" aria-expanded="false" onclick="toggleMobileSidebar()">
+    <i class="fas fa-bars" aria-hidden="true"></i>
+</button>
+<div id="mobile-sidebar-backdrop" aria-hidden="true" onclick="closeMobileSidebar()"></div>
 
 <!-- المحتوى الرئيسي -->
 <div class="main-content">
