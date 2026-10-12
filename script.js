@@ -15,7 +15,6 @@ const firebaseConfig = {
 
 // تهيئة Firebase
 let db;
-let studentAuthPromise = null;
 if (typeof firebase !== 'undefined') {
     try {
         if (!firebase.apps.length) {
@@ -25,26 +24,6 @@ if (typeof firebase !== 'undefined') {
     } catch (e) {
         console.error("خطأ أثناء تهيئة Firebase:", e);
     }
-}
-
-// دخول Firebase مجهول للطالب: يوفّر UID موثّقاً لحماية سجل الأخطاء على هذا المتصفح.
-async function ensureStudentFirebaseAuth() {
-    if (typeof firebase === 'undefined' || !firebase.auth) {
-        throw new Error('Firebase Authentication غير محمّل');
-    }
-    if (!studentAuthPromise) {
-        studentAuthPromise = (async () => {
-            const auth = firebase.auth();
-            try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
-            if (auth.currentUser) return auth.currentUser;
-            const credential = await auth.signInAnonymously();
-            return credential.user;
-        })().catch(error => {
-            studentAuthPromise = null;
-            throw error;
-        });
-    }
-    return studentAuthPromise;
 }
 
 // ==========================================
@@ -3679,49 +3658,10 @@ function getMasteredMistakeKeys(courseId) {
     } catch (e) { return new Set(); }
 }
 
-// ===== أخطاء الطالب بتتخزن على السيرفر عشان تظهر على أي تلفون/جهاز =====
-function mistakesServerDocId(courseId, authUid) { return getUniqueDocId(authUid, 'mistakes_' + courseId); }
+// ميزة أسئلة الأخطاء محلية حتى لا تحتاج صلاحيات إضافية في Firestore.
+function saveMistakesToServer() { /* الحفظ يتم في localStorage داخل استدعاءات الميزة */ }
 
-async function saveMistakesToServer(courseId, map) {
-    if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
-    try {
-        const user = await ensureStudentFirebaseAuth();
-        const items = Object.entries(map || {}).map(([key, q]) => ({ key, ...q }));
-        const masteredKeys = Array.from(getMasteredMistakeKeys(courseId));
-        await db.collection('student_mistakes').doc(mistakesServerDocId(courseId, user.uid)).set({
-            authUid: user.uid,
-            courseId: courseId,
-            studentKey: currentStudentIdentity(),
-            studentName: localStorage.getItem('student_fullname') || '',
-            studentCode: localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '',
-            items: items,
-            masteredKeys: masteredKeys,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    } catch (e) { console.warn('تعذر حفظ أسئلة الأخطاء على السيرفر:', e); }
-}
-
-// السيرفر هو المرجع: لو فيه نسخة بنحمّلها على الجهاز، ولو مفيش بنرفع اللي على الجهاز
-async function syncMistakesFromServer(courseId) {
-    if (typeof db === 'undefined' || !currentStudentIdentity() || !courseId) return;
-    const key = getMistakeQuestionsStorageKey(courseId);
-    try {
-        const user = await ensureStudentFirebaseAuth();
-        const snap = await db.collection('student_mistakes').doc(mistakesServerDocId(courseId, user.uid)).get();
-        if (snap.exists) {
-            const serverData = snap.data() || {};
-            const mastered = getMasteredMistakeKeys(courseId);
-            (Array.isArray(serverData.masteredKeys) ? serverData.masteredKeys : []).forEach(k => mastered.add(k));
-            localStorage.setItem(getMasteredMistakesStorageKey(courseId), JSON.stringify(Array.from(mastered)));
-            const map = {};
-            (serverData.items || []).forEach(it => { const { key: k, ...q } = it; if (k && !mastered.has(k)) map[k] = q; });
-            localStorage.setItem(key, JSON.stringify(map));
-        } else {
-            const local = JSON.parse(localStorage.getItem(key) || '{}') || {};
-            if (Object.keys(local).length) saveMistakesToServer(courseId, local);
-        }
-    } catch (e) { console.warn('تعذر تحميل أسئلة الأخطاء من السيرفر:', e); }
-}
+async function syncMistakesFromServer() { /* لا نعيد تحميل نسخة قديمة من السيرفر */ }
 
 // الامتحانات اللي نتيجتها اتنشرت للطالب (الأخطاء مبتظهرش قبل كده عشان ميعرفش إنه غلط قبل النتيجة)
 let releasedExamIdsCache = null;
@@ -3974,19 +3914,3 @@ window.__aiSig = { leaves: 0, paste: 0, copy: 0, hiddenMs: 0 };
     document.addEventListener('paste', function () { if (window.isExamRunning) window.__aiSig.paste++; }, true);
     document.addEventListener('copy', function () { if (window.isExamRunning) window.__aiSig.copy++; }, true);
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
