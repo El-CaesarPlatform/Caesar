@@ -29,17 +29,17 @@
             --accent-red: #ef4444;
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
-            --border-color: rgba(59, 130, 246, 0.16);
+            --border-color: rgba(59, 130, 246, 0.18);
             --glass-border: rgba(59, 130, 246, 0.28);
             --card-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
         }
 
         /* ================= الوضع النهاري (الأبيض والأزرق الواضح بالكامل) ================= */
         body.light-theme {
-            --bg-main: #f4f7fb;
+            --bg-main: #f1f5f9;
             --bg-sidebar: #ffffff;
             --bg-card: #ffffff;
-            --bg-card-soft: #f1f5f9;
+            --bg-card-soft: #f8fafc;
             --bg-input: #ffffff;
             --primary-blue: #2563eb;
             --primary-blue-hover: #1d4ed8;
@@ -50,9 +50,9 @@
             --accent-red: #dc2626;
             --text-main: #0f172a;
             --text-sub: #475569;
-            --border-color: #dbe3ef;
+            --border-color: #cbd5e1;
             --glass-border: rgba(37, 99, 235, 0.3);
-            --card-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+            --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
         }
 
         * {
@@ -79,8 +79,8 @@
 
         body.light-theme {
             background-image:
-                radial-gradient(circle at 12% 8%, rgba(37, 99, 235, 0.06) 0px, transparent 42%),
-                radial-gradient(circle at 88% 92%, rgba(59, 130, 246, 0.05) 0px, transparent 42%);
+                radial-gradient(circle at 12% 8%, rgba(37, 99, 235, 0.05) 0px, transparent 42%),
+                radial-gradient(circle at 88% 92%, rgba(59, 130, 246, 0.04) 0px, transparent 42%);
         }
 
         /* شريط التمرير */
@@ -246,6 +246,7 @@
             padding: 32px clamp(18px, 3vw, 40px);
             overflow-y: auto;
             width: 100%;
+            min-width: 0;
         }
 
         .section-title {
@@ -263,6 +264,7 @@
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
             width: 40px;
             height: 40px;
+            flex-shrink: 0;
             border-radius: 12px;
             display: inline-grid;
             place-items: center;
@@ -564,6 +566,7 @@
             filter: brightness(1.07);
         }
 
+        /* بانر الكورس النشط أعلى الوحدات */
         .course-hero {
             margin-bottom: 18px;
             padding: 18px 20px;
@@ -576,8 +579,38 @@
             gap: 14px;
             align-items: center;
         }
-        .course-hero small { color: var(--primary-blue); font-weight: 800; display: block; margin-bottom: 4px; }
-        .course-hero h3 { color: var(--text-main); margin: 0; font-size: 1.06rem; }
+        .course-hero small {
+            color: var(--primary-blue);
+            font-weight: 800;
+            font-size: 0.82rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .course-hero h3 {
+            color: var(--text-main);
+            margin: 0;
+            font-size: 1.12rem;
+            line-height: 1.6;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        /* منع انقسام شارة "مدفوع" على سطرين */
+        .course-hero h3 span {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap !important;
+            padding: 3px 11px !important;
+            border-radius: 999px !important;
+            font-size: 0.76rem !important;
+            font-weight: 800 !important;
+            margin-right: 4px !important;
+            background: rgba(37, 99, 235, 0.14) !important;
+            color: var(--primary-blue) !important;
+            border: 1px solid rgba(37, 99, 235, 0.3) !important;
+        }
 
         .subscription-summary {
             margin-bottom: 18px;
@@ -725,19 +758,45 @@
             justify-content: space-between;
             gap: 18px;
         }
-        .mistake-practice-copy { display:flex; align-items:center; gap:14px; }
+        .mistake-practice-copy {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
         .mistake-practice-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
+            width: 46px;
+            height: 46px;
+            border-radius: 13px;
             flex: none;
             display: grid;
             place-items: center;
             color: #ffffff;
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            font-size: 1.2rem;
+            font-size: 1.15rem;
+            margin-top: 2px;
         }
-        .mistake-practice-card h3 { margin:0 0 4px; color:var(--text-main); font-size:1.05rem; }
+        .mistake-practice-card h3 {
+            margin: 0 0 6px;
+            color: var(--text-main);
+            font-size: 1.05rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .mistake-practice-card h3 span {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap !important;
+            padding: 3px 10px !important;
+            border-radius: 999px !important;
+            background: rgba(16, 185, 129, 0.14) !important;
+            color: var(--accent-green) !important;
+            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+            font-size: 0.74rem !important;
+            font-weight: 800 !important;
+        }
         .mistake-practice-card p { margin:0; color:var(--text-sub); font-size:.86rem; line-height:1.8; }
         .mistake-practice-card p b { color:var(--primary-blue); }
         .mistake-practice-btn {
@@ -747,7 +806,7 @@
             flex: none;
             color: #ffffff;
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            font: 900 .88rem 'Cairo', sans-serif;
+            font: 900 .9rem 'Cairo', sans-serif;
             cursor: pointer;
             box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
         }
@@ -761,10 +820,9 @@
         .mistake-count-options button { border:1px solid var(--border-color); border-radius:12px; padding:13px 8px; color:var(--text-main); background:var(--bg-card-soft); font:800 .92rem 'Cairo',sans-serif; cursor:pointer; }
         .mistake-count-options button:hover { background:var(--primary-blue); color:#fff; }
         .mistake-practice-close { position:absolute; top:12px; left:12px; border:0; color:var(--text-sub); background:transparent; font-size:1.1rem; cursor:pointer; }
-        @media(max-width:600px) { .mistake-practice-card { align-items:stretch; flex-direction:column; padding:15px; } .mistake-practice-btn { width:100%; } }
 
-        /* ================= المحتوى التعليمي (الوحدات) ================= */
-        #units-list { max-width: 900px; }
+        /* ================= المحتوى التعليمي (الوحدات وشريط الدرجة) ================= */
+        #units-list { max-width: 900px; width: 100%; }
 
         .unit-acc {
             margin-bottom: 14px;
@@ -833,10 +891,10 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            padding: 13px 15px;
-            margin-bottom: 10px;
+            padding: 15px 16px;
+            margin-bottom: 12px;
             background: var(--bg-card-soft);
-            border-radius: 14px;
+            border-radius: 15px;
             border: 1px solid var(--border-color);
             border-right: 4px solid var(--primary-blue);
         }
@@ -858,45 +916,65 @@
             font-size: 1.02rem;
         }
 
-        .unit-row-title { flex: 1; font-weight: 700; font-size: 0.94rem; line-height: 1.6; color: var(--text-main); }
+        .unit-row-main {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .unit-row-title {
+            font-weight: 800;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            color: var(--text-main);
+        }
+
+        .unit-row-stats {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+            margin-top: 7px;
+        }
+
+        .unit-row-stats span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            font-size: 0.78rem;
+            color: var(--text-sub);
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid var(--border-color);
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
 
         .unit-row-btn {
             flex-shrink: 0;
-            padding: 8px 16px;
+            padding: 9px 18px;
             border: none;
-            border-radius: 10px;
+            border-radius: 11px;
             background: var(--primary-blue);
             color: #fff !important;
             font-family: inherit;
             font-weight: 800;
-            font-size: 0.84rem;
+            font-size: 0.86rem;
             cursor: pointer;
             transition: filter 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
         }
 
         .unit-row-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
-        .unit-row-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .unit-row-btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .unit-row-exam .unit-row-btn:not(:disabled) { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff !important; }
 
-        .unit-row-sub { margin-top: 3px; font-size: 0.78rem; font-weight: 600; color: var(--primary-blue); }
-
-        .unit-row-main { flex: 1; min-width: 0; }
-
-        .unit-row-stats {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px 14px;
-            margin-top: 5px;
-        }
-        .unit-row-stats span {
-            font-size: 0.78rem;
-            color: var(--text-sub);
-            font-weight: 600;
-        }
+        .unit-row-sub { margin-top: 4px; font-size: 0.78rem; font-weight: 700; color: var(--primary-blue); }
 
         .unit-countdown {
             display: inline-block;
-            margin-top: 6px;
+            margin-top: 8px;
             padding: 4px 10px;
             border-radius: 8px;
             background: rgba(37, 99, 235, 0.10);
@@ -907,36 +985,95 @@
         }
         .unit-countdown.closed-now { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: var(--accent-red); }
 
-        .unit-row-done .unit-row-btn { background: var(--accent-green); color: #fff !important; }
+        /* عند تسليم الامتحان: يتفرّد السطر بالكامل عشان شريط الدرجة ياخد العرض 100% */
+        .unit-row.unit-row-done {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+        .unit-row.unit-row-done .unit-row-icon {
+            display: none;
+        }
+        .unit-row.unit-row-done .unit-row-main {
+            width: 100%;
+        }
+        .unit-row.unit-row-done .unit-row-btn {
+            background: var(--accent-green);
+            color: #fff !important;
+            width: 100%;
+            min-height: 42px;
+            justify-content: center;
+        }
 
+        /* لوحة وشريط نتيجة الامتحان بالعرض الكامل */
         .exam-result-panel {
+            width: 100%;
+            box-sizing: border-box;
             margin-top: 10px;
-            padding: 12px 14px;
-            border-radius: 13px;
+            padding: 14px 16px;
+            border-radius: 14px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
         }
 
         .exam-result-chip {
-            font-size: 0.96rem;
+            font-size: 0.95rem;
             font-weight: 900;
             color: var(--text-main);
+        }
+        .exam-result-chip.score {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            width: 100%;
         }
         .exam-result-chip b { color: var(--primary-blue); font-size: 1.05rem; }
         .exam-result-chip.pending b { color: var(--accent-green); }
 
+        .exam-result-percent {
+            margin-inline-start: auto;
+            color: var(--primary-blue);
+            font-size: 1.02rem;
+            font-weight: 900;
+        }
+
+        /* شريط الدرجة الأفقي (بالعرض 100%) */
+        .exam-result-progress {
+            display: block;
+            width: 100% !important;
+            height: 10px !important;
+            margin-top: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.15);
+        }
+
+        .exam-result-progress-fill {
+            display: block;
+            height: 100% !important;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #2563eb, #38bdf8);
+            transition: width .7s cubic-bezier(.2,.8,.2,1);
+        }
+
         .exam-result-meta {
             display: flex;
+            flex-direction: row;
             flex-wrap: wrap;
-            gap: 5px 16px;
-            margin-top: 7px;
-            padding-top: 7px;
+            gap: 6px 16px;
+            margin-top: 10px;
+            padding-top: 8px;
             border-top: 1px dashed var(--border-color);
+            width: 100%;
         }
         .exam-result-meta span {
             font-size: 0.78rem;
             font-weight: 700;
             color: var(--text-sub);
+            line-height: 1.6;
         }
 
         .unit-row-locked { border-right-color: var(--accent-red); background: rgba(239, 68, 68, 0.05); }
@@ -1757,143 +1894,6 @@
             to { opacity: 1; transform: scale(1); }
         }
 
-        /* قائمة الموبايل */
-        #mobile-sidebar-toggle, #mobile-sidebar-backdrop { display: none; }
-
-        @media (max-width: 900px) {
-            .account-container { grid-template-columns: 1fr; }
-            .home-main-grid { grid-template-columns: 1fr; }
-            .home-stats-grid { gap: 12px; }
-        }
-
-        @media (max-width: 768px) {
-            body { flex-direction: row; overflow-x: hidden; }
-            body:not(.exam-mode) .main-content { min-width: 0; width: 100%; padding: 20px 14px 30px; }
-            body:not(.exam-mode) #app-sidebar {
-                position: fixed;
-                z-index: 10021;
-                top: 0;
-                right: 0;
-                bottom: 0;
-                width: min(310px, 85vw);
-                max-width: 85vw;
-                height: 100vh;
-                height: 100dvh;
-                padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
-                overflow-y: auto;
-                overflow-x: hidden;
-                border: 0;
-                border-left: 1px solid var(--border-color);
-                border-radius: 0 0 0 22px;
-                box-shadow: -15px 0 45px rgba(0,0,0,.35);
-                transform: translateX(110%);
-                visibility: hidden;
-                transition: transform .28s cubic-bezier(.2,.8,.2,1), visibility .28s;
-            }
-            body:not(.exam-mode).mobile-sidebar-open #app-sidebar {
-                transform: translateX(0);
-                visibility: visible;
-            }
-            body:not(.exam-mode) #app-sidebar > div { display: flex; flex-direction: column; gap: 12px; }
-            body:not(.exam-mode) #app-sidebar .sidebar-collapse-btn { display: none; }
-            body:not(.exam-mode) #app-sidebar .brand-row { justify-content: flex-start; margin: 2px 0 4px; }
-            body:not(.exam-mode) #app-sidebar .user-box { margin: 0 0 6px; padding: 14px 12px; }
-            body:not(.exam-mode) #app-sidebar .user-box span { display: block; }
-            body:not(.exam-mode) #app-sidebar .sidebar-menu { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
-            body:not(.exam-mode) #app-sidebar .sidebar-menu li {
-                width: 100%; min-height: 46px; justify-content: flex-start; text-align: right;
-                gap: 12px; padding: 11px 14px; margin: 0; font-size: .9rem; white-space: normal;
-            }
-            #mobile-sidebar-toggle {
-                position: fixed;
-                display: grid;
-                place-items: center;
-                top: calc(12px + env(safe-area-inset-top));
-                right: 12px;
-                z-index: 10023;
-                width: 46px;
-                height: 46px;
-                padding: 0;
-                border: 1px solid var(--border-color);
-                border-radius: 14px;
-                color: #ffffff;
-                background: linear-gradient(135deg, #2563eb, #1d4ed8);
-                box-shadow: 0 6px 18px rgba(37, 99, 235, .3);
-                font-size: 1.1rem;
-                cursor: pointer;
-            }
-            #mobile-sidebar-backdrop {
-                position: fixed;
-                inset: 0;
-                z-index: 10020;
-                background: rgba(6, 15, 30, .55);
-                backdrop-filter: blur(3px);
-                -webkit-backdrop-filter: blur(3px);
-            }
-            body.mobile-sidebar-open #mobile-sidebar-backdrop { display: block; }
-            body.exam-mode #mobile-sidebar-toggle,
-            body.exam-mode #mobile-sidebar-backdrop { display: none !important; }
-        }
-
-        @media (max-width: 640px) {
-            body.exam-mode .main-content { padding: 0 10px 30px !important; }
-            .exam-top-bar {
-                width: 100%;
-                max-width: none;
-                grid-template-columns: 1fr 80px 1fr;
-                gap: 8px;
-                padding: 8px 10px 10px;
-                border-radius: 0 0 20px 20px;
-            }
-            .exam-counters-group { flex-direction: column; gap: 6px; width: 100%; }
-            .exam-counter-pill {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 6px;
-                min-width: 0;
-                padding: 6px 10px;
-                border-radius: 12px;
-            }
-            .exam-counter-pill .counter-label { font-size: 0.66rem; margin: 0; }
-            .exam-counter-pill.solved .counter-val,
-            .exam-counter-pill.remaining .counter-val { font-size: 1.05rem; }
-            .exam-square-timer-box { width: 80px; height: 72px; border-radius: 16px; }
-            .exam-square-timer-box .timer-clock { font-size: 1.2rem; }
-            .exam-submit-wrap { width: 100%; }
-            .btn-submit-top {
-                width: 100%;
-                padding: 10px 6px !important;
-                font-size: 0.82rem !important;
-                line-height: 1.5;
-                white-space: normal;
-            }
-            .questions-nav-strip {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                justify-content: flex-start;
-                padding: 12px;
-                gap: 8px;
-            }
-            .q-nav-btn { width: 42px; height: 42px; border-radius: 12px; }
-            .single-question-card { padding: 18px 15px; border-radius: 20px; }
-            .single-question-card h3 { font-size: 1.1rem; line-height: 1.9; margin-bottom: 18px; }
-            .option-label { padding: 11px 12px; min-height: 56px; font-size: 0.96rem; gap: 11px; }
-            .btn-nav-step { padding: 13px 8px; font-size: 0.9rem; }
-        }
-
-        @media (max-width: 480px) {
-            .home-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-            .stat-card { min-height: 84px; padding: 13px; border-radius: 16px; }
-            .stat-card .stat-num { font-size: 1.5rem; }
-            .stat-card .stat-label { font-size: 0.74rem; }
-            .stat-card .stat-icon { width: 38px; height: 38px; border-radius: 11px; font-size: 0.95rem; }
-            .courses-grid { grid-template-columns: 1fr; }
-            .unit-row { gap: 8px; flex-wrap: wrap; }
-            .unit-row-title { min-width: 55%; font-size: 0.88rem; }
-            .unit-row-btn { font-size: 0.78rem; }
-        }
-
         /* نافذة مراجعة الإجابات والنتيجة */
         #answers-review-modal {
             position: fixed;
@@ -1966,7 +1966,7 @@
         .review-percent { display: grid; place-items: center; flex: none; width: 82px; height: 82px; border: 1px solid var(--border-color); border-radius: 50%; color: var(--primary-blue); background: rgba(37, 99, 235, 0.10); }
         .review-percent strong { font-size: 1.18rem; font-weight: 900; }
         .review-percent small { margin-top: -15px; color: var(--text-sub); font-size: .65rem; }
-        .review-progress { height: 7px; margin-top: 16px; overflow: hidden; border-radius: 99px; background: rgba(37, 99, 235, 0.15); }
+        .review-progress { display: block; width: 100%; height: 8px; margin-top: 16px; overflow: hidden; border-radius: 99px; background: rgba(37, 99, 235, 0.15); }
         .review-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #38bdf8); }
         .review-count-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
         .review-count {
@@ -1999,17 +1999,20 @@
         .answers-review-footer { display: flex; justify-content: center; padding: 12px 18px; border-top: 1px solid var(--border-color); }
         .answers-review-footer button { min-width: 120px; min-height: 42px; border: 0; border-radius: 11px; color: #ffffff; background: linear-gradient(135deg, #2563eb, #1d4ed8); font-family: inherit; font-size: .9rem; font-weight: 900; cursor: pointer; }
 
-        /* نتائج الامتحان: تخطيط أفقي وشريط نسبة الدرجة */
-        .exam-result-chip.score { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; }
-        .exam-result-percent { margin-inline-start:auto; color:var(--primary-blue); font-size:1.02rem; font-weight:900; }
-        .exam-result-progress { width:100%; height:9px; margin-top:10px; overflow:hidden; border-radius:999px; background:rgba(37, 99, 235, .15); }
-        .exam-result-progress-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#2563eb,#38bdf8); transition:width .7s cubic-bezier(.2,.8,.2,1); }
-        .exam-result-meta span { min-width:0; overflow-wrap:anywhere; line-height:1.7; }
-
         /* =========================================================================
-           ضبط كامل للوضع النهاري (Light Mode Overrides) لضمان قراءة كل كلمة
-           حتى العناصر والـ Inline Styles المولّدة ديناميكياً من داخل script.js
+           تظبيط الوضع النهاري لجميع النصوص والشارات المولدة من script.js
            ========================================================================= */
+        body.light-theme .course-body span[style*="color:#ffda63"] {
+            background: rgba(37, 99, 235, 0.12) !important;
+            color: #1d4ed8 !important;
+            border-color: rgba(37, 99, 235, 0.3) !important;
+        }
+        body.light-theme .unit-row-sub[style*="color:#f1c40f"] {
+            color: #b45309 !important;
+        }
+        body.light-theme .unit-row-sub[style*="color:#ff4d6d"] {
+            color: #dc2626 !important;
+        }
         body.light-theme #student-history-tbody td {
             color: #0f172a !important;
         }
@@ -2029,7 +2032,6 @@
         body.light-theme #assigned-exam-grid p[style*="color:#cbd5e1"] {
             color: #475569 !important;
         }
-        /* مراجعة الإجابات في الوضع النهاري */
         body.light-theme .review-question {
             background: #f8fafc !important;
             border-color: #cbd5e1 !important;
@@ -2058,7 +2060,6 @@
             border-color: #ef4444 !important;
             color: #7f1d1d !important;
         }
-        /* النوافذ المنبثقة (تأكيد الاشتراك، الكورس المدفوع، النتيجة النهائية، تأكيد التسليم) في الوضع النهاري */
         body.light-theme #sub-confirm-modal > div,
         body.light-theme #paid-course-modal > div,
         body.light-theme #submission-result-modal > div,
@@ -2086,9 +2087,278 @@
         }
         body.light-theme #sub-confirm-modal div[style*="background:rgba(0,0,0"],
         body.light-theme #paid-course-modal div[style*="background:rgba(0,0,0"],
-        body.light-theme #submission-result-modal div[style*="background: rgba(0,0,0"] {
+        body.light-theme #submission-result-modal div[style*="background:rgba(0,0,0"] {
             background: #f1f5f9 !important;
             border-color: #cbd5e1 !important;
+        }
+
+        /* =========================================================================
+           تظبيط شامل للموبايل (Mobile Layout & Full-Width Cards)
+           ========================================================================= */
+        #mobile-sidebar-toggle, #mobile-sidebar-backdrop { display: none; }
+
+        @media (max-width: 900px) {
+            .account-container { grid-template-columns: 1fr; }
+            .home-main-grid { grid-template-columns: 1fr; }
+            .home-stats-grid { gap: 12px; }
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: row; overflow-x: hidden; }
+            body:not(.exam-mode) .main-content {
+                min-width: 0;
+                width: 100%;
+                padding: 18px 14px 32px;
+            }
+            /* إزاحة بسيطة من اليسار للعنوان الأول حتى لا يلمس زر القائمة في اليسار أبداً */
+            body:not(.exam-mode) .main-content > div > .section-title:first-child {
+                padding-left: 56px;
+            }
+            body:not(.exam-mode) #app-sidebar {
+                position: fixed;
+                z-index: 10021;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: min(310px, 85vw);
+                max-width: 85vw;
+                height: 100vh;
+                height: 100dvh;
+                padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+                overflow-y: auto;
+                overflow-x: hidden;
+                border: 0;
+                border-left: 1px solid var(--border-color);
+                border-radius: 0 0 0 22px;
+                box-shadow: -15px 0 45px rgba(0,0,0,.35);
+                transform: translateX(110%);
+                visibility: hidden;
+                transition: transform .28s cubic-bezier(.2,.8,.2,1), visibility .28s;
+            }
+            body:not(.exam-mode).mobile-sidebar-open #app-sidebar {
+                transform: translateX(0);
+                visibility: visible;
+            }
+            body:not(.exam-mode) #app-sidebar > div { display: flex; flex-direction: column; gap: 12px; }
+            body:not(.exam-mode) #app-sidebar .sidebar-collapse-btn { display: none; }
+            body:not(.exam-mode) #app-sidebar .brand-row { justify-content: flex-start; margin: 2px 0 4px; }
+            body:not(.exam-mode) #app-sidebar .user-box { margin: 0 0 6px; padding: 14px 12px; }
+            body:not(.exam-mode) #app-sidebar .user-box span { display: block; }
+            body:not(.exam-mode) #app-sidebar .sidebar-menu { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
+            body:not(.exam-mode) #app-sidebar .sidebar-menu li {
+                width: 100%; min-height: 46px; justify-content: flex-start; text-align: right;
+                gap: 12px; padding: 11px 14px; margin: 0; font-size: .9rem; white-space: normal;
+            }
+            /* زر فتح القائمة في أقصى اليسار حتى لا يغطي على عنوان القسم في اليمين */
+            #mobile-sidebar-toggle {
+                position: fixed;
+                display: grid;
+                place-items: center;
+                top: calc(14px + env(safe-area-inset-top));
+                left: 14px;
+                right: auto;
+                z-index: 10023;
+                width: 44px;
+                height: 44px;
+                padding: 0;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 13px;
+                color: #ffffff;
+                background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                box-shadow: 0 6px 18px rgba(37, 99, 235, .32);
+                font-size: 1.1rem;
+                cursor: pointer;
+            }
+            #mobile-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 10020;
+                background: rgba(6, 15, 30, .55);
+                backdrop-filter: blur(3px);
+                -webkit-backdrop-filter: blur(3px);
+            }
+            body.mobile-sidebar-open #mobile-sidebar-backdrop { display: block; }
+            body.exam-mode #mobile-sidebar-toggle,
+            body.exam-mode #mobile-sidebar-backdrop { display: none !important; }
+        }
+
+        @media (max-width: 640px) {
+            .section-title {
+                font-size: 1.32rem;
+                margin-bottom: 18px;
+            }
+            /* كارت الكورس العلوي على الموبايل: الزرار ياخد العرض كامل تحت الاسم */
+            .course-hero {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+                gap: 12px;
+            }
+            .course-hero .course-btn {
+                width: 100% !important;
+                min-height: 44px;
+                text-align: center;
+            }
+            /* كارت تدريب الأخطاء على الموبايل */
+            .mistake-practice-card {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+                gap: 14px;
+            }
+            .mistake-practice-btn {
+                width: 100%;
+                min-height: 46px;
+            }
+            /* كروت العناصر داخل الوحدة على الموبايل: تفرد بالعرض 100% بدون ضغط */
+            .unit-acc-head {
+                padding: 14px 16px;
+            }
+            .unit-acc-title {
+                font-size: 1rem;
+            }
+            .unit-acc-body {
+                padding: 12px 10px 6px;
+            }
+            .unit-row {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+                padding: 14px !important;
+            }
+            .unit-row-icon {
+                display: none !important;
+            }
+            .unit-row-main {
+                width: 100% !important;
+                min-width: 100% !important;
+            }
+            .unit-row-title {
+                font-size: 0.96rem !important;
+                width: 100%;
+            }
+            .unit-row-stats {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 6px 8px !important;
+                margin-top: 8px !important;
+                width: 100%;
+            }
+            .unit-row-stats span {
+                white-space: nowrap !important;
+                font-size: 0.76rem !important;
+                padding: 4px 9px !important;
+            }
+            .unit-row-btn {
+                width: 100% !important;
+                min-height: 44px !important;
+                padding: 10px 14px !important;
+                font-size: 0.88rem !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+            }
+            /* شريط ولوحة الدرجة على الموبايل: مفرود بالعرض 100% */
+            .exam-result-panel {
+                width: 100% !important;
+                padding: 12px 14px !important;
+                margin-top: 10px !important;
+            }
+            .exam-result-chip.score {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                width: 100% !important;
+                font-size: 0.9rem !important;
+            }
+            .exam-result-progress {
+                display: block !important;
+                width: 100% !important;
+                height: 10px !important;
+                margin-top: 10px !important;
+            }
+            .exam-result-meta {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 6px 12px !important;
+                width: 100% !important;
+            }
+            .exam-result-meta span {
+                font-size: 0.74rem !important;
+                white-space: nowrap !important;
+            }
+
+            /* غرفة الامتحان على الموبايل */
+            body.exam-mode .main-content { padding: 0 10px 30px !important; }
+            .exam-top-bar {
+                width: 100%;
+                max-width: none;
+                grid-template-columns: 1fr 80px 1fr;
+                gap: 8px;
+                padding: 8px 10px 10px;
+                border-radius: 0 0 20px 20px;
+            }
+            .exam-counters-group { flex-direction: column; gap: 6px; width: 100%; }
+            .exam-counter-pill {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 6px;
+                min-width: 0;
+                padding: 6px 10px;
+                border-radius: 12px;
+            }
+            .exam-counter-pill .counter-label { font-size: 0.66rem; margin: 0; }
+            .exam-counter-pill.solved .counter-val,
+            .exam-counter-pill.remaining .counter-val { font-size: 1.05rem; }
+            .exam-square-timer-box { width: 80px; height: 72px; border-radius: 16px; }
+            .exam-square-timer-box .timer-clock { font-size: 1.2rem; }
+            .exam-submit-wrap { width: 100%; }
+            .btn-submit-top {
+                width: 100%;
+                padding: 10px 6px !important;
+                font-size: 0.82rem !important;
+                line-height: 1.5;
+                white-space: normal;
+            }
+            .questions-nav-strip {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                justify-content: flex-start;
+                padding: 12px;
+                gap: 8px;
+            }
+            .q-nav-btn { width: 42px; height: 42px; border-radius: 12px; }
+            .single-question-card { padding: 18px 15px; border-radius: 20px; }
+            .single-question-card h3 { font-size: 1.1rem; line-height: 1.9; margin-bottom: 18px; }
+            .option-label { padding: 11px 12px; min-height: 56px; font-size: 0.96rem; gap: 11px; }
+            .btn-nav-step { padding: 13px 8px; font-size: 0.9rem; }
+
+            /* نافذة مراجعة الإجابات على الموبايل */
+            #answers-review-modal { padding: 8px; }
+            .answers-review-dialog { width: 100%; max-height: 92vh; border-radius: 16px; }
+            .answers-review-header { padding: 12px 14px; }
+            .answers-review-title { font-size: .88rem; }
+            .answers-review-body { padding: 12px; }
+            .review-result-card { padding: 14px; margin-bottom: 14px; border-radius: 14px; }
+            .review-percent { width: 68px; height: 68px; }
+            .review-count-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+            .review-count { flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 10px 6px; }
+            .review-count small { font-size: .68rem; }
+        }
+
+        @media (max-width: 480px) {
+            .home-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .stat-card { min-height: 84px; padding: 13px; border-radius: 16px; }
+            .stat-card .stat-num { font-size: 1.5rem; }
+            .stat-card .stat-label { font-size: 0.74rem; }
+            .stat-card .stat-icon { width: 38px; height: 38px; border-radius: 11px; font-size: 0.95rem; }
+            .courses-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -2392,7 +2662,7 @@
 
 <!-- السكريبتات التفاعلية الداخلية -->
 <script>
-    /* التبديل بين الوضع الليلي (أسود وأزرق) والوضع النهاري (أبيض وأزرق) مع تحديث ألوان الرسم البياني */
+    /* التبديل بين الوضع الليلي (أسود وأزرق) والوضع النهاري (أبيض وأزرق) */
     function applySavedKaiserTheme() {
         const saved = localStorage.getItem('kaiser_ui_theme') || 'dark';
         const isLight = (saved === 'light');
@@ -2419,6 +2689,7 @@
         const isCurrentlyLight = document.body.classList.contains('light-theme');
         localStorage.setItem('kaiser_ui_theme', isCurrentlyLight ? 'dark' : 'light');
         applySavedKaiserTheme();
+        closeMobileSidebar();
     }
     applySavedKaiserTheme();
 
