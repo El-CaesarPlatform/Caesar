@@ -213,11 +213,12 @@
 
         #kaiser-intro .ki-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #bae6fd; opacity: .1; animation: kiTw 2.6s ease-in-out infinite alternate; }
         @keyframes kiTw { to { opacity: .85; } }
-        #kaiser-intro .ki-rings { position: absolute; left: 50%; top: 50%; width: min(140vmin, 800px); height: min(140vmin, 800px); margin: calc(min(140vmin, 800px) / -2) 0 0 calc(min(140vmin, 800px) / -2); pointer-events: none; }
-        #kaiser-intro .ki-rings circle.dr { stroke-dasharray: 1; stroke-dashoffset: 1; animation: kiDraw 1.7s cubic-bezier(.45,0,.2,1) forwards; transform-origin: 300px 300px; }
-        #kaiser-intro .ki-rings circle.dr.c2 { animation-delay: .25s; transform: rotate(90deg); }
-        #kaiser-intro .ki-rings circle.dr.c3 { animation-delay: .5s; transform: rotate(200deg); }
-        #kaiser-intro .ki-rings .pt { opacity: 0; animation: kiFade .5s ease 1.4s forwards; }
+        #kaiser-intro .ki-rings { position: absolute; left: 50%; top: 50%; width: min(104vmin, 720px); height: min(104vmin, 720px); margin: calc(min(104vmin, 720px) / -2) 0 0 calc(min(104vmin, 720px) / -2); pointer-events: none; }
+        #kaiser-intro .ki-rings polygon { stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: kiDraw 1.5s cubic-bezier(.45,0,.2,1) forwards; }
+        #kaiser-intro .ki-rings polygon.p2 { animation-delay: .2s; }
+        #kaiser-intro .ki-rings polygon.p3 { animation-delay: .5s; }
+        #kaiser-intro .ki-rings polygon.p4 { animation-delay: .7s; }
+        #kaiser-intro .ki-rings .pt { opacity: 0; animation: kiFade .5s ease 1.5s forwards; }
         @keyframes kiDraw { to { stroke-dashoffset: 0; } }
         @keyframes kiFade { to { opacity: 1; } }
         #kaiser-intro .ki-glow { position: absolute; left: 50%; top: 50%; width: min(120vw, 760px); height: min(60vw, 380px); margin: calc(min(60vw, 380px) / -2) 0 0 calc(min(120vw, 760px) / -2); background: radial-gradient(ellipse at center, rgba(56,189,248,.34), rgba(37,99,235,.14) 45%, transparent 70%); opacity: 0; animation: kiFade 1.2s ease .35s forwards; pointer-events: none; }
@@ -239,7 +240,9 @@
         @keyframes kiPen { 0% { opacity: 1; transform: translateX(0); } 92% { opacity: 1; } 100% { opacity: 0; transform: translateX(calc(var(--w, 300px) * -1)); } }
         #kaiser-intro .ki-spark { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #e0f4ff; box-shadow: 0 0 10px #38bdf8; opacity: 0; animation: kiSpark .95s cubic-bezier(.1,.7,.3,1) forwards; }
         @keyframes kiSpark { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); } }
-        #kaiser-intro .ki-tag { margin-top: 4px; color: #b4cde6; font-weight: 800; font-size: clamp(.9rem, 3.5vw, 1.1rem); letter-spacing: 3px; opacity: 0; transform: translateY(8px); animation: kiTag .7s ease 1.75s forwards; }
+        #kaiser-intro .ki-under { width: min(240px, 58vw); height: 2px; margin: -6px auto 0; border-radius: 2px; background: linear-gradient(90deg, transparent, #7dd3fc 30%, #fff 50%, #7dd3fc 70%, transparent); box-shadow: 0 0 14px rgba(56,189,248,.7); transform: scaleX(0); animation: kiUnder .8s cubic-bezier(.2,.8,.2,1) 1.6s forwards; }
+        @keyframes kiUnder { to { transform: scaleX(1); } }
+        #kaiser-intro .ki-tag { margin-top: 16px; color: #b4cde6; font-weight: 800; font-size: clamp(.9rem, 3.5vw, 1.1rem); letter-spacing: 4px; opacity: 0; transform: translateY(8px); animation: kiTag .7s ease 1.75s forwards; }
         @keyframes kiTag { to { opacity: 1; transform: translateY(0); } }
         #kaiser-intro .ki-feats { display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
         #kaiser-intro .ki-feats span { padding: 5px 13px; border-radius: 20px; font-size: .78rem; font-weight: 800; color: #cfe6f8; background: rgba(125,211,252,.1); border: 1px solid rgba(125,211,252,.28); opacity: 0; transform: translateY(8px); animation: kiTag .5s ease forwards; }
@@ -1170,21 +1173,13 @@
     <div class="ki-pane bot"></div>
     <div class="ki-layer">
         <div class="ki-glow"></div>
-        <svg class="ki-rings" viewBox="0 0 600 600" fill="none" aria-hidden="true">
-            <circle class="dr c1" cx="300" cy="300" r="130" pathLength="1" stroke="rgba(125,211,252,.55)" stroke-width="1.2"/>
-            <circle class="dr c2" cx="300" cy="300" r="195" pathLength="1" stroke="rgba(125,211,252,.35)" stroke-width="1"/>
-            <circle class="dr c3" cx="300" cy="300" r="262" pathLength="1" stroke="rgba(125,211,252,.22)" stroke-width="1"/>
-            <circle class="pt" cx="300" cy="170" r="3.5" fill="#7dd3fc"/><circle class="pt" cx="300" cy="430" r="3.5" fill="#7dd3fc"/>
-            <circle class="pt" cx="105" cy="300" r="2.5" fill="#7dd3fc"/><circle class="pt" cx="495" cy="300" r="2.5" fill="#7dd3fc"/>
-        </svg>
         <div class="ki-stage" id="ki-stage">
-            <div class="ki-orn"><i></i><b></b><i></i></div>
             <div class="ki-wordbox" id="ki-box">
                 <div class="ki-wordwrap"><span class="ki-word">قيصر</span></div>
                 <span class="ki-pen"></span>
             </div>
+            <div class="ki-under"></div>
             <div class="ki-tag">منصة القيصر التعليمية</div>
-            <div class="ki-feats"><span>دروس</span><span>امتحانات</span><span>نتائج</span></div>
         </div>
         <div class="ki-bar"><span></span></div>
     </div>
@@ -1846,7 +1841,11 @@
         return "pending";
     }
 
-    window.addEventListener("DOMContentLoaded", tryRememberedLogin);
+    // الدخول التلقائي (للمتسجل) بيستنى المقدمة تخلص عشان الطالب يشوفها
+    window.addEventListener("DOMContentLoaded", function () {
+        var KI = window.__kaiserIntro;
+        if (!KI || KI.done) tryRememberedLogin(); else KI.cbs.push(tryRememberedLogin);
+    });
 
     const statusModal = document.getElementById("status-modal");
     const statusBlockBox = document.getElementById("status-block-box");
@@ -2340,7 +2339,7 @@
     var el = document.getElementById('kaiser-intro');
     if (!el) return;
     var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (/(?:^|;\s*)kaiser_student_login=/.test(document.cookie)) { el.parentNode.removeChild(el); return; }
+    var KI = window.__kaiserIntro = { done: false, cbs: [] };
 
     var gone = false, timers = [], box = document.getElementById('ki-box'), stage = document.getElementById('ki-stage');
     document.documentElement.style.overflow = 'hidden';
@@ -2350,33 +2349,13 @@
 
     function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
 
-    if (!reduced) {
-        var layer = el.querySelector('.ki-layer');
-        for (var n = 0; n < 20; n++) {
-            var st = document.createElement('span'); st.className = 'ki-star';
-            st.style.left = (Math.random() * 100) + '%'; st.style.top = (Math.random() * 100) + '%';
-            st.style.animationDelay = (Math.random() * 2.5) + 's'; st.style.animationDuration = (1.8 + Math.random() * 2) + 's';
-            layer.insertBefore(st, layer.firstChild);
-        }
-        // شرارات لما الكلمة تخلص كتابة
-        later(function () {
-            if (gone) return;
-            for (var k = 0; k < 16; k++) {
-                var sp = document.createElement('span'); sp.className = 'ki-spark';
-                var ang = (Math.PI * 2 * k / 16) + Math.random() * .3, dist = 70 + Math.random() * 110;
-                sp.style.setProperty('--dx', Math.round(Math.cos(ang) * dist * 1.5) + 'px');
-                sp.style.setProperty('--dy', Math.round(Math.sin(ang) * dist) + 'px');
-                box.appendChild(sp);
-            }
-        }, 1650);
-    }
-
     function leave() {
         if (gone) return; gone = true;
         timers.forEach(clearTimeout);
         el.classList.add('ki-leaving');
         document.documentElement.style.overflow = '';
         setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1300);
+        KI.done = true; KI.cbs.splice(0).forEach(function (f) { try { f(); } catch (e) {} });
     }
     el.addEventListener('click', leave);
     later(leave, reduced ? 500 : 3100);
