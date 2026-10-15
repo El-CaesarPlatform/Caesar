@@ -198,83 +198,88 @@
             50% { transform: scale(1.14); }
         }
 
-        /* ------------------ شاشة التحميل الخاصة بـ (القيصر) ------------------ */
-        #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(ellipse at 50% 38%, #112240 0%, #0a1224 45%, #050811 100%);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 999999;
-            padding: 20px;
-            text-align: center;
-            overflow: hidden;
-        }
-
-        #splash-screen::after {
-            content: "";
-            position: absolute;
-            width: min(720px, 110vw);
-            aspect-ratio: 1;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.16), transparent 70%);
-            pointer-events: none;
-        }
-
-        #splash-screen::before {
-            content: "";
-            position: absolute;
-            z-index: 4;
-            inset: -25% -55%;
-            pointer-events: none;
-            opacity: 0;
-            transform: translateX(-115%);
-            background: linear-gradient(100deg, transparent 43%, rgba(59, 130, 246, 0.12) 47%, rgba(255, 255, 255, 0.85) 50%, rgba(37, 99, 235, 0.5) 53%, transparent 61%);
-            filter: blur(3px);
-        }
-
-        #splash-screen.splash-entering { display: flex; animation: splashBackdropIn .28s ease-out forwards; }
-        #splash-screen.splash-opening { animation: splashBackdropOut .38s ease-in .32s forwards; }
-        #splash-screen.splash-opening::before { animation: splashLightSweep .72s cubic-bezier(.72,0,.25,1) forwards; }
-
-        @keyframes splashBackdropIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes splashBackdropOut { to { opacity: 0; visibility: hidden; } }
-        @keyframes splashLightSweep { 0% { opacity: 0; transform: translateX(-115%); } 12% { opacity: 1; } 100% { opacity: 0; transform: translateX(115%); } }
-
-        .splash-scene { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; width: min(100%, 480px); }
-        .splash-logo-container { position: relative; width: 148px; height: 148px; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; opacity: 0; transform: scale(.72) rotate(-9deg); }
-        #splash-screen.splash-entering .splash-logo-container { animation: splashSealIn .62s cubic-bezier(.18,1.35,.35,1) .04s forwards; }
-        @keyframes splashSealIn { 60% { opacity: 1; transform: scale(1.08) rotate(3deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
-        .splash-logo-img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; z-index: 2; border: 3px solid #ffffff; box-shadow: 0 0 28px rgba(37, 99, 235, 0.75); }
-        .splash-ring { position: absolute; inset: 0; border-radius: 50%; border: 2.5px solid rgba(59, 130, 246, 0.3); border-top-color: #ffffff; border-left-color: #3b82f6; box-shadow: 0 0 22px rgba(37, 99, 235, 0.35); animation: splashOrbit 2.2s linear infinite; }
         @keyframes splashOrbit { to { transform: rotate(360deg); } }
-        .splash-success-check { position: absolute; right: 4px; bottom: 9px; width: 42px; height: 42px; display: grid; place-items: center; border: 3px solid #0a1224; border-radius: 50%; color: #ffffff; background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.65); opacity: 0; transform: scale(.4); z-index: 3; }
-        .splash-success-check i { font-size: 1.15rem; color: #ffffff; }
-        #splash-screen.splash-success .splash-success-check { animation: splashCheckIn .38s cubic-bezier(.2,1.5,.35,1) forwards; }
-        @keyframes splashCheckIn { to { opacity: 1; transform: scale(1); } }
-        .splash-text { color: #fff; font-size: clamp(1.55rem, 5vw, 2.2rem); font-weight: 900; line-height: 1.4; margin: 0; opacity: 0; transform: translateY(12px); }
-        #splash-screen.splash-entering .splash-text { animation: splashCopyIn .42s ease .2s forwards; }
-        .splash-subtext { color: #cbd5e1; margin-top: 7px; font-size: 1rem; font-weight: 700; text-align: center; width: 100%; max-width: 92%; line-height: 1.7; opacity: 0; transform: translateY(10px); }
-        #splash-screen.splash-entering .splash-subtext { animation: splashCopyIn .42s ease .32s forwards; }
-        @keyframes splashCopyIn { to { opacity: 1; transform: translateY(0); } }
-        .splash-status { display: inline-flex; align-items: center; gap: 8px; margin-top: 15px; color: #94a3b8; font-size: .82rem; font-weight: 700; opacity: 0; transition: color .25s ease; }
-        #splash-screen.splash-entering .splash-status { animation: splashCopyIn .35s ease .42s forwards; }
-        .splash-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 12px #3b82f6; animation: splashDotPulse .85s ease-in-out infinite alternate; }
+
+        /* ------------------ مقدمة "قيصر" سينمائية: قلم + حلقات بترسم نفسها + شرارات + ستارة (transform/opacity بس) ------------------ */
+        #kaiser-intro { position: fixed; inset: 0; z-index: 9999999; overflow: hidden; cursor: pointer; background: transparent; }
+        #kaiser-intro .ki-pane { position: absolute; left: 0; width: 100%; height: 50%; background: radial-gradient(ellipse at 50% 46%, #123562 0%, #081529 46%, #02060d 100%); background-size: 100vw 100vh; transition: transform .85s cubic-bezier(.77,0,.18,1); will-change: transform; }
+        #kaiser-intro .ki-pane.top { top: 0; background-position: top center; }
+        #kaiser-intro .ki-pane.bot { bottom: 0; background-position: bottom center; }
+        #kaiser-intro .ki-layer { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; transition: opacity .35s ease, transform 1.1s ease; }
+        #kaiser-intro.ki-leaving .ki-layer { opacity: 0; transform: scale(1.06); }
+        #kaiser-intro.ki-leaving .ki-pane.top { transform: translateY(-101%); transition-delay: .25s; }
+        #kaiser-intro.ki-leaving .ki-pane.bot { transform: translateY(101%); transition-delay: .25s; }
+        #kaiser-intro.ki-leaving { pointer-events: none; }
+
+        #kaiser-intro .ki-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #bae6fd; opacity: .1; animation: kiTw 2.6s ease-in-out infinite alternate; }
+        @keyframes kiTw { to { opacity: .85; } }
+        #kaiser-intro .ki-rings { position: absolute; left: 50%; top: 50%; width: min(140vmin, 800px); height: min(140vmin, 800px); margin: calc(min(140vmin, 800px) / -2) 0 0 calc(min(140vmin, 800px) / -2); pointer-events: none; }
+        #kaiser-intro .ki-rings circle.dr { stroke-dasharray: 1; stroke-dashoffset: 1; animation: kiDraw 1.7s cubic-bezier(.45,0,.2,1) forwards; transform-origin: 300px 300px; }
+        #kaiser-intro .ki-rings circle.dr.c2 { animation-delay: .25s; transform: rotate(90deg); }
+        #kaiser-intro .ki-rings circle.dr.c3 { animation-delay: .5s; transform: rotate(200deg); }
+        #kaiser-intro .ki-rings .pt { opacity: 0; animation: kiFade .5s ease 1.4s forwards; }
+        @keyframes kiDraw { to { stroke-dashoffset: 0; } }
+        @keyframes kiFade { to { opacity: 1; } }
+        #kaiser-intro .ki-glow { position: absolute; left: 50%; top: 50%; width: min(120vw, 760px); height: min(60vw, 380px); margin: calc(min(60vw, 380px) / -2) 0 0 calc(min(120vw, 760px) / -2); background: radial-gradient(ellipse at center, rgba(56,189,248,.34), rgba(37,99,235,.14) 45%, transparent 70%); opacity: 0; animation: kiFade 1.2s ease .35s forwards; pointer-events: none; }
+
+        #kaiser-intro .ki-stage { position: relative; text-align: center; padding: 0 16px; animation: kiZoom 3.2s ease-out forwards; }
+        @keyframes kiZoom { from { transform: scale(.94); } to { transform: scale(1.04); } }
+        #kaiser-intro .ki-orn { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 2px; opacity: 0; animation: kiFade .6s ease .25s forwards; }
+        #kaiser-intro .ki-orn i { display: block; width: min(80px, 18vw); height: 1px; background: linear-gradient(90deg, transparent, rgba(125,211,252,.9)); }
+        #kaiser-intro .ki-orn i:last-child { transform: scaleX(-1); }
+        #kaiser-intro .ki-orn b { width: 8px; height: 8px; background: #7dd3fc; transform: rotate(45deg); box-shadow: 0 0 14px rgba(56,189,248,.95); }
+        #kaiser-intro .ki-wordbox { position: relative; display: inline-block; }
+        #kaiser-intro .ki-wordwrap { display: block; padding: 0 .14em; clip-path: inset(-120px -120px -120px 100%); animation: kiWrite 1.15s cubic-bezier(.62,0,.25,1) .5s forwards; }
+        @keyframes kiWrite { to { clip-path: inset(-120px -120px -120px -120px); } }
+        #kaiser-intro .ki-word { display: block; direction: rtl; line-height: 1.4; white-space: nowrap; font-family: 'Cairo', sans-serif; font-weight: 900; font-size: clamp(5.2rem, 26vw, 10.5rem); color: transparent;
+            background-image: linear-gradient(105deg, rgba(255,255,255,0) 42%, rgba(255,255,255,.95) 50%, rgba(255,255,255,0) 58%), linear-gradient(180deg, #ffffff 22%, #c4e7fb 62%, #7cc4ee 100%);
+            background-size: 260% 100%, 100% 100%; background-repeat: no-repeat; background-position: 140% 0, 0 0; -webkit-background-clip: text; background-clip: text; animation: kiShine 1s ease-in-out 1.75s forwards; }
+        @keyframes kiShine { to { background-position: -40% 0, 0 0; } }
+        #kaiser-intro .ki-pen { position: absolute; top: 14%; bottom: 14%; right: 0; width: 3px; border-radius: 3px; opacity: 0; background: linear-gradient(180deg, transparent, #bae6fd 28%, #fff 50%, #bae6fd 72%, transparent); box-shadow: 0 0 16px 3px rgba(56,189,248,.85); animation: kiPen 1.15s cubic-bezier(.62,0,.25,1) .5s forwards; }
+        @keyframes kiPen { 0% { opacity: 1; transform: translateX(0); } 92% { opacity: 1; } 100% { opacity: 0; transform: translateX(calc(var(--w, 300px) * -1)); } }
+        #kaiser-intro .ki-spark { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #e0f4ff; box-shadow: 0 0 10px #38bdf8; opacity: 0; animation: kiSpark .95s cubic-bezier(.1,.7,.3,1) forwards; }
+        @keyframes kiSpark { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); } }
+        #kaiser-intro .ki-tag { margin-top: 4px; color: #b4cde6; font-weight: 800; font-size: clamp(.9rem, 3.5vw, 1.1rem); letter-spacing: 3px; opacity: 0; transform: translateY(8px); animation: kiTag .7s ease 1.75s forwards; }
+        @keyframes kiTag { to { opacity: 1; transform: translateY(0); } }
+        #kaiser-intro .ki-feats { display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+        #kaiser-intro .ki-feats span { padding: 5px 13px; border-radius: 20px; font-size: .78rem; font-weight: 800; color: #cfe6f8; background: rgba(125,211,252,.1); border: 1px solid rgba(125,211,252,.28); opacity: 0; transform: translateY(8px); animation: kiTag .5s ease forwards; }
+        #kaiser-intro .ki-feats span:nth-child(1) { animation-delay: 2.0s; }
+        #kaiser-intro .ki-feats span:nth-child(2) { animation-delay: 2.15s; }
+        #kaiser-intro .ki-feats span:nth-child(3) { animation-delay: 2.3s; }
+        #kaiser-intro .ki-bar { position: absolute; left: 50%; bottom: 8vh; width: 130px; margin-left: -65px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+        #kaiser-intro .ki-bar span { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #7dd3fc, #fff); transform: scaleX(0); transform-origin: right center; animation: kiBar 3.1s linear forwards; }
+        @keyframes kiBar { to { transform: scaleX(1); } }
+
+        /* ------------------ شاشة الترحيب بعد تسجيل الدخول (خفيفة) ------------------ */
+        @keyframes kspUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #splash-screen {
+            position: fixed; inset: 0; width: 100vw; height: 100vh; display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 999999; padding: 20px; text-align: center; overflow: hidden;
+            background: radial-gradient(circle at 50% 42%, #0f2744 0%, #060d1a 72%);
+        }
+        #splash-screen.splash-entering { display: flex; animation: kspUp .3s ease-out both; }
+        #splash-screen.splash-opening { opacity: 0; transition: opacity .4s ease; }
+        .splash-scene { display: flex; flex-direction: column; align-items: center; width: min(100%, 460px); }
+        .splash-logo-container { width: min(70vw, 260px); margin-bottom: 14px; opacity: 0; }
+        #splash-screen.splash-entering .splash-logo-container { animation: kspUp .5s ease .05s forwards; }
+        .splash-logo-img { width: 100%; height: auto; max-height: 190px; object-fit: contain; border: none; border-radius: 0; box-shadow: none; display: block; }
+        .splash-ring, .splash-success-check { display: none; }
+        .splash-text { min-height: 1.5em; color: #fff; font-size: clamp(1.35rem, 5.2vw, 1.9rem); font-weight: 900; line-height: 1.5; margin: 0; opacity: 0; }
+        #splash-screen.splash-entering .splash-text { animation: kspUp .4s ease .2s forwards; }
+        .splash-text .ksp-caret { display: inline-block; width: 3px; height: .9em; margin-inline-start: 4px; vertical-align: -.1em; background: #38bdf8; animation: kiBlink .7s steps(1) infinite; }
+        .splash-text.ksp-typed .ksp-caret { display: none; }
+        .splash-subtext { margin-top: 6px; color: #94a3b8; font-size: .92rem; font-weight: 700; line-height: 1.6; opacity: 0; }
+        #splash-screen.splash-entering .splash-subtext { animation: kspUp .4s ease .35s forwards; }
+        .splash-status { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; color: #64748b; font-size: .8rem; font-weight: 700; opacity: 0; }
+        #splash-screen.splash-entering .splash-status { animation: kspUp .4s ease .45s forwards; }
+        .splash-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #38bdf8; }
         #splash-screen.splash-success .splash-status { color: #6ee7b7; }
-        #splash-screen.splash-success .splash-status-dot { background: #10b981; box-shadow: 0 0 12px #10b981; animation: none; }
-        @keyframes splashDotPulse { to { opacity: .35; transform: scale(.78); } }
-        .splash-progress-wrap { width: 190px; max-width: 70%; height: 4px; margin-top: 20px; border-radius: 8px; background: rgba(255,255,255,.14); overflow: hidden; opacity: 0; }
-        #splash-screen.splash-entering .splash-progress-wrap { animation: splashCopyIn .3s ease .46s forwards; }
-        .splash-progress-bar { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #38bdf8); box-shadow: 0 0 12px rgba(37, 99, 235, 0.7); }
-        #splash-screen.splash-run .splash-progress-bar { animation: splashProgressFill .95s cubic-bezier(.3,.1,.2,1) forwards; }
-        @keyframes splashProgressFill { to { width: 100%; } }
-        #splash-screen.splash-opening .splash-scene { animation: splashSceneLift .38s ease-in forwards; }
-        @keyframes splashSceneLift { to { opacity: .15; transform: scale(1.04) translateY(-8px); filter: blur(2px); } }
+        #splash-screen.splash-success .splash-status-dot { background: #10b981; }
+        .splash-progress-wrap { width: 200px; max-width: 70%; height: 3px; margin-top: 14px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; opacity: 0; }
+        #splash-screen.splash-entering .splash-progress-wrap { animation: kspUp .3s ease .5s forwards; }
+        .splash-progress-bar { height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #38bdf8); transform: scaleX(0); transform-origin: right center; }
+        #splash-screen.splash-run .splash-progress-bar { animation: kspFill 1.8s cubic-bezier(.35,.1,.25,1) .5s forwards; }
+        @keyframes kspFill { to { transform: scaleX(1); } }
 
         /* ------------------ الحاوية الرئيسية وتخطيط الصفحة ------------------ */
         #hero {
@@ -1159,13 +1164,39 @@
     <button class="toast-close" id="close-toast" aria-label="إغلاق">&times;</button>
 </div>
 
+<!-- مقدمة: كلمة "قيصر" بتتكتب أول ما الصفحة تفتح -->
+<div id="kaiser-intro" aria-hidden="true">
+    <div class="ki-pane top"></div>
+    <div class="ki-pane bot"></div>
+    <div class="ki-layer">
+        <div class="ki-glow"></div>
+        <svg class="ki-rings" viewBox="0 0 600 600" fill="none" aria-hidden="true">
+            <circle class="dr c1" cx="300" cy="300" r="130" pathLength="1" stroke="rgba(125,211,252,.55)" stroke-width="1.2"/>
+            <circle class="dr c2" cx="300" cy="300" r="195" pathLength="1" stroke="rgba(125,211,252,.35)" stroke-width="1"/>
+            <circle class="dr c3" cx="300" cy="300" r="262" pathLength="1" stroke="rgba(125,211,252,.22)" stroke-width="1"/>
+            <circle class="pt" cx="300" cy="170" r="3.5" fill="#7dd3fc"/><circle class="pt" cx="300" cy="430" r="3.5" fill="#7dd3fc"/>
+            <circle class="pt" cx="105" cy="300" r="2.5" fill="#7dd3fc"/><circle class="pt" cx="495" cy="300" r="2.5" fill="#7dd3fc"/>
+        </svg>
+        <div class="ki-stage" id="ki-stage">
+            <div class="ki-orn"><i></i><b></b><i></i></div>
+            <div class="ki-wordbox" id="ki-box">
+                <div class="ki-wordwrap"><span class="ki-word">قيصر</span></div>
+                <span class="ki-pen"></span>
+            </div>
+            <div class="ki-tag">منصة القيصر التعليمية</div>
+            <div class="ki-feats"><span>دروس</span><span>امتحانات</span><span>نتائج</span></div>
+        </div>
+        <div class="ki-bar"><span></span></div>
+    </div>
+</div>
+
 <!-- انتقال ترحيبي بعد نجاح تسجيل الدخول -->
 <div id="splash-screen" aria-live="polite" aria-atomic="true">
     <div class="splash-scene">
         <div class="splash-logo-container">
             <div class="splash-ring" aria-hidden="true"></div>
-            <img src="https://cdn.phototourl.com/free/2026-09-04-5d63dfea-4c8a-4b26-88bc-b83f0591bbbb.jpg" alt="شعار منصة القيصر" class="splash-logo-img">
-            <div class="splash-success-check" aria-hidden="true"><i class="fas fa-check"></i></div>
+            <div class="splash-ring r2" aria-hidden="true"></div>
+            <img src="https://cdn.phototourl.com/member/2026-10-07-59f67aee-843b-4635-af6c-b4f2b5dfa5d6.png" alt="شعار منصة القيصر" class="splash-logo-img">
         </div>
         <div class="splash-text" id="splash-title">أهلًا بك</div>
         <div class="splash-subtext" id="splash-user-welcome">تم التحقق من حسابك بنجاح</div>
@@ -1655,24 +1686,41 @@
         const splashSubtext = document.getElementById("splash-user-welcome");
         const splashStatus = document.getElementById("splash-status-text");
 
-        if (splashTitle) splashTitle.textContent = `أهلًا بك يا ${name}`;
         if (splashSubtext) splashSubtext.textContent = "تم التحقق من حسابك بنجاح";
         if (splashStatus) splashStatus.textContent = "بنجهز منصتك التعليمية";
 
         const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const transitionTime = reducedMotion ? 350 : 2000;
+        const transitionTime = reducedMotion ? 350 : 2500;
         if (splash) {
             splash.classList.remove("splash-entering", "splash-run", "splash-success", "splash-opening");
             splash.style.display = "flex";
             void splash.offsetWidth;
             requestAnimationFrame(() => splash.classList.add("splash-entering", "splash-run"));
 
+            // اسم الطالب بيتكتب حرف حرف
+            if (splashTitle) {
+                const full = `أهلًا بك يا ${name}`;
+                splashTitle.classList.remove("ksp-typed");
+                if (reducedMotion) { splashTitle.textContent = full; splashTitle.classList.add("ksp-typed"); }
+                else {
+                    splashTitle.innerHTML = '<span id="ksp-typed-text"></span><span class="ksp-caret"></span>';
+                    const tgt = document.getElementById("ksp-typed-text");
+                    let i = 0;
+                    const step = Math.max(28, Math.min(60, 1100 / Math.max(1, full.length)));
+                    setTimeout(function tick() {
+                        i++; tgt.textContent = full.slice(0, i);
+                        if (i < full.length) setTimeout(tick, step);
+                        else splashTitle.classList.add("ksp-typed");
+                    }, 650);
+                }
+            }
+
             setTimeout(() => {
                 splash.classList.add("splash-success");
                 if (splashStatus) splashStatus.textContent = "تم الدخول بنجاح — منصتك جاهزة";
-            }, reducedMotion ? 80 : 430);
+            }, reducedMotion ? 80 : 1800);
 
-            setTimeout(() => splash.classList.add("splash-opening"), reducedMotion ? 120 : 1300);
+            setTimeout(() => splash.classList.add("splash-opening"), reducedMotion ? 120 : 2050);
         }
 
         setTimeout(() => {
@@ -2284,6 +2332,55 @@
             resetSignupButton(signupBtn);
         }
     });
+</script>
+
+<script>
+/* مقدمة "قيصر" السينمائية (بتتخطى لو الطالب عنده دخول محفوظ، وبتتقفل بلمسة) */
+(function () {
+    var el = document.getElementById('kaiser-intro');
+    if (!el) return;
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (/(?:^|;\s*)kaiser_student_login=/.test(document.cookie)) { el.parentNode.removeChild(el); return; }
+
+    var gone = false, timers = [], box = document.getElementById('ki-box'), stage = document.getElementById('ki-stage');
+    document.documentElement.style.overflow = 'hidden';
+    function setW() { if (box) el.style.setProperty('--w', box.offsetWidth + 'px'); }
+    setW(); window.addEventListener('resize', setW);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(setW);
+
+    function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+    if (!reduced) {
+        var layer = el.querySelector('.ki-layer');
+        for (var n = 0; n < 20; n++) {
+            var st = document.createElement('span'); st.className = 'ki-star';
+            st.style.left = (Math.random() * 100) + '%'; st.style.top = (Math.random() * 100) + '%';
+            st.style.animationDelay = (Math.random() * 2.5) + 's'; st.style.animationDuration = (1.8 + Math.random() * 2) + 's';
+            layer.insertBefore(st, layer.firstChild);
+        }
+        // شرارات لما الكلمة تخلص كتابة
+        later(function () {
+            if (gone) return;
+            for (var k = 0; k < 16; k++) {
+                var sp = document.createElement('span'); sp.className = 'ki-spark';
+                var ang = (Math.PI * 2 * k / 16) + Math.random() * .3, dist = 70 + Math.random() * 110;
+                sp.style.setProperty('--dx', Math.round(Math.cos(ang) * dist * 1.5) + 'px');
+                sp.style.setProperty('--dy', Math.round(Math.sin(ang) * dist) + 'px');
+                box.appendChild(sp);
+            }
+        }, 1650);
+    }
+
+    function leave() {
+        if (gone) return; gone = true;
+        timers.forEach(clearTimeout);
+        el.classList.add('ki-leaving');
+        document.documentElement.style.overflow = '';
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1300);
+    }
+    el.addEventListener('click', leave);
+    later(leave, reduced ? 500 : 3100);
+})();
 </script>
 </body>
 </html>
