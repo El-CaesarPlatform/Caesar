@@ -239,6 +239,24 @@
         .sidebar-menu li.active i {
             color: #ffffff !important;
         }
+        .notice-count-badge { display:none; min-width:21px; height:21px; padding:0 6px; align-items:center; justify-content:center; border-radius:999px; background:#ef4444; color:#fff; font-size:.72rem; font-weight:900; box-shadow:0 0 12px #ef444477; }
+        .notice-count-badge.has-count { display:inline-flex; }
+        .notice-card { background:linear-gradient(135deg,var(--bg-card),var(--bg-card-soft)); border:1px solid var(--border-color); border-right:4px solid #334155; border-radius:16px; padding:16px; margin:12px 0; box-shadow:var(--card-shadow); }
+        .notice-card.unread { border-right-color:#ef4444; box-shadow:0 0 18px rgba(239,68,68,.13); }
+        .notice-card h3 { color:var(--text-main); font-size:1rem; margin:0 0 6px; }
+        .notice-card p { color:var(--text-sub); line-height:1.8; margin:0 0 10px; white-space:pre-wrap; }
+        .notice-card small { color:var(--text-sub); }
+        .notice-card button { border:0; border-radius:9px; padding:8px 12px; margin-top:10px; background:#17263a; color:#c9f7ff; font-weight:800; cursor:pointer; }
+        .notice-card .notice-open-result { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; padding:9px 15px; background:linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff; box-shadow:0 8px 22px rgba(37,99,235,.22); }
+        .notice-card .notice-open-result:hover { filter:brightness(1.08); transform:translateY(-1px); }
+        .notice-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 18px; }
+        .notice-actions button { border:1px solid var(--border-color); border-radius:10px; padding:10px 14px; color:var(--text-main); background:var(--bg-card); font-weight:800; cursor:pointer; }
+        body.light-theme .notice-card { background:linear-gradient(135deg,#fff,#eff6ff); border-color:#cbd5e1; }
+        body.light-theme .notice-card.unread { border-right-color:#dc2626; background:linear-gradient(135deg,#fff7f7,#eff6ff); box-shadow:0 8px 22px rgba(220,38,38,.10); }
+        body.light-theme .notice-card h3 { color:#0f172a; }
+        body.light-theme .notice-card p { color:#334155; }
+        body.light-theme .notice-card small { color:#64748b; }
+        body.light-theme .notice-card button:not(.notice-open-result) { background:#e2e8f0; color:#1e293b; }
 
         /* ================= 3. المحتوى الرئيسي ================= */
         .main-content {
@@ -821,7 +839,7 @@
         .mistake-count-options button:hover { background:var(--primary-blue); color:#fff; }
         .mistake-practice-close { position:absolute; top:12px; left:12px; border:0; color:var(--text-sub); background:transparent; font-size:1.1rem; cursor:pointer; }
 
-        /* ================= المحتوى التعليمي (الوحدات وشريط الدرجة) ================= */
+        /* ================= محتويات الكورس وشريط الدرجة ================= */
         #units-list { max-width: 900px; width: 100%; }
 
         .unit-acc {
@@ -1910,8 +1928,8 @@
         .answers-review-dialog {
             display: flex;
             flex-direction: column;
-            width: min(100%, 780px);
-            max-height: min(88vh, 820px);
+            width: min(100%, 920px);
+            max-height: min(90vh, 900px);
             overflow: hidden;
             border: 1px solid var(--border-color);
             border-radius: 22px;
@@ -1961,11 +1979,11 @@
         .review-result-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
         .review-score-label { display: block; margin-bottom: 5px; color: var(--text-sub); font-size: .82rem; font-weight: 700; }
         .review-score-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-        .review-score-main strong { color: var(--text-main); font-size: clamp(1.55rem, 4vw, 2.1rem); line-height: 1.25; font-weight: 900; }
-        .review-score-main span { color: var(--text-sub); font-size: .9rem; font-weight: 700; }
-        .review-percent { display: grid; place-items: center; flex: none; width: 82px; height: 82px; border: 1px solid var(--border-color); border-radius: 50%; color: var(--primary-blue); background: rgba(37, 99, 235, 0.10); }
-        .review-percent strong { font-size: 1.18rem; font-weight: 900; }
-        .review-percent small { margin-top: -15px; color: var(--text-sub); font-size: .65rem; }
+        .review-score-main strong { color: var(--text-main); font-size: clamp(1.2rem, 2.6vw, 1.6rem); line-height: 1.25; font-weight: 900; }
+        .review-score-main span { color: var(--text-sub); font-size: .82rem; font-weight: 700; }
+        .review-percent { display: grid; place-items: center; flex: none; width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 50%; color: var(--primary-blue); background: rgba(37, 99, 235, 0.10); }
+        .review-percent strong { font-size: 1rem; font-weight: 900; }
+        .review-percent small { margin-top: -12px; color: var(--text-sub); font-size: .62rem; }
         .review-progress { display: block; width: 100%; height: 8px; margin-top: 16px; overflow: hidden; border-radius: 99px; background: rgba(37, 99, 235, 0.15); }
         .review-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #38bdf8); }
         .review-count-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
@@ -1991,6 +2009,15 @@
         .review-question-list { margin-top: 0 !important; padding-top: 0 !important; border-top: 0 !important; }
         .review-list-title { margin: 0 0 13px !important; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); color: var(--primary-blue) !important; font-size: 1rem !important; }
         .review-question { border-radius: 15px !important; }
+        .review-question-pending { margin-bottom:14px; padding:15px; border:1px solid var(--border-color); border-right:4px solid #38bdf8; border-radius:15px; background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(15,23,42,.28)); text-align:right; }
+        .review-options-pending { display:grid; gap:8px; margin:10px 0; }
+        .review-option-pending { display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 11px; border:1px solid var(--border-color); border-radius:11px; background:rgba(255,255,255,.025); color:var(--text-main); }
+        .review-option-pending.selected { border-color:rgba(56,189,248,.75); background:rgba(14,165,233,.11); }
+        .review-option-letter { display:grid; place-items:center; flex:none; width:29px; height:29px; border-radius:50%; background:rgba(148,163,184,.13); color:var(--text-sub); font-weight:900; }
+        .review-option-text { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .review-option-yours { flex:none; padding:4px 8px; border-radius:8px; background:rgba(14,165,233,.17); color:#7dd3fc; font-size:.75rem; font-weight:900; }
+        .review-student-answer { display:flex; flex-direction:column; gap:5px; padding:11px 12px; border-radius:11px; background:rgba(0,0,0,.22); color:var(--text-sub); }
+        .review-student-answer strong { color:var(--text-main); white-space:pre-wrap; overflow-wrap:anywhere; }
         .review-key-answer { display: flex; flex: 0 0 auto; align-self: flex-start; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; width: fit-content; max-width: 100%; min-height: 0 !important; height: auto !important; margin-top: 8px; padding: 7px 10px; border: 1px solid var(--border-color); border-right: 3px solid var(--primary-blue); border-radius: 10px; background: rgba(37, 99, 235, .08); }
         .review-key-answer .review-key-label { display: inline; color: var(--text-sub) !important; font-size: .78rem !important; font-weight: 800; }
         .review-key-answer strong { display: inline; margin: 0; color: var(--primary-blue) !important; font-size: .84rem; line-height: 1.55; overflow-wrap: anywhere; }
@@ -2341,12 +2368,12 @@
 
             /* نافذة مراجعة الإجابات على الموبايل */
             #answers-review-modal { padding: 8px; }
-            .answers-review-dialog { width: 100%; max-height: 92vh; border-radius: 16px; }
+            .answers-review-dialog { width: 100%; max-height: 94dvh; border-radius: 16px; }
             .answers-review-header { padding: 12px 14px; }
             .answers-review-title { font-size: .88rem; }
             .answers-review-body { padding: 12px; }
             .review-result-card { padding: 14px; margin-bottom: 14px; border-radius: 14px; }
-            .review-percent { width: 68px; height: 68px; }
+            .review-percent { width: 56px; height: 56px; }
             .review-count-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
             .review-count { flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 10px 6px; }
             .review-count small { font-size: .68rem; }
@@ -2400,7 +2427,7 @@
         <ul class="sidebar-menu">
             <li class="active" id="tab-btn-home" onclick="switchTab('home')"><span aria-hidden="true"><i class="fas fa-house"></i></span><span class="menu-label">الرئيسية</span></li>
             <li id="tab-btn-courses" onclick="switchTab('courses')"><span aria-hidden="true"><i class="fas fa-graduation-cap"></i></span><span class="menu-label">الكورسات</span></li>
-            <li id="tab-btn-units" onclick="switchTab('units')"><span aria-hidden="true"><i class="fas fa-book"></i></span><span class="menu-label">المحتوى التعليمي</span></li>
+            <li id="tab-btn-notifications" onclick="switchTab('notifications')"><span aria-hidden="true"><i class="fas fa-bell"></i></span><span class="menu-label">الإشعارات</span><span id="student-notice-count" class="notice-count-badge" aria-label="إشعارات جديدة">0</span></li>
             <li id="tab-btn-account" onclick="switchTab('account')"><span aria-hidden="true"><i class="fas fa-user"></i></span><span class="menu-label">حسابي</span></li>
             <li id="tab-btn-logout" onclick="logoutStudent()" style="margin-top:6px; color:#ef4444;"><span aria-hidden="true"><i class="fas fa-right-from-bracket" style="color:#ef4444;"></i></span><span class="menu-label" style="color:#ef4444;">تسجيل الخروج</span></li>
         </ul>
@@ -2473,9 +2500,9 @@
         </div>
     </div>
 
-    <!-- قسم المحتوى التعليمي (وحدات: ملفات + فيديوهات + امتحانات) -->
+    <!-- محتويات الكورس المختار -->
     <div id="units-section" style="display:none;">
-        <h2 class="section-title"><i class="fas fa-book"></i> المحتوى التعليمي</h2>
+        <h2 class="section-title"><i class="fas fa-graduation-cap"></i> تفاصيل الكورس</h2>
         <div id="active-course-banner"></div>
         <div id="units-list"></div>
     </div>
@@ -2589,6 +2616,15 @@
             </div>
 
         </div>
+    </div>
+
+    <div id="notifications-section" style="display:none;">
+        <h2 class="section-title"><i class="fas fa-bell" style="color:#ef4444;"></i> إشعاراتك</h2>
+        <p style="color:var(--text-sub);margin:-8px 0 14px;">تابع الامتحانات الجديدة ورسائل المدرس وتصحيح الإجابات المقالية.</p>
+        <div class="notice-actions">
+            <button type="button" onclick="markAllStudentNotificationsRead()"><i class="fas fa-check-double"></i> تحديد الكل كمقروء</button>
+        </div>
+        <div id="student-notifications-list"><p style="color:var(--text-sub);">جاري تحميل الإشعارات...</p></div>
     </div>
 
     <!-- 4. غرفة الاختبار -->

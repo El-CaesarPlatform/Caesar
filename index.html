@@ -2361,5 +2361,23 @@
     later(leave, reduced ? 500 : 3100);
 })();
 </script>
+<script>
+    (function removeLegacyPlatformWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        var appScope = new URL('./', location.href).href;
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(registrations.filter(function (registration) { return registration.scope === appScope; }).map(async function (registration) {
+                try { (await registration.getNotifications()).forEach(function (item) { item.close(); }); } catch (e) {}
+                try {
+                    if (registration.pushManager) {
+                        var subscription = await registration.pushManager.getSubscription();
+                        if (subscription) await subscription.unsubscribe();
+                    }
+                } catch (e) {}
+                await registration.unregister();
+            }));
+        }).catch(function () {});
+    })();
+</script>
 </body>
 </html>

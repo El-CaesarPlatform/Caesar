@@ -66,6 +66,177 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
+// مركز الإشعارات: البيانات الظاهرة للطالب لا تحفظ كود الطالب داخل مستند الإشعار.
+(function removeLegacyPlatformWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    const appScope = new URL('./', location.href).href;
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+        return Promise.all(registrations.filter(registration => registration.scope === appScope).map(async registration => {
+            try { (await registration.getNotifications()).forEach(item => item.close()); } catch (_) {}
+            try {
+                if (registration.pushManager) {
+                    const subscription = await registration.pushManager.getSubscription();
+                    if (subscription) await subscription.unsubscribe();
+                }
+            } catch (_) {}
+            await registration.unregister();
+        }));
+    }).catch(() => {});
+})();
+let studentNoticeItems = [];
+let studentNoticeUnsubscribe = null;
+let studentNoticeReadIds = new Set();
+let studentNoticeInitialized = false;
+let studentNoticeHashPromise = null;
+
+function studentNoticeReadStorageKey() {
+    return `kaiser_notice_read_${(localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim()}`;
+}
+
+function loadStudentNoticeReadIds() {
+    try {
+        const ids = JSON.parse(localStorage.getItem(studentNoticeReadStorageKey()) || '[]');
+        studentNoticeReadIds = new Set(Array.isArray(ids) ? ids : []);
+    } catch (_) { studentNoticeReadIds = new Set(); }
+}
+
+async function getStudentNotificationHash() {
+    if (!studentNoticeHashPromise) {
+        studentNoticeHashPromise = (async () => {
+            const code = (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
+            if (!code || !crypto.subtle) return '';
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+            return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+        })().catch(() => '');
+    }
+    return studentNoticeHashPromise;
+}
+
+function studentMatchesNotice(data, myHash) {
+    const audience = data.audience || 'all';
+    if (audience === 'all') return true;
+    if (audience === 'grade') return !data.grade || data.grade === (localStorage.getItem('student_stage') || '');
+    if (audience === 'students') return !!myHash && Array.isArray(data.targetHashes) && data.targetHashes.includes(myHash);
+    return false;
+}
+
+function getNoticeDate(value) {
+    if (value && typeof value.toDate === 'function') return value.toDate();
+    if (value && value.seconds) return new Date(value.seconds * 1000);
+    const parsed = value ? new Date(value) : new Date();
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function updateStudentNoticeBadge() {
+    const badge = document.getElementById('student-notice-count');
+    if (!badge) return;
+    const unread = studentNoticeItems.filter(item => !studentNoticeReadIds.has(item.id)).length;
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.classList.toggle('has-count', unread > 0);
+}
+
+function getStudentNoticeTitle(item) {
+    return item && item.kind === 'essay_graded' ? '✅ تم تصحيح امتحانك' : (item && item.title) || 'إشعار من منصة القيصر';
+}
+
+function renderStudentNotifications() {
+    const list = document.getElementById('student-notifications-list');
+    updateStudentNoticeBadge();
+    if (!list) return;
+    if (!studentNoticeItems.length) {
+        list.innerHTML = '<div class="notice-card"><h3>مفيش إشعارات جديدة</h3><p>هنبلغك هنا لما ينزل امتحان أو المدرس يضيف إعلان أو يصحح المقالي.</p></div>';
+        return;
+    }
+    list.innerHTML = studentNoticeItems.map(item => {
+        const unread = !studentNoticeReadIds.has(item.id);
+        const date = getNoticeDate(item.createdAt).toLocaleString('ar-EG');
+        const opensResult = item.kind === 'essay_graded';
+        const oldExamName = String(item.body || '').match(/في\s+(.+?)(?:\.|$)/);
+        const displayBody = opensResult
+            ? `تم تصحيح امتحانك${item.examName || (oldExamName && oldExamName[1]) ? ` (${item.examName || oldExamName[1]})` : ''}. افتح حسابك لمراجعة الأسئلة والدرجة.`
+            : item.body || '';
+        return `<article class="notice-card ${unread ? 'unread' : ''}">
+            <h3>${unread ? '<span style="color:#ef4444;">● جديد</span> ' : ''}${escapeHtml(getStudentNoticeTitle(item))}</h3>
+            <p>${escapeHtml(displayBody)}</p>
+            <small><i class="fas fa-clock"></i> ${escapeHtml(date)}</small>
+            ${opensResult ? `<div><button class="notice-open-result" type="button" onclick="openStudentNoticeResult('${escapeHtml(item.id)}')"><i class="fas fa-file-circle-check"></i> عرض الأسئلة والدرجة</button></div>` : ''}
+            ${unread ? `<br><button type="button" onclick="markStudentNotificationRead('${escapeHtml(item.id)}')">تحديد كمقروء</button>` : ''}
+        </article>`;
+    }).join('');
+}
+
+async function openStudentNoticeResult(noticeId) {
+    let notice = studentNoticeItems.find(item => item.id === noticeId);
+    if (!notice && db) {
+        try {
+            const doc = await db.collection('platform_notifications').doc(noticeId).get();
+            if (doc.exists) notice = { id: doc.id, ...doc.data() };
+        } catch (_) {}
+    }
+    if (!notice) return;
+    markStudentNotificationRead(noticeId);
+    switchTab('account');
+    await syncAccountWithFirebase();
+    const history = getStoredHistory();
+    const bodyExamName = String(notice.body || '').match(/في\s+(.+?)(?:\.|$)/);
+    const examName = String(notice.examName || (bodyExamName && bodyExamName[1]) || '').trim();
+    const result = history.find(item => notice.resultId && String(item.id) === String(notice.resultId))
+        || history.find(item => {
+            const candidateName = String(item.examName || item.examTitle || '').trim();
+            return examName && candidateName && (candidateName === examName || examName.includes(candidateName));
+        })
+        || history.filter(item => item.canReview && Array.isArray(item.answers) && item.answers.some(answer => answer && answer.type === 'essay'))
+            .sort((a, b) => Number(b.timestampMs || 0) - Number(a.timestampMs || 0))[0];
+    if (result && result.answers && result.answers.length) {
+        openAnswersReviewModal(String(result.id || result.serial));
+    } else {
+        showCustomToast('مش لاقي تفاصيل الامتحان في النتائج دلوقتي. جرّب تحديث حسابك بعد لحظات.', 'warning');
+    }
+}
+
+function markStudentNotificationRead(id) {
+    studentNoticeReadIds.add(id);
+    localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+    renderStudentNotifications();
+}
+
+function markAllStudentNotificationsRead() {
+    studentNoticeItems.forEach(item => studentNoticeReadIds.add(item.id));
+    localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+    renderStudentNotifications();
+}
+
+function startStudentNotificationCenter() {
+    if (!db || studentNoticeUnsubscribe) return;
+    loadStudentNoticeReadIds();
+    const initialKey = `kaiser_notice_first_seen_${(localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim()}`;
+    if (!localStorage.getItem(initialKey)) localStorage.setItem(initialKey, String(Date.now()));
+    const firstSeenAt = Number(localStorage.getItem(initialKey)) || Date.now();
+    const hasReadState = localStorage.getItem(studentNoticeReadStorageKey()) !== null;
+    studentNoticeUnsubscribe = db.collection('platform_notifications').orderBy('createdAt', 'desc').limit(75).onSnapshot(async snapshot => {
+        const myHash = await getStudentNotificationHash();
+        const visible = [];
+        const fresh = [];
+        const newlyAddedIds = new Set(snapshot.docChanges().filter(change => change.type === 'added').map(change => change.doc.id));
+        snapshot.forEach(doc => {
+            const data = doc.data() || {};
+            if (data.active === false || !studentMatchesNotice(data, myHash)) return;
+            const item = { id: doc.id, ...data };
+            visible.push(item);
+            const date = getNoticeDate(data.createdAt).getTime();
+            if (!hasReadState && !studentNoticeInitialized && date <= firstSeenAt) studentNoticeReadIds.add(doc.id);
+            if (newlyAddedIds.has(doc.id) && date > firstSeenAt && !studentNoticeReadIds.has(doc.id)) fresh.push(item);
+        });
+        if (!hasReadState && !studentNoticeInitialized) localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+        studentNoticeItems = visible.sort((a, b) => getNoticeDate(b.createdAt) - getNoticeDate(a.createdAt));
+        renderStudentNotifications();
+        if (studentNoticeInitialized && fresh.length) {
+            showCustomToast(`<i class="fas fa-bell"></i> ${escapeHtml(getStudentNoticeTitle(fresh[0]))}`, 'success');
+        }
+        studentNoticeInitialized = true;
+    }, error => console.warn('تعذر تحميل إشعارات المنصة:', error));
+}
+
 function showCustomToast(message, type = 'error') {
     let toast = document.getElementById('custom-toast-notification');
     if (!toast) {
@@ -231,14 +402,31 @@ function generateQuestionsReviewHtml(answers, released = true) {
         const crAns = isEssay ? (item.modelAnswer || "") : (item.correctAnswer || "");
 
         if (!released) {
+            const options = Array.isArray(item.options) ? item.options : [];
+            const unanswered = !item.studentAnswer || item.studentAnswer === 'لم يحل' || item.studentAnswer === 'لم يكتب إجابة';
+            const normalizedAnswer = String(item.studentAnswer || '').trim().toLowerCase();
+            const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
+            const optionsHtml = !isEssay && options.length ? `
+                <div class="review-options-pending">
+                    ${options.map((option, optionIndex) => {
+                        const optionText = String(option && typeof option === 'object' ? (option.text || option.label || option.value || '') : option);
+                        const selected = !unanswered && (Number.isInteger(item.studentIndex)
+                            ? optionIndex === item.studentIndex
+                            : optionText.trim().toLowerCase() === normalizedAnswer);
+                        return `<div class="review-option-pending ${selected ? 'selected' : ''}">
+                            <span class="review-option-letter">${letters[optionIndex] || optionIndex + 1}</span>
+                            <span class="review-option-text">${escapeHtml(optionText)}</span>
+                            ${selected ? '<span class="review-option-yours">اختيارك</span>' : ''}
+                        </div>`;
+                    }).join('')}
+                </div>` : '';
             html += `
-                <div class="review-question" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-right: 4px solid #64748b; padding: 14px; margin-bottom: 14px; border-radius: 12px; text-align: right;">
+                <div class="review-question review-question-pending">
                     <div style="margin-bottom: 8px;">
                         <strong style="color: #fff; font-size: 0.98rem; line-height: 1.6;">س${index + 1}: ${escapeHtml(qText)}</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; white-space: pre-wrap;">
-                        <span style="color: #cbd5e1; font-size: 0.9rem;">إجابتك: <strong style="color: #fff;">${escapeHtml(stAns)}</strong></span>
-                    </div>
+                    ${optionsHtml}
+                    ${isEssay || !options.length ? `<div class="review-student-answer"><span>إجابتك</span><strong>${escapeHtml(stAns)}</strong></div>` : (unanswered ? '<div class="review-student-answer"><strong>لم تجب على هذا السؤال</strong></div>' : '')}
                 </div>
             `;
             return;
@@ -557,7 +745,7 @@ async function syncAccountWithFirebase() {
             }
 
             liveRecords = realSubmissions.map((docData, idx) => {
-                const isApproved = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true);
+                const isApproved = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true || docData.isGraded === true);
                 const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : 0);
                 const maxScore = docData.maxScore || docData.maxExamScore || 10;
                 const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
@@ -574,8 +762,8 @@ async function syncAccountWithFirebase() {
                     serial: (docData.serial || (20000 + idx)).toString(),
                     examName: docData.examName || docData.examTitle || docData.title || "اختبار أونلاين",
                     totalQuestions: totalQuestions,
-                    percentage: isCancelled ? 'ملغي' : (isApproved ? `% ${percentage}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح'),
-                    score: isCancelled ? 'ملغي' : (isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>'),
+                    percentage: isCancelled ? 'ملغي' : (isApproved ? `% ${percentage}` : '—'),
+                    score: isCancelled ? 'ملغي' : (isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'تم استلام إجاباتك'),
                     scoreNum: Number(score) || 0,
                     maxScoreNum: Number(maxScore) || 10,
                     solvedQuestions: solvedCount,
@@ -783,7 +971,7 @@ async function openAnswersReviewModal(recordId) {
                 </div>
                 ${(summary.counts.partial || summary.counts.pending) ? `<div class="review-extra">${summary.counts.partial ? `<span><i class="fas fa-star-half-stroke"></i> درجات جزئية: ${summary.counts.partial}</span>` : ''}${summary.counts.pending ? `<span><i class="fas fa-hourglass-half"></i> قيد المراجعة: ${summary.counts.pending}</span>` : ''}</div>` : ''}
             </section>`
-        : `<div class="review-pending-banner"><i class="fas fa-hourglass-half"></i> النتيجة قيد التصحيح، وستظهر الدرجة بعد اعتمادها.</div>`;
+        : `<div class="review-pending-banner"><i class="fas fa-circle-check"></i> تم استلام إجاباتك. تقدر تراجع اللي كتبته، وهتظهر الدرجة وتقييم الإجابات بعد اعتماد النتيجة.</div>`;
 
     reviewModal.innerHTML = `
         <div class="answers-review-dialog">
@@ -917,6 +1105,7 @@ window.onload = function() {
 
     updateProfileUI();
     syncAccountWithFirebase();
+    startStudentNotificationCenter();
 
     if (document.getElementById("profile-code")) document.getElementById("profile-code").textContent = studentCode || "غير محدد";
     if (document.getElementById("profile-phone")) document.getElementById("profile-phone").textContent = studentPhone || "غير مسجل";
@@ -935,9 +1124,11 @@ window.onload = function() {
     checkAndResumeRunningExam();
 
     try {
-        let nextTab = sessionStorage.getItem('open_tab_after_reload') || 'home';
+        let nextTab = sessionStorage.getItem('open_tab_after_reload') || new URLSearchParams(location.search).get('tab') || 'home';
         sessionStorage.removeItem('open_tab_after_reload');
         if (!window.isExamRunning) switchTab(nextTab);
+        const noticeId = new URLSearchParams(location.search).get('notice');
+        if (noticeId && nextTab === 'account') setTimeout(() => openStudentNoticeResult(noticeId), 900);
     } catch (e) {}
 };
 
@@ -1315,7 +1506,7 @@ async function checkStudentResult() {
                     const examTitle = docData.examName || docData.examTitle || docData.title || "امتحان عام";
                     const submittedDate = docData.submittedAt || "تم التسليم بنجاح";
                     
-                    const isResultVisible = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true);
+                    const isResultVisible = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true || docData.isGraded === true);
 
                     if (isResultVisible) {
                         const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : (docData.mcqScore || 0));
@@ -1343,14 +1534,14 @@ async function checkStudentResult() {
                     } else {
                         html += `
                             <div style="background: rgba(241, 196, 15, 0.1); border-right: 5px solid #f1c40f; padding: 18px; border-radius: 12px; text-align: right; margin-bottom: 15px;">
-                                <h4 style="color: #f1c40f; margin-bottom: 10px;"><i class="fas fa-hourglass-half"></i> قيد التصحيح والمراجعة</h4>
+                                <h4 style="color: #38bdf8; margin-bottom: 10px;"><i class="fas fa-circle-check"></i> تم استلام إجاباتك</h4>
                                 <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-user"></i> الطالب:</strong> ${docData.studentName || docData.name}</p>
                                 <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-book-open"></i> الامتحان:</strong> <span style="color:#f1c40f;">${examTitle}</span></p>
                                 <p style="color: #cbd5e1; margin-bottom: 8px;"><strong><i class="fas fa-calendar-days"></i> وقت التسليم:</strong> ${submittedDate}</p>
                                 <p style="color: #2ecc71; font-weight: bold; margin-top: 10px;">
-                                    <i class="fas fa-envelope"></i> تم حفظ إجاباتك بنجاح، وستظهر الدرجة والصح والغلط هنا فور اعتمادها من المعلم.
+                                    <i class="fas fa-envelope"></i> تقدر تراجع الأسئلة وإجاباتك الآن. الدرجة وعلامات الصح والغلط هتظهر بعد ما المعلم يعتمد النتيجة.
                                 </p>
-                                ${generateQuestionsReviewHtml(docData.answers, false)}
+                                ${generateQuestionsReviewHtml(getAnswersWithQuestionData(docData), false)}
                             </div>
                         `;
                     }
@@ -1384,8 +1575,9 @@ function switchTab(tab) {
         'home': { btn: document.getElementById('tab-btn-home'), sec: document.getElementById('home-section') },
         'courses': { btn: document.getElementById('tab-btn-courses'), sec: document.getElementById('courses-section') },
         'exams': { btn: document.getElementById('tab-btn-exams'), sec: document.getElementById('exams-section') },
-        'units': { btn: document.getElementById('tab-btn-units'), sec: document.getElementById('units-section') },
+        'units': { sec: document.getElementById('units-section') },
         'results': { btn: document.getElementById('tab-btn-results'), sec: document.getElementById('results-section') },
+        'notifications': { btn: document.getElementById('tab-btn-notifications'), sec: document.getElementById('notifications-section') },
         'account': { btn: document.getElementById('tab-btn-account'), sec: document.getElementById('account-section') }
     };
 
@@ -2134,8 +2326,8 @@ function calculateAndSend(bypassValidation = false) {
         serial: serialGenerated,
         examName: currentExamTitle,
         totalQuestions: activeQuestionsList.length,
-        percentage: releaseNow ? `% ${finalPercent}` : '<i class="fas fa-hourglass-half"></i> قيد التصحيح',
-        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'قيد التصحيح <i class="fas fa-hourglass-half"></i>',
+        percentage: releaseNow ? `% ${finalPercent}` : '—',
+        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'تم استلام إجاباتك',
         scoreNum: mcqScoreObtained,
         maxScoreNum: totalExamPointsPossible || 10,
         solvedQuestions: solvedQuestionsCount,
@@ -2459,17 +2651,25 @@ function showSubmissionResultModalBasic(info) {
             <div style="font-size: 3rem; margin-bottom: 6px;"><i class="fas fa-circle-check"></i></div>
             <h3 style="color:#fff; margin: 0 0 4px; font-size: 1.3rem;">تم تسليم الامتحان بنجاح</h3>
             <p style="color:#94a3b8; margin: 0 0 18px; font-size: 0.92rem;">${escapeHtml(info.examTitle)}</p>
-            <div style="background: rgba(241,196,15,0.08); border: 1px solid rgba(241,196,15,0.4); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
-                <div style="color:#f1c40f; font-size: 1.4rem; font-weight: 900;"><i class="fas fa-hourglass-half"></i> قيد التصحيح</div>
-                <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">الامتحان فيه أسئلة مقالية والمعلم هيراجعها. إجاباتك محفوظة وتقدر تشوفها من <strong>حسابي</strong>.</p>
+            <div style="background: rgba(14,165,233,0.08); border: 1px solid rgba(56,189,248,0.35); border-radius: 16px; padding: 16px; margin-bottom: 14px;">
+                <div style="color:#38bdf8; font-size: 1.2rem; font-weight: 900;"><i class="fas fa-circle-check"></i> تم حفظ إجاباتك</div>
+                <p style="color:#cbd5e1; margin: 8px 0 0; font-size: 0.88rem; line-height: 1.8;">دي مراجعة للأسئلة والإجابات اللي سلّمتها. مش هتظهر علامة الصح والغلط أو الدرجة غير بعد ما المدرس يصحح الامتحان.</p>
             </div>`;
 
+    const pendingReview = !info.cancelled && !info.released
+        ? generateQuestionsReviewHtml(info.answers || [], false)
+        : '';
+    const compactResult = !info.cancelled && !info.released;
+
     overlay.innerHTML = `
-        <div style="background: #1e1e38; padding: 26px; border-radius: 20px; max-width: 420px; width: 95%; text-align: center; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
-            ${body}
-            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button onclick="closeSubmissionResultModal('account')" style="padding: 11px 20px; background: linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;"><i class="fas fa-chart-column"></i> روح لحسابي</button>
-                <button onclick="closeSubmissionResultModal()" style="padding: 11px 20px; background:#334155; color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">تمام</button>
+        <div style="background: #111827; padding: ${compactResult ? '20px' : '26px'}; border-radius: 20px; max-width: ${compactResult ? '780px' : '420px'}; width: 95%; max-height: 92vh; display:flex; flex-direction:column; text-align: center; border: 1px solid rgba(56,189,248,0.3); box-shadow: 0 10px 40px rgba(0,0,0,0.6); overflow:hidden;">
+            <div style="overflow-y:auto; overscroll-behavior:contain; padding:2px 5px 8px;">
+                ${body}
+                ${pendingReview}
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding-top:10px; flex:none;">
+                ${compactResult ? '' : `<button onclick="closeSubmissionResultModal('account')" style="padding: 11px 20px; background: linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;"><i class="fas fa-chart-column"></i> روح لحسابي</button>`}
+                <button onclick="closeSubmissionResultModal()" style="padding: 11px 24px; background:${compactResult ? 'linear-gradient(135deg,#00b4d8,#2563eb)' : '#334155'}; color:#fff; border:none; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;">${compactResult ? 'إغلاق المراجعة' : 'تمام'}</button>
             </div>
         </div>
     `;
@@ -2536,7 +2736,7 @@ async function deleteOldExamsFromDB(daysOld = 30) {
 }
 
 // ==========================================
-// <i class="fas fa-book"></i> الوحدات والمحتوى التعليمي
+// محتويات الكورس التي يفتحها الطالب من بطاقة الكورس
 // ==========================================
 let studentUnitsCache = [];
 let examLockedIdsCache = new Set();
@@ -3023,7 +3223,7 @@ function buildUnitItemRowHtml(it, openCallExpr) {
                     ? `<div class="exam-result-chip" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.4);"><i class="fas fa-ban"></i> <b>امتحانك ملغي - تواصل مع الدعم</b></div>`
                     : released
                     ? `<div class="exam-result-chip score"><span><i class="fas fa-trophy"></i> درجتك</span><b>${escapeHtml(stats.score || '')}</b>${resultPercent !== null ? `<strong class="exam-result-percent">${resultPercent}%</strong>` : ''}</div>`
-                    : `<div class="exam-result-chip pending"><i class="fas fa-hourglass-half"></i> <b>قيد التصحيح</b></div>`;
+                    : `<div class="exam-result-chip pending"><i class="fas fa-circle-check"></i> <b>تم استلام إجاباتك</b></div>`;
                 const progressHtml = released && !cancelledChip && resultPercent !== null
                     ? `<div class="exam-result-progress" role="progressbar" aria-label="نسبة نتيجة الامتحان" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${resultPercent}"><div class="exam-result-progress-fill" style="width:${resultPercent}%"></div></div>`
                     : '';
@@ -3036,7 +3236,7 @@ function buildUnitItemRowHtml(it, openCallExpr) {
                         ${scoreChip}
                         ${progressHtml}
                         ${metaChips.length ? `<div class="exam-result-meta">${metaChips.join('')}</div>` : ''}
-                        ${released && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')"><i class="fas fa-clipboard-list"></i> عرض تفاصيل الإجابة</button>` : ''}
+                        ${!cancelledChip && stats.answers && stats.answers.length ? `<button class="course-btn" style="margin-top:10px;padding:10px;" onclick="openAnswersReviewModal('${stats.id || stats.serial}')"><i class="fas fa-clipboard-list"></i> عرض الأسئلة وإجاباتك</button>` : ''}
                     </div>`;
             }
         } else if (isHardClosed) {
@@ -3616,7 +3816,7 @@ renderUnitsSection = async function() {
     if (!course || !subscriptionsCache.has(course.id)) { activeCourseId = null; return renderUnitsSection(); }
 
     const banner = document.getElementById('active-course-banner');
-    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}${course.isPaid ? ' <span style="font-size:.7rem;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;margin-right:6px;"><i class="fas fa-gem"></i> مدفوع</span>' : ''}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">كل المحتوى</button></div>`;
+    if (banner) banner.innerHTML = `<div class="course-hero"><div><small>أنت الآن داخل الكورس</small><h3><i class="fas fa-graduation-cap"></i> ${escapeHtml(course.title)}${course.isPaid ? ' <span style="font-size:.7rem;padding:2px 10px;border-radius:999px;background:rgba(255,190,11,.2);color:#ffda63;margin-right:6px;"><i class="fas fa-gem"></i> مدفوع</span>' : ''}</h3></div><button class="course-btn" style="width:auto;padding:9px 15px;" onclick="exitCourse()">رجوع للكورسات</button></div>`;
 
     await Promise.all([syncMistakesFromServer(course.id), loadReleasedExamIds()]);
     await backfillMistakesFromPastResults(course);
@@ -3679,7 +3879,7 @@ async function loadReleasedExamIds() {
         [a, b].forEach(snap => snap.forEach(d => {
             const data = d.data();
             if (!recordBelongsToMe(data)) return;
-            const released = data.showScore === true || data.showResult === true || data.isResultVisible === true;
+            const released = data.showScore === true || data.showResult === true || data.isResultVisible === true || data.isGraded === true;
             const ex = data.examCode || data.examId;
             if (ex && released && data.examCancelled !== true) releasedExamIdsCache.add(ex);
         }));
@@ -3739,7 +3939,7 @@ async function backfillMistakesFromPastResults(course) {
         if (!record || !recordBelongsToMe(record)) return;
         const examId = String(record.examId || record.examCode || '');
         if (!examId || examId.startsWith('mistake_practice_') || !examIds.has(examId) || record.examCancelled === true || record.score === 'ملغي' || record.percentage === 'ملغي') return;
-        const released = record.canReview === true || record.showScore === true || record.showResult === true || record.isResultVisible === true;
+        const released = record.canReview === true || record.showScore === true || record.showResult === true || record.isResultVisible === true || record.isGraded === true;
         if (!released) return;
 
         const rawAnswers = record.answers || record.answersList || [];
@@ -3854,7 +4054,7 @@ function pruneMasteredMistakes(questions, answers) {
     } catch (e) { console.warn('تعذر تحديث أسئلة الأخطاء:', e); }
 }
 
-function exitCourse() { activeCourseId = null; renderUnitsSection(); }
+function exitCourse() { activeCourseId = null; switchTab('courses'); }
 
 function openCourseUnitItem(courseId, unitId, itemId) {
     const course = coursesCache.find(c => c.id === courseId);
