@@ -34,25 +34,25 @@
             --card-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
         }
 
-        /* ================= الوضع النهاري (الأبيض والأزرق الواضح بالكامل) ================= */
+        /* ================= الوضع النهاري: أبيض هادئ ومريح للعين ================= */
         body.light-theme {
-            --bg-main: #f1f5f9;
-            --bg-sidebar: #ffffff;
-            --bg-card: #ffffff;
-            --bg-card-soft: #f8fafc;
-            --bg-input: #ffffff;
-            --primary-blue: #2563eb;
-            --primary-blue-hover: #1d4ed8;
-            --accent-cyan: #1d4ed8;
-            --accent-neon-purple: #1e40af;
-            --accent-gold: #0284c7;
-            --accent-green: #059669;
-            --accent-red: #dc2626;
-            --text-main: #0f172a;
-            --text-sub: #475569;
-            --border-color: #cbd5e1;
-            --glass-border: rgba(37, 99, 235, 0.3);
-            --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --bg-main: #f3f4f6;
+            --bg-sidebar: #f8f9fb;
+            --bg-card: #fbfbfc;
+            --bg-card-soft: #f1f3f5;
+            --bg-input: #f6f7f8;
+            --primary-blue: #4269ad;
+            --primary-blue-hover: #355a98;
+            --accent-cyan: #39718f;
+            --accent-neon-purple: #715e9e;
+            --accent-gold: #9a742d;
+            --accent-green: #39806b;
+            --accent-red: #bd5656;
+            --text-main: #303640;
+            --text-sub: #69717e;
+            --border-color: #e0e3e8;
+            --glass-border: rgba(94, 112, 139, 0.18);
+            --card-shadow: 0 6px 20px rgba(32, 43, 61, 0.045);
         }
 
         * {
@@ -79,8 +79,8 @@
 
         body.light-theme {
             background-image:
-                radial-gradient(circle at 12% 8%, rgba(37, 99, 235, 0.05) 0px, transparent 42%),
-                radial-gradient(circle at 88% 92%, rgba(59, 130, 246, 0.04) 0px, transparent 42%);
+                radial-gradient(circle at 12% 8%, rgba(91, 106, 128, 0.035) 0px, transparent 42%),
+                radial-gradient(circle at 88% 92%, rgba(91, 106, 128, 0.025) 0px, transparent 42%);
         }
 
         /* شريط التمرير */
@@ -254,12 +254,12 @@
         .notice-card .notice-open-result:hover { filter:brightness(1.08); transform:translateY(-1px); }
         .notice-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 18px; }
         .notice-actions button { border:1px solid var(--border-color); border-radius:10px; padding:10px 14px; color:var(--text-main); background:var(--bg-card); font-weight:800; cursor:pointer; }
-        body.light-theme .notice-card { background:linear-gradient(135deg,#fff,#eff6ff); border-color:#cbd5e1; }
-        body.light-theme .notice-card.unread { border-right-color:#dc2626; background:linear-gradient(135deg,#fff7f7,#eff6ff); box-shadow:0 8px 22px rgba(220,38,38,.10); }
-        body.light-theme .notice-card h3 { color:#0f172a; }
-        body.light-theme .notice-card p { color:#334155; }
-        body.light-theme .notice-card small { color:#64748b; }
-        body.light-theme .notice-card button:not(.notice-open-result) { background:#e2e8f0; color:#1e293b; }
+        body.light-theme .notice-card { background:linear-gradient(135deg,#fbfbfc,#f3f4f6); border-color:#e0e3e8; }
+        body.light-theme .notice-card.unread { border-right-color:#bd5656; background:linear-gradient(135deg,#fcf8f8,#f3f4f6); box-shadow:0 6px 18px rgba(95,65,65,.07); }
+        body.light-theme .notice-card h3 { color:#303640; }
+        body.light-theme .notice-card p { color:#4e5662; }
+        body.light-theme .notice-card small { color:#69717e; }
+        body.light-theme .notice-card button:not(.notice-open-result) { background:#e9ebef; color:#39414c; }
 
         /* ================= 3. المحتوى الرئيسي ================= */
         .main-content {

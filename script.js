@@ -851,20 +851,32 @@ async function syncAccountWithFirebase() {
     renderAccountHistoryTable();
 }
 
+let historyCurrentPage = 1;
+const historyPageSize = 15;
+
+function changeHistoryPage(page) {
+    historyCurrentPage = Math.max(1, Number(page) || 1);
+    renderAccountHistoryTable();
+}
+
 function renderAccountHistoryTable() {
     const tbody = document.getElementById('student-history-tbody');
-    const countDisplay = document.getElementById('history-count-display');
+    const rangeStart = document.getElementById('history-range-start');
+    const rangeEnd = document.getElementById('history-range-end');
     const totalDisplay = document.getElementById('history-total-display');
+    const pageControls = document.getElementById('history-page-controls');
     if (!tbody) return;
 
-    let history = getStoredHistory();
-
-    if (countDisplay) countDisplay.textContent = history.length;
+    // الصفحة الأولى تعرض أقدم النتائج، ثم تتتابع الصفحات نحو الأحدث.
+    let history = getStoredHistory().sort((a, b) => getHistoryRecordTime(a) - getHistoryRecordTime(b));
     if (totalDisplay) totalDisplay.textContent = history.length;
-
     tbody.innerHTML = '';
 
     if (history.length === 0) {
+        historyCurrentPage = 1;
+        if (rangeStart) rangeStart.textContent = '0';
+        if (rangeEnd) rangeEnd.textContent = '0';
+        if (pageControls) pageControls.innerHTML = '';
         tbody.innerHTML = `
             <tr>
                 <td colspan="10" style="text-align: center; padding: 35px 15px; color: var(--text-sub);">
@@ -876,7 +888,29 @@ function renderAccountHistoryTable() {
         return;
     }
 
-    history.forEach((row) => {
+    const pageCount = Math.ceil(history.length / historyPageSize);
+    historyCurrentPage = Math.min(historyCurrentPage, pageCount);
+    const firstIndex = (historyCurrentPage - 1) * historyPageSize;
+    const pageHistory = history.slice(firstIndex, firstIndex + historyPageSize);
+    if (rangeStart) rangeStart.textContent = String(firstIndex + 1);
+    if (rangeEnd) rangeEnd.textContent = String(Math.min(firstIndex + pageHistory.length, history.length));
+
+    if (pageControls) {
+        const pageNumbers = pageCount <= 7
+            ? Array.from({ length: pageCount }, (_, i) => i + 1)
+            : Array.from(new Set([1, pageCount, historyCurrentPage - 1, historyCurrentPage, historyCurrentPage + 1]
+                .filter(page => page >= 1 && page <= pageCount))).sort((a, b) => a - b);
+        const parts = [];
+        if (historyCurrentPage > 1) parts.push(`<button type="button" class="history-page-btn" aria-label="الصفحة السابقة" onclick="changeHistoryPage(${historyCurrentPage - 1})"><i class="fas fa-chevron-right"></i></button>`);
+        pageNumbers.forEach((page, index) => {
+            if (index && page - pageNumbers[index - 1] > 1) parts.push('<span class="history-page-ellipsis">…</span>');
+            parts.push(`<button type="button" class="history-page-btn ${page === historyCurrentPage ? 'active' : ''}" aria-label="صفحة ${page}" aria-current="${page === historyCurrentPage ? 'page' : 'false'}" onclick="changeHistoryPage(${page})">${page}</button>`);
+        });
+        if (historyCurrentPage < pageCount) parts.push(`<button type="button" class="history-page-btn" aria-label="الصفحة التالية" onclick="changeHistoryPage(${historyCurrentPage + 1})"><i class="fas fa-chevron-left"></i></button>`);
+        pageControls.innerHTML = parts.join('');
+    }
+
+    pageHistory.forEach((row) => {
         const isCancelledRow = row.score === 'ملغي' || row.percentage === 'ملغي';
         const isUnderReview = !isCancelledRow && (!row.canReview || (row.score && row.score.includes('قيد التصحيح')));
         const tr = document.createElement('tr');
@@ -1116,7 +1150,7 @@ function logoutStudent() {
     window.location.href = "index.html";
 }
 
-window.onload = function() {
+document.addEventListener('DOMContentLoaded', function() {
     let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
     let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
     let studentPhone = localStorage.getItem("student_phone") || "";
@@ -1176,7 +1210,7 @@ window.onload = function() {
         const noticeId = new URLSearchParams(location.search).get('notice');
         if (noticeId && nextTab === 'account') setTimeout(() => openStudentNoticeResult(noticeId), 900);
     } catch (e) {}
-};
+});
 
 async function updateStudentLastActive() {
     try {
@@ -3465,20 +3499,32 @@ function openUnitItem(unitId, itemId) {
 let coursesCache = [];
 let subscriptionsCache = new Map();
 let activeCourseId = null;
+let courseDataLoadedAt = 0;
+let courseDataCacheIdentity = '';
+let courseDataLoadPromise = null;
 
 function currentStudentIdentity() {
     return (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || localStorage.getItem('student_fullname') || '').trim();
 }
 function courseSubscriptionId(courseId) { return getUniqueDocId(currentStudentIdentity(), courseId); }
 
-async function loadCourseData() {
-    if (typeof db === 'undefined' || !currentStudentIdentity()) return;
-    const [coursesSnap, subsSnap] = await Promise.all([
-        db.collection('courses').get(),
-        db.collection('course_enrollments').where('studentKey', '==', currentStudentIdentity()).get()
-    ]);
-    coursesCache = coursesSnap.docs.map(d => ({id:d.id, ...d.data()}));
-    subscriptionsCache = new Map(subsSnap.docs.map(d => [d.data().courseId, {id:d.id, ...d.data()}]));
+async function loadCourseData(forceRefresh = false) {
+    const identity = currentStudentIdentity();
+    if (typeof db === 'undefined' || !identity) return;
+    if (!forceRefresh && courseDataCacheIdentity === identity && Date.now() - courseDataLoadedAt < 15000) return;
+    if (courseDataLoadPromise) return courseDataLoadPromise;
+    courseDataLoadPromise = (async () => {
+        const [coursesSnap, subsSnap] = await Promise.all([
+            db.collection('courses').get(),
+            db.collection('course_enrollments').where('studentKey', '==', identity).get()
+        ]);
+        coursesCache = coursesSnap.docs.map(d => ({id:d.id, ...d.data()}));
+        subscriptionsCache = new Map(subsSnap.docs.map(d => [d.data().courseId, {id:d.id, ...d.data()}]));
+        courseDataCacheIdentity = identity;
+        courseDataLoadedAt = Date.now();
+    })();
+    try { await courseDataLoadPromise; }
+    finally { courseDataLoadPromise = null; }
 }
 
 function courseMatchesStudent(course) {
@@ -3534,6 +3580,7 @@ async function requestCourseSubscription(courseId) {
                 source: 'student'
             }, { merge: true });
             showCustomToast('<i class="fas fa-champagne-glasses"></i> تم الاشتراك بنجاح! يمكنك دخول الكورس الآن.', 'success');
+            courseDataLoadedAt = 0;
             await renderCoursesSection();
         } catch (e) {
             showCustomToast('تعذر إتمام الاشتراك. تأكد من إعداد صلاحيات قاعدة البيانات.', 'error');
@@ -3775,9 +3822,27 @@ async function renderHomeSection() {
 }
 
 let homeChartInstance = null;
+let chartLibraryPromise = null;
+function ensureChartLibrary() {
+    if (typeof Chart !== 'undefined') return Promise.resolve(true);
+    if (!chartLibraryPromise) {
+        chartLibraryPromise = new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+            script.async = true;
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.head.appendChild(script);
+        });
+    }
+    return chartLibraryPromise;
+}
+
 async function renderHomeActivityChart() {
     const canvas = document.getElementById('home-activity-chart');
-    if (!canvas || typeof Chart === 'undefined') return;
+    if (!canvas) return;
+    if (typeof Chart === 'undefined' && !await ensureChartLibrary()) return;
+    if (!canvas.isConnected || typeof Chart === 'undefined') return;
 
     const dayLabels = ['السبت', 'الجمعة', 'الخميس', 'الأربعاء', 'الثلاثاء', 'الإثنين', 'الأحد'];
     const now = new Date();
