@@ -724,6 +724,10 @@
 
         .login-closed-note > i { color: var(--primary-blue); font-size: 1rem; }
         .login-closed-note strong { color: var(--text-main); font-weight: 900; }
+        .login-open-signup { flex-wrap:wrap; gap:7px 10px; }
+        .login-open-signup > i { color:#10b981; }
+        .login-open-signup .signup-open-action { border:0; background:transparent; color:var(--primary-blue); font:inherit; font-weight:900; cursor:pointer; padding:2px 4px; }
+        .login-open-signup .signup-open-action:hover { text-decoration:underline; }
 
         .landing-footer {
             padding: 14px 20px 18px;
@@ -1251,7 +1255,7 @@
                         </div>
                         <button type="submit" class="btn" id="login-btn"><span>دخول المنصة</span><i class="fas fa-sign-in-alt"></i></button>
                     </form>
-                    <div class="login-closed-note"><i class="fas fa-lock" aria-hidden="true"></i><span><strong>التسجيل الجديد غير متاح حاليًا</strong><br>تابعنا لمعرفة موعد فتح التسجيل</span></div>
+                    <div class="login-closed-note" id="signup-access-note"><i class="fas fa-lock" aria-hidden="true"></i><span><strong>التسجيل الجديد غير متاح حاليًا</strong><br>تابعنا لمعرفة موعد فتح التسجيل</span></div>
                 </div>
             </section>
         </div>
@@ -1890,18 +1894,23 @@
     // ==========================================
     const signupModal = document.getElementById("signup-modal");
 
-    // زرار "حساب جديد" مغلق دلوقتي، مفيش لينك يفتح نافذة التسجيل
     // ===== فتح / قفل التسجيل: غيّر القيمة دي بس =====
     //   true  = التسجيل مفتوح     false = التسجيل مغلق
     const SIGNUP_OPEN = true;
 
     (function applySignupState() {
+        const accessNote = document.getElementById("signup-access-note");
         if (!SIGNUP_OPEN) return;
         const openSignup = () => {
             loginModal.classList.remove("active");
             signupModal.classList.add("active");
             newHumanQuestion();
         };
+        if (accessNote) {
+            accessNote.classList.add("login-open-signup");
+            accessNote.innerHTML = '<i class="fas fa-user-plus" aria-hidden="true"></i><span>لسه معندكش حساب؟ <button type="button" class="signup-open-action" id="inline-signup-btn">أنشئ حساب جديد</button></span>';
+            document.getElementById("inline-signup-btn").addEventListener("click", openSignup);
+        }
         const topBtn = document.getElementById("top-signup-btn");
         if (topBtn) {
             topBtn.disabled = false;
@@ -2249,10 +2258,6 @@
             return;
         }
         const fillMs = signupStartedAt ? Date.now() - signupStartedAt : 0;
-        if (fillMs < 6000) {
-            showSignupMessage("⚠️ أنت سريع قوي! راجع بياناتك وحاول تاني بعد ثواني.", "warning");
-            return;
-        }
         const limitMsg = signupRateLimited();
         if (limitMsg) {
             showSignupMessage("⏳ " + limitMsg, "warning");
