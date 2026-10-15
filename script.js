@@ -85,6 +85,7 @@ function escapeHtml(str) {
 })();
 let studentNoticeItems = [];
 let studentNoticeUnsubscribe = null;
+let studentNoticeStateUnsubscribe = null;
 let studentNoticeReadIds = new Set();
 let studentNoticeInitialized = false;
 let studentNoticeHashPromise = null;
@@ -98,6 +99,50 @@ function loadStudentNoticeReadIds() {
         const ids = JSON.parse(localStorage.getItem(studentNoticeReadStorageKey()) || '[]');
         studentNoticeReadIds = new Set(Array.isArray(ids) ? ids : []);
     } catch (_) { studentNoticeReadIds = new Set(); }
+}
+
+function getStudentNoticeStateRef() {
+    const code = (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
+    if (!db || !code) return null;
+    // مستند ثابت للحساب نفسه، فيتشارك الهاتف والكمبيوتر نفس حالة القراءة.
+    return db.collection('students').doc(getUniqueDocId(code, 'notification_reads'));
+}
+
+function saveStudentNoticeReadState() {
+    const ids = Array.from(studentNoticeReadIds);
+    localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(ids));
+    const ref = getStudentNoticeStateRef();
+    if (!ref) return;
+    const payload = {
+        notificationState: true,
+        notificationReadIds: ids,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    // مستند الحالة مستقل بمعرّف ثابت، وتسمح به قواعد مجموعة students الحالية.
+    ref.set(payload, { merge: true }).catch(error => console.warn('تعذر مزامنة حالة قراءة الإشعارات:', error));
+}
+
+function startStudentNoticeReadSync() {
+    const ref = getStudentNoticeStateRef();
+    if (!ref || studentNoticeStateUnsubscribe) return;
+    studentNoticeStateUnsubscribe = ref.onSnapshot(snapshot => {
+        const remoteIds = snapshot.exists && Array.isArray(snapshot.data().notificationReadIds)
+            ? snapshot.data().notificationReadIds
+            : [];
+        const before = studentNoticeReadIds.size;
+        remoteIds.forEach(id => studentNoticeReadIds.add(String(id)));
+        const changed = studentNoticeReadIds.size !== before;
+        const remoteIdSet = new Set(remoteIds.map(String));
+        const localReadsMissingOnServer = Array.from(studentNoticeReadIds).some(id => !remoteIdSet.has(id));
+        if (changed) {
+            localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+            renderStudentNotifications();
+        }
+        if (localReadsMissingOnServer) {
+            // ارفع أي قراءات محلية لم تكن موجودة على الحساب بعد.
+            saveStudentNoticeReadState();
+        }
+    }, error => console.warn('تعذر تحميل حالة قراءة الإشعارات من الحساب:', error));
 }
 
 async function getStudentNotificationHash() {
@@ -129,10 +174,13 @@ function getNoticeDate(value) {
 
 function updateStudentNoticeBadge() {
     const badge = document.getElementById('student-notice-count');
-    if (!badge) return;
     const unread = studentNoticeItems.filter(item => !studentNoticeReadIds.has(item.id)).length;
-    badge.textContent = unread > 99 ? '99+' : String(unread);
-    badge.classList.toggle('has-count', unread > 0);
+    if (badge) {
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.classList.toggle('has-count', unread > 0);
+    }
+    const mobileDot = document.querySelector('#mobile-sidebar-toggle .mobile-sidebar-notice-dot');
+    if (mobileDot) mobileDot.classList.toggle('is-visible', unread > 0);
 }
 
 function getStudentNoticeTitle(item) {
@@ -196,23 +244,20 @@ async function openStudentNoticeResult(noticeId) {
 
 function markStudentNotificationRead(id) {
     studentNoticeReadIds.add(id);
-    localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+    saveStudentNoticeReadState();
     renderStudentNotifications();
 }
 
 function markAllStudentNotificationsRead() {
     studentNoticeItems.forEach(item => studentNoticeReadIds.add(item.id));
-    localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
+    saveStudentNoticeReadState();
     renderStudentNotifications();
 }
 
 function startStudentNotificationCenter() {
     if (!db || studentNoticeUnsubscribe) return;
     loadStudentNoticeReadIds();
-    const initialKey = `kaiser_notice_first_seen_${(localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim()}`;
-    if (!localStorage.getItem(initialKey)) localStorage.setItem(initialKey, String(Date.now()));
-    const firstSeenAt = Number(localStorage.getItem(initialKey)) || Date.now();
-    const hasReadState = localStorage.getItem(studentNoticeReadStorageKey()) !== null;
+    startStudentNoticeReadSync();
     studentNoticeUnsubscribe = db.collection('platform_notifications').orderBy('createdAt', 'desc').limit(75).onSnapshot(async snapshot => {
         const myHash = await getStudentNotificationHash();
         const visible = [];
@@ -223,13 +268,14 @@ function startStudentNotificationCenter() {
             if (data.active === false || !studentMatchesNotice(data, myHash)) return;
             const item = { id: doc.id, ...data };
             visible.push(item);
-            const date = getNoticeDate(data.createdAt).getTime();
-            if (!hasReadState && !studentNoticeInitialized && date <= firstSeenAt) studentNoticeReadIds.add(doc.id);
-            if (newlyAddedIds.has(doc.id) && date > firstSeenAt && !studentNoticeReadIds.has(doc.id)) fresh.push(item);
+            // لا نعتمد على ساعة الجهاز لتحديد هل الإشعار جديد؛ اختلاف الساعة عن
+            // توقيت Firestore كان ممكن يعتبر الإشعار الجديد مقروءاً من غير ما الطالب يشوفه.
+            if (newlyAddedIds.has(doc.id) && !studentNoticeReadIds.has(doc.id)) fresh.push(item);
         });
-        if (!hasReadState && !studentNoticeInitialized) localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
         studentNoticeItems = visible.sort((a, b) => getNoticeDate(b.createdAt) - getNoticeDate(a.createdAt));
-        renderStudentNotifications();
+        const notificationsSection = document.getElementById('notifications-section');
+        if (notificationsSection && notificationsSection.style.display === 'block') markAllStudentNotificationsRead();
+        else renderStudentNotifications();
         if (studentNoticeInitialized && fresh.length) {
             showCustomToast(`<i class="fas fa-bell"></i> ${escapeHtml(getStudentNoticeTitle(fresh[0]))}`, 'success');
         }
@@ -1594,6 +1640,8 @@ function switchTab(tab) {
         if (tabs[tab].btn) tabs[tab].btn.classList.add('active');
     }
 
+    if (tab === 'notifications') markAllStudentNotificationsRead();
+
     if (tab === 'account') {
         updateProfileUI();
         syncAccountWithFirebase();
@@ -1618,7 +1666,8 @@ function toggleMobileSidebar() {
     if (button) {
         button.setAttribute('aria-expanded', String(isOpen));
         button.setAttribute('aria-label', isOpen ? 'إغلاق القائمة' : 'فتح القائمة');
-        button.innerHTML = `<i class="fas ${isOpen ? 'fa-xmark' : 'fa-bars'}" aria-hidden="true"></i>`;
+        button.innerHTML = `<i class="fas ${isOpen ? 'fa-xmark' : 'fa-bars'}" aria-hidden="true"></i><span class="mobile-sidebar-notice-dot" aria-hidden="true"></span>`;
+        updateStudentNoticeBadge();
     }
 }
 
@@ -1628,7 +1677,8 @@ function closeMobileSidebar() {
     if (button) {
         button.setAttribute('aria-expanded', 'false');
         button.setAttribute('aria-label', 'فتح القائمة');
-        button.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
+        button.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i><span class="mobile-sidebar-notice-dot" aria-hidden="true"></span>';
+        updateStudentNoticeBadge();
     }
 }
 
