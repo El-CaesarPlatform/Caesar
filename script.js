@@ -680,6 +680,76 @@ function restoreStudentSession() {
     return { studentCode, studentName, studentDocId, studentPhone, parentPhone, studentStage };
 }
 
+// حل مشكلة Race Condition والتأكد من جلب معرف الحساب والبيانات من السحابة قبل بدء الاستعلامات
+let studentAuthResolvedPromise = null;
+
+async function ensureStudentAuthResolved() {
+    if (studentAuthResolvedPromise) return studentAuthResolvedPromise;
+
+    studentAuthResolvedPromise = (async () => {
+        let session = restoreStudentSession();
+        let code = (session.studentCode || localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+        let name = (session.studentName || localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+        let docId = (session.studentDocId || localStorage.getItem("student_doc_id") || "").trim();
+
+        if (typeof db !== 'undefined' && code && (!docId || !session.studentPhone || !session.studentStage)) {
+            try {
+                const queries = [
+                    db.collection("students").where("studentCode", "==", code).get().catch(() => ({ docs: [] })),
+                    db.collection("students").where("code", "==", code).get().catch(() => ({ docs: [] }))
+                ];
+                if (!isNaN(code) && code !== "") {
+                    const numCode = Number(code);
+                    queries.push(db.collection("students").where("studentCode", "==", numCode).get().catch(() => ({ docs: [] })));
+                    queries.push(db.collection("students").where("code", "==", numCode).get().catch(() => ({ docs: [] })));
+                }
+
+                const results = await Promise.allSettled(queries);
+                let allDocs = [];
+                results.forEach(r => {
+                    if (r.status === 'fulfilled' && r.value && r.value.docs) {
+                        allDocs = allDocs.concat(r.value.docs);
+                    }
+                });
+
+                const primaryDoc = allDocs.find(d => {
+                    const data = d.data();
+                    return data && (data.createdAt || data.status || data.isApproved !== undefined || !data.hasSubmitted);
+                }) || allDocs[0];
+
+                if (primaryDoc) {
+                    const dData = primaryDoc.data();
+                    docId = primaryDoc.id;
+                    localStorage.setItem("student_doc_id", docId);
+                    if (dData.studentName || dData.name) {
+                        name = (dData.studentName || dData.name).trim();
+                        localStorage.setItem("student_fullname", name);
+                    }
+                    if (dData.stage || dData.grade || dData.studentStage) {
+                        const stage = (dData.stage || dData.grade || dData.studentStage).trim();
+                        localStorage.setItem("student_stage", stage);
+                    }
+                    if (dData.phone || dData.studentPhone) {
+                        const phone = (dData.phone || dData.studentPhone).trim();
+                        localStorage.setItem("student_phone", phone);
+                    }
+                    if (dData.parentPhone || dData.guardianPhone) {
+                        const pPhone = (dData.parentPhone || dData.guardianPhone).trim();
+                        localStorage.setItem("parent_phone", pPhone);
+                    }
+                    session = restoreStudentSession();
+                    updateProfileUI();
+                }
+            } catch (e) {
+                console.warn("تعذر حل ومزامنة هوية الطالب مع السحابة:", e);
+            }
+        }
+        return session;
+    })();
+
+    return studentAuthResolvedPromise;
+}
+
 function getHistoryOwner() {
     restoreStudentSession();
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").toString().trim().toLowerCase();
@@ -757,9 +827,12 @@ function getHistoryRecordTime(r) {
     return 0;
 }
 
+// السحابة هي المصدر الحقيقي الوحيد (Single Source of Truth)
+// الكاش المحلي يُستخدم فقط للعرض الفوري (0ms) ويتم استبداله فوراً بالبيانات الحقيقية من السيرفر
 function mergeHistoryRecords(localList, archiveList, liveList) {
     const map = new Map();
 
+    // 1. نبدأ بالسجلات المحلية كقاعدة مؤقتة للرسم الفوري
     (localList || []).forEach(r => {
         const title = r && (r.examName || r.examTitle || r.title);
         if (r && title) {
@@ -768,17 +841,17 @@ function mergeHistoryRecords(localList, archiveList, liveList) {
         }
     });
 
+    // 2. سجلات الأرشيف السحابية تتفوق على الكاش المحلي
     (archiveList || []).forEach(r => {
         const title = r && (r.examName || r.examTitle || r.title);
         if (!r || !title) return;
         r.examName = title;
         const k = getHistoryRecordKey(r);
         const ex = map.get(k);
-        const ansLen = Array.isArray(r.answers) ? r.answers.length : 0;
-        const exAnsLen = (ex && Array.isArray(ex.answers)) ? ex.answers.length : 0;
-        if (!ex || (r.canReview && !ex.canReview) || ansLen > exAnsLen) map.set(k, r);
+        map.set(k, { ...(ex || {}), ...r, fromCloud: true });
     });
 
+    // 3. سجلات التسليم المباشرة من السيرفر هي المصدر الأعلى أولوية وموثوقية
     (liveList || []).forEach(r => {
         const title = r && (r.examName || r.examTitle || r.title);
         if (!r || !title) return;
@@ -786,14 +859,81 @@ function mergeHistoryRecords(localList, archiveList, liveList) {
         const k = getHistoryRecordKey(r);
         const ex = map.get(k);
         if (ex && !r.timestampMs && getHistoryRecordTime(ex)) r.timestampMs = getHistoryRecordTime(ex);
-        const ansLen = Array.isArray(r.answers) ? r.answers.length : 0;
-        const exAnsLen = (ex && Array.isArray(ex.answers)) ? ex.answers.length : 0;
-        if (!ex || (r.canReview && !ex.canReview) || ansLen > exAnsLen) {
-            map.set(k, r);
-        }
+        map.set(k, { ...(ex || {}), ...r, fromCloud: true });
     });
 
     return Array.from(map.values()).sort((a, b) => getHistoryRecordTime(b) - getHistoryRecordTime(a));
+}
+
+// ==========================================
+// مزامنة نشاط وتقدم الكورسات والفيديوهات والملفات عبر السحابة (Cross-Device Sync)
+// ==========================================
+let studentProgressCache = {};
+let studentProgressLoadedAt = 0;
+let studentProgressSyncPromise = null;
+
+function getStudentProgressDocRef() {
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    const code = (session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
+    if (!db || !code) return null;
+    return db.collection('students').doc(getUniqueDocId(code, 'course_progress'));
+}
+
+async function syncStudentProgressItemToCloud(itemId, type, data = {}) {
+    if (!itemId) return;
+    try {
+        const ref = getStudentProgressDocRef();
+        const key = `${type}_${itemId}`;
+        studentProgressCache[key] = { ...(studentProgressCache[key] || {}), ...data, updatedAt: Date.now() };
+        if (!ref) return;
+        await ref.set({
+            progressMap: {
+                [key]: studentProgressCache[key]
+            },
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.warn("تعذر مزامنة تقدم الكورس مع السيرفر:", e);
+    }
+}
+
+async function loadStudentProgressFromCloud(forceRefresh = false) {
+    if (!forceRefresh && (Date.now() - studentProgressLoadedAt < 60000) && Object.keys(studentProgressCache).length > 0) {
+        return studentProgressCache;
+    }
+    if (studentProgressSyncPromise) return studentProgressSyncPromise;
+
+    studentProgressSyncPromise = (async () => {
+        const ref = getStudentProgressDocRef();
+        if (!ref) return studentProgressCache;
+        try {
+            const snap = await ref.get();
+            if (snap.exists) {
+                const data = snap.data();
+                const map = data.progressMap || {};
+                studentProgressCache = { ...studentProgressCache, ...map };
+                // مزامنة فورية مع التخزين المحلي على هذا الجهاز حتى تظهر على كل الأجهزة
+                Object.entries(studentProgressCache).forEach(([k, val]) => {
+                    if (k.startsWith('video_') && val && val.views) {
+                        const vidId = k.replace('video_', '');
+                        const cur = parseInt(localStorage.getItem('video_views_' + vidId) || '0', 10);
+                        if (val.views > cur) localStorage.setItem('video_views_' + vidId, String(val.views));
+                    }
+                    if (k.startsWith('file_') && val && val.opened) {
+                        const fileId = k.replace('file_', '');
+                        localStorage.setItem('file_opened_' + fileId, 'true');
+                    }
+                });
+                studentProgressLoadedAt = Date.now();
+            }
+        } catch (e) {
+            console.warn("تعذر تحميل تقدم الكورسات من السحابة:", e);
+        }
+        return studentProgressCache;
+    })();
+
+    try { return await studentProgressSyncPromise; }
+    finally { studentProgressSyncPromise = null; }
 }
 
 async function archiveHistoryRecord(record) {
@@ -1066,10 +1206,14 @@ async function syncAccountWithFirebase(forceRefresh = false) {
             // ب) استعلام مجمّع وسريع بكود الطالب (يرجع كل تسليمات الطالب بطلب واحد)
             if (studentCode) {
                 queries.push(db.collection("students").where("studentCode", "==", studentCode).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("students").where("code", "==", studentCode).get().catch(() => ({ docs: [] })));
                 if (!isNaN(studentCode)) {
-                    queries.push(db.collection("students").where("studentCode", "==", Number(studentCode)).get().catch(() => ({ docs: [] })));
+                    const numCode = Number(studentCode);
+                    queries.push(db.collection("students").where("studentCode", "==", numCode).get().catch(() => ({ docs: [] })));
+                    queries.push(db.collection("students").where("code", "==", numCode).get().catch(() => ({ docs: [] })));
                 }
                 queries.push(db.collection("results").where("studentCode", "==", studentCode).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("results").where("code", "==", studentCode).get().catch(() => ({ docs: [] })));
             }
 
             // ج) استعلام بديل بالاسم لو الكود غير متوفر
@@ -1098,6 +1242,19 @@ async function syncAccountWithFirebase(forceRefresh = false) {
                             seenDocs.set(doc.id, doc.data());
                         }
                     });
+                }
+            });
+
+            // استعادة معرف الحساب الرئيسي تلقائياً إذا كان مفقوداً في الجهاز الحالي
+            seenDocs.forEach((data, id) => {
+                if (!data) return;
+                if (!studentDocId && (data.createdAt || data.status || data.isApproved !== undefined || !data.hasSubmitted)) {
+                    studentDocId = id;
+                    localStorage.setItem("student_doc_id", id);
+                    if (data.stage || data.grade) localStorage.setItem("student_stage", data.stage || data.grade);
+                    if (data.phone || data.studentPhone) localStorage.setItem("student_phone", data.phone || data.studentPhone);
+                    if (data.parentPhone) localStorage.setItem("parent_phone", data.parentPhone);
+                    updateProfileUI();
                 }
             });
 
@@ -1133,7 +1290,7 @@ async function syncAccountWithFirebase(forceRefresh = false) {
                         const existing = seenRecordsMap.get(k);
                         const ansLen = Array.isArray(rec.answers) ? rec.answers.length : 0;
                         const exAnsLen = (existing && Array.isArray(existing.answers)) ? existing.answers.length : 0;
-                        if (!existing || (rec.canReview && !existing.canReview) || ansLen > exAnsLen) {
+                        if (!existing || (rec.timestampMs && (!existing.timestampMs || rec.timestampMs >= existing.timestampMs)) || (rec.canReview && !existing.canReview) || ansLen > exAnsLen) {
                             seenRecordsMap.set(k, rec);
                         }
                     }
@@ -1456,6 +1613,11 @@ function canStudentAccessExam(exam, studentCode, studentStage, studentName, stud
 function logoutStudent() {
     if (!confirm("هل أنت متأكد من تسجيل الخروج؟")) return;
 
+    if (typeof studentNoticeUnsubscribe === 'function') { try { studentNoticeUnsubscribe(); } catch (e) {} studentNoticeUnsubscribe = null; }
+    if (typeof studentNoticeStateUnsubscribe === 'function') { try { studentNoticeStateUnsubscribe(); } catch (e) {} studentNoticeStateUnsubscribe = null; }
+    clearInterval(timerInterval);
+    clearInterval(unitsCountdownTimer);
+
     // مسح "تذكّر الدخول" (الكوكي) عشان صفحة الدخول متدخلش الحساب القديم تلقائي
     document.cookie = "kaiser_student_login=; Max-Age=0; path=/; SameSite=Lax";
     document.cookie = "kaiser_student_login=; Max-Age=0; path=/; domain=" + location.hostname + "; SameSite=Lax";
@@ -1549,11 +1711,15 @@ function initPlatformApp() {
     setupAntiCheatListeners();
     updateStudentLastActive();
 
+    // التحقق السحابي الاستباقي لضمان معرف الحساب الحقيقي
+    ensureStudentAuthResolved().then(() => updateProfileUI()).catch(() => {});
+
     // جلب البيانات الأساسية بالتوازي في الخلفية دون تعطيل واجهة المستخدم
     const initBgFetchers = Promise.allSettled([
         loadAssignedExam(),
         loadCourseData(),
         loadExamLocksCache(),
+        loadStudentProgressFromCloud(),
         syncAccountWithFirebase()
     ]);
     window.__examsReady = initBgFetchers;
@@ -2872,9 +3038,27 @@ function calculateAndSend(bypassValidation = false) {
                 }, { merge: true }).catch(err => console.warn("تعذر تحديث مستند الطالب الرئيسي:", err));
             }
 
+            // قفل الامتحان في مجموعة exam_locks لضمان ظهوره مقفولاً فوراً على كل أجهزة الطالب
+            if (studentCode) {
+                db.collection("exam_locks").doc(getUniqueDocId(studentCode, currentActiveSubject)).set({
+                    studentCode: studentCode,
+                    examId: currentActiveSubject,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(() => {});
+            }
+
+            // مزامنة تقدم الكورس فوراً في السحابة
+            syncStudentProgressItemToCloud(currentActiveSubject, 'exam', {
+                submitted: true,
+                score: mcqScoreObtained,
+                percent: finalPercent,
+                submittedAt: Date.now()
+            });
+
             localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
             localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
             localStorage.removeItem('active_running_exam_session');
+            if (examLockedIdsCache) examLockedIdsCache.add(currentActiveSubject);
 
             try {
                 await archiveHistoryRecord(newHistoryRecord);
@@ -3919,6 +4103,8 @@ function openUnitItem(unitId, itemId) {
     if (!it) return;
 
     if (it.type === 'file') {
+        localStorage.setItem('file_opened_' + it.id, 'true');
+        syncStudentProgressItemToCloud(it.id, 'file', { opened: true, openedAt: Date.now() });
         window.open(it.url, '_blank', 'noopener');
     } else if (it.type === 'video') {
         showCustomToast("<i class='fas fa-lock'></i> الفيديوهات متاحة في الكورس المدفوع فقط.", "warning");
@@ -3934,6 +4120,7 @@ function openUnitItem(unitId, itemId) {
             return;
         }
         localStorage.setItem(viewKey, String(watched + 1));
+        syncStudentProgressItemToCloud(it.id, 'video', { views: watched + 1, lastWatchedAt: Date.now() });
         openVideoModal(it.title, it.url);
         renderUnitsSection();
     } else if (it.type === 'exam') {
@@ -4268,11 +4455,15 @@ async function renderHomeSection() {
                     courseTotal++;
                     let isDone = false;
                     if (it.type === 'exam') {
-                        isDone = isExamSubmittedForStudent(it.examId);
+                        isDone = isExamSubmittedForStudent(it.examId) || (studentProgressCache['exam_' + it.examId]?.submitted === true);
                     } else if (it.type === 'video') {
-                        isDone = parseInt(localStorage.getItem('video_views_' + it.id) || '0', 10) > 0;
+                        const localWatched = parseInt(localStorage.getItem('video_views_' + it.id) || '0', 10);
+                        const cloudWatched = (studentProgressCache['video_' + it.id]?.views) || 0;
+                        isDone = localWatched > 0 || cloudWatched > 0;
                     } else if (it.type === 'file') {
-                        isDone = !!localStorage.getItem('file_opened_' + it.id);
+                        const localOpened = !!localStorage.getItem('file_opened_' + it.id);
+                        const cloudOpened = studentProgressCache['file_' + it.id]?.opened === true;
+                        isDone = localOpened || cloudOpened;
                     }
                     if (isDone) courseDone++;
                 });
@@ -4312,7 +4503,11 @@ async function renderHomeSection() {
 
     try {
         await loadCourseData();
-        await Promise.allSettled([loadExamLocksCache(), loadFinishedExamStatsCache()]);
+        await Promise.allSettled([
+            loadExamLocksCache(),
+            loadFinishedExamStatsCache(),
+            loadStudentProgressFromCloud()
+        ]);
         updateHomeUI();
     } catch (e) {
         console.error('تعذر تحميل بيانات الرئيسية:', e);
