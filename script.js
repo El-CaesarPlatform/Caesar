@@ -876,7 +876,7 @@ function getStudentProgressDocRef() {
     const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
     const code = (session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
     if (!db || !code) return null;
-    return db.collection('students').doc(getUniqueDocId(code, 'course_progress'));
+    return db.collection('course_activity').doc(getUniqueDocId(code, 'course_progress'));
 }
 
 async function syncStudentProgressItemToCloud(itemId, type, data = {}) {
@@ -907,8 +907,16 @@ async function loadStudentProgressFromCloud(forceRefresh = false) {
         const ref = getStudentProgressDocRef();
         if (!ref) return studentProgressCache;
         try {
-            const snap = await ref.get();
-            if (snap.exists) {
+            let snap = await ref.get().catch(() => null);
+            if (!snap || !snap.exists) {
+                const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+                const code = (session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
+                if (code) {
+                    const legacyRef = db.collection('students').doc(getUniqueDocId(code, 'course_progress'));
+                    snap = await legacyRef.get().catch(() => null);
+                }
+            }
+            if (snap && snap.exists) {
                 const data = snap.data();
                 const map = data.progressMap || {};
                 studentProgressCache = { ...studentProgressCache, ...map };
@@ -1201,6 +1209,8 @@ async function syncAccountWithFirebase(forceRefresh = false) {
                 );
                 queries.push(db.collection("students").where("studentDocId", "==", studentDocId).get().catch(() => ({ docs: [] })));
                 queries.push(db.collection("students").where("userId", "==", studentDocId).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("results").where("studentDocId", "==", studentDocId).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("results").where("userId", "==", studentDocId).get().catch(() => ({ docs: [] })));
             }
 
             // ب) استعلام مجمّع وسريع بكود الطالب (يرجع كل تسليمات الطالب بطلب واحد)
@@ -1715,14 +1725,20 @@ function initPlatformApp() {
     ensureStudentAuthResolved().then(() => updateProfileUI()).catch(() => {});
 
     // جلب البيانات الأساسية بالتوازي في الخلفية دون تعطيل واجهة المستخدم
+    // اللي محتاجه أول شاشة بس (الامتحانات + الكورسات + أقفال الامتحانات)
     const initBgFetchers = Promise.allSettled([
         loadAssignedExam(),
         loadCourseData(),
-        loadExamLocksCache(),
-        loadStudentProgressFromCloud(),
-        syncAccountWithFirebase()
+        loadExamLocksCache()
     ]);
     window.__examsReady = initBgFetchers;
+
+    // التقيل (مزامنة الحساب وتقدم الفيديوهات) بيتأجل ثانية ونص عشان المنصة تفتح بسرعة
+    setTimeout(() => {
+        [loadStudentProgressFromCloud, syncAccountWithFirebase].forEach(fn => {
+            try { Promise.resolve(fn()).catch(() => {}); } catch (e) {}
+        });
+    }, 1500);
 
     startStudentNotificationCenter();
     checkAndResumeRunningExam();
@@ -1848,6 +1864,93 @@ function setupAntiCheatListeners() {
 let examsLoadedAt = 0;
 let examsFetchPromise = null;
 
+// تحويل امتحان جاي من قاعدة البيانات لصيغة الامتحان اللي بتشتغل بيها شاشة الحل
+function convertExamForDatabase(activeExam) {
+    const convertedQuestions = (activeExam.questions || []).map(q => {
+        const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
+        let correctAns = "";
+        if (q.options && q.correctAnswerIndex !== undefined && q.options[q.correctAnswerIndex] !== undefined) {
+            correctAns = q.options[q.correctAnswerIndex];
+        } else if (q.correctAnswer) {
+            correctAns = q.correctAnswer;
+        }
+        return {
+            section: "general",
+            type: isChoice ? "choice" : "essay",
+            question: q.question || q.text || q.questionText || "بدون نص",
+            imageUrl: q.imageUrl || q.image || "",
+            options: q.options || [],
+            correctAnswer: correctAns,
+            modelAnswer: q.modelAnswer || "",
+            points: q.points || 1
+        };
+    });
+    return {
+        version: activeExam.version || 1,
+        examTitle: activeExam.examCode || activeExam.title || activeExam.examName || "اختبار أونلاين",
+        duration: activeExam.duration || activeExam.durationMinutes || DEFAULT_EXAM_DURATION,
+        questions: convertedQuestions,
+        surveyQuestions: Array.isArray(activeExam.surveyQuestions) ? activeExam.surveyQuestions : []
+    };
+}
+
+// بيجهّز الامتحانات المتاحة للطالب في dynamicExamsDatabase من غير ما يعتمد على رسم الكروت
+// (قبل كده الامتحان كان بيبان "غير متاح" لو كروت تبويب الامتحانات مترسمتش أو التحميل اتأخر)
+function ingestAccessibleExams(force) {
+    const raw = window.__allExamsRaw;
+    if (!Array.isArray(raw) || raw.length === 0) return 0;
+    const now = Date.now();
+    if (!force && window.__lastIngestedRaw === raw && now - (window.__lastIngestAt || 0) < 20000) return 0;
+    window.__lastIngestedRaw = raw;
+    window.__lastIngestAt = now;
+    const code = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
+    const stage = localStorage.getItem("student_stage") || "";
+    const name = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
+    const phone = localStorage.getItem("student_phone") || "";
+    const accessible = filterAccessibleExams(raw, code, stage, name, phone);
+    accessible.forEach(e => { dynamicExamsDatabase[e.id] = convertExamForDatabase(e); });
+    return accessible.length;
+}
+
+function isExamAvailableNow(examId) {
+    if (dynamicExamsDatabase && dynamicExamsDatabase[examId]) return true;
+    ingestAccessibleExams(false);
+    return !!(dynamicExamsDatabase && dynamicExamsDatabase[examId]);
+}
+
+// لو الامتحان مش متحمّل لأي سبب، بنجيبه لوحده (قراءة واحدة خفيفة) بدل ما نقول "غير متاح"
+async function ensureExamLoaded(examId) {
+    if (dynamicExamsDatabase[examId]) return true;
+    ingestAccessibleExams(true);
+    if (dynamicExamsDatabase[examId]) return true;
+    if (typeof db === 'undefined') return false;
+    try {
+        const snap = await Promise.race([
+            db.collection("exams").doc(examId).get(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 12000))
+        ]);
+        if (!snap.exists) return false;
+        const exam = { id: snap.id, ...snap.data() };
+        if (!Array.isArray(window.__allExamsRaw)) window.__allExamsRaw = [];
+        const i = window.__allExamsRaw.findIndex(e => e.id === exam.id);
+        if (i >= 0) window.__allExamsRaw[i] = exam; else window.__allExamsRaw.push(exam);
+        ingestAccessibleExams(true);
+        return !!dynamicExamsDatabase[examId];
+    } catch (e) {
+        console.warn("تعذر تحميل الامتحان منفرداً:", e);
+        return false;
+    }
+}
+
+function refreshUnitsViewIfVisible() {
+    try {
+        const sec = document.getElementById('units-section');
+        if (sec && sec.style.display !== 'none' && typeof renderUnitsSection === 'function') {
+            setTimeout(() => { renderUnitsSection(); }, 0);
+        }
+    } catch (e) {}
+}
+
 function renderAssignedExamsToDOM(accessibleExams, examsGrid, studentStage) {
     if (!examsGrid) return;
     if (!accessibleExams || accessibleExams.length === 0) {
@@ -1855,48 +1958,24 @@ function renderAssignedExamsToDOM(accessibleExams, examsGrid, studentStage) {
         return;
     }
 
-    examsGrid.innerHTML = "";
+    // بنبني كل الكروت في نص واحد ونكتبها مرة واحدة (بدل innerHTML += جوه لوب كان بيعيد رسم الصفحة كل مرة وبيبطّئها)
+    const cards = [];
     accessibleExams.forEach(activeExam => {
-        const convertedQuestions = (activeExam.questions || []).map(q => {
-            const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
-            let correctAns = "";
-            if (q.options && q.correctAnswerIndex !== undefined && q.options[q.correctAnswerIndex] !== undefined) {
-                correctAns = q.options[q.correctAnswerIndex];
-            } else if (q.correctAnswer) {
-                correctAns = q.correctAnswer;
-            }
+        const converted = convertExamForDatabase(activeExam);
+        dynamicExamsDatabase[activeExam.id] = converted;
+        const convertedQuestions = converted.questions;
+        const examDuration = converted.duration;
 
-            return {
-                section: "general",
-                type: isChoice ? "choice" : "essay",
-                question: q.question || q.text || q.questionText || "بدون نص",
-                imageUrl: q.imageUrl || q.image || "",
-                options: q.options || [],
-                correctAnswer: correctAns,
-                modelAnswer: q.modelAnswer || "",
-                points: q.points || 1
-            };
-        });
-
-        const examDuration = activeExam.duration || activeExam.durationMinutes || DEFAULT_EXAM_DURATION;
-
-        dynamicExamsDatabase[activeExam.id] = {
-            version: activeExam.version || 1,
-            examTitle: activeExam.examCode || activeExam.title || activeExam.examName || "اختبار أونلاين",
-            duration: examDuration,
-            questions: convertedQuestions,
-            surveyQuestions: Array.isArray(activeExam.surveyQuestions) ? activeExam.surveyQuestions : []
-        };
-
-        examsGrid.innerHTML += `
+        cards.push(`
             <div class="exam-card" id="card-${activeExam.id}">
                 <h3><i class="fas fa-school"></i> ${activeExam.grade || studentStage || 'عام'}</h3>
                 <h4>${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
                 <p><i class="fas fa-pen-to-square"></i> عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br><i class="fas fa-stopwatch"></i> مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
                 <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن <i class="fas fa-rocket"></i></button>
             </div>
-        `;
+        `);
     });
+    examsGrid.innerHTML = cards.join('');
 
     updateExamButtonsStatus();
 }
@@ -1937,16 +2016,16 @@ function filterAccessibleExams(allExams, studentCode, studentStage, studentName,
 }
 
 async function loadAssignedExam(forceRefresh = false) {
-    const examsGrid = document.getElementById('assigned-exam-grid');
+    // لو عنصر الكروت مش موجود بنكمّل تحميل الامتحانات برضو (بنكتب في عنصر وهمي) عشان قايمة الحل تتجهز
+    const examsGrid = document.getElementById('assigned-exam-grid') || document.createElement('div');
     const studentStage = localStorage.getItem("student_stage") || "";
     const studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
     const studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
     const studentPhone = localStorage.getItem("student_phone") || "";
 
-    if (!examsGrid) return;
-
     // عرض الامتحانات فوراً من الكاش إذا كانت موجودة (Stale-While-Revalidate)
     if (window.__allExamsRaw && window.__allExamsRaw.length > 0) {
+        ingestAccessibleExams(true);
         const cachedAccessible = filterAccessibleExams(window.__allExamsRaw, studentCode, studentStage, studentName, studentPhone);
         renderAssignedExamsToDOM(cachedAccessible, examsGrid, studentStage);
     }
@@ -1963,10 +2042,11 @@ async function loadAssignedExam(forceRefresh = false) {
         return;
     }
 
+    window.__examsLoading = true;
     examsFetchPromise = (async () => {
         try {
             const fetchPromise = db.collection("exams").get();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 25000));
             
             const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
 
@@ -1981,14 +2061,23 @@ async function loadAssignedExam(forceRefresh = false) {
             snapshot.forEach(doc => allExams.push({ id: doc.id, ...doc.data() }));
             window.__allExamsRaw = allExams;
             examsLoadedAt = Date.now();
+            window.__examsLoadFailed = false;
+            ingestAccessibleExams(true);
             try { sessionStorage.setItem('kaiser_cached_exams', JSON.stringify(allExams)); } catch (e) {}
 
             const accessibleExams = filterAccessibleExams(allExams, studentCode, studentStage, studentName, studentPhone);
             cleanStaleExamStorage(accessibleExams.map(e => e.id));
             renderAssignedExamsToDOM(accessibleExams, examsGrid, studentStage);
+            refreshUnitsViewIfVisible();
 
         } catch (err) {
             console.error("خطأ أثناء تحميل الامتحان:", err);
+            window.__examsLoadFailed = true;
+            // إعادة محاولة تلقائية واحدة في الخلفية (الشبكة البطيئة غالباً بتنجح في المرة التانية)
+            if (!window.__examsAutoRetried) {
+                window.__examsAutoRetried = true;
+                setTimeout(() => { loadAssignedExam(true); }, 4000);
+            }
             if (!window.__allExamsRaw || window.__allExamsRaw.length === 0) {
                 examsGrid.innerHTML = `
                     <div style="text-align:center; color:#e74c3c; grid-column:1/-1; padding:20px;">
@@ -1998,6 +2087,7 @@ async function loadAssignedExam(forceRefresh = false) {
             }
         } finally {
             examsFetchPromise = null;
+            window.__examsLoading = false;
         }
     })();
 
@@ -2314,8 +2404,11 @@ async function resetPortalToStep1(subjectKey, type) {
         }
 
         try {
-            const docSnapshot = await db.collection("students").doc(uniqueDocId).get();
-            if (docSnapshot.exists) {
+            let docSnapshot = await db.collection("results").doc(uniqueDocId).get().catch(() => null);
+            if (!docSnapshot || !docSnapshot.exists) {
+                docSnapshot = await db.collection("students").doc(uniqueDocId).get().catch(() => null);
+            }
+            if (docSnapshot && docSnapshot.exists) {
                 const data = docSnapshot.data();
                 if (data.hasSubmitted === true || data.isSubmitted === true) {
                     localStorage.setItem('finished_' + cleanSubjectKey, (dynamicExamsDatabase[cleanSubjectKey]?.version || 1).toString());
@@ -2333,8 +2426,13 @@ async function resetPortalToStep1(subjectKey, type) {
     }
 
     const dbSource = (cleanType === "exam") ? dynamicExamsDatabase : homeworksDatabase;
+    if (cleanType === "exam" && (!dbSource || !dbSource[cleanSubjectKey])) {
+        showCustomToast("<i class='fas fa-hourglass-half'></i> جاري تجهيز الامتحان...", "warning");
+        await ensureExamLoaded(cleanSubjectKey);
+    }
     if (!dbSource || !dbSource[cleanSubjectKey]) {
-        showCustomToast(`<i class="fas fa-triangle-exclamation"></i> تنبيه: الامتحان غير متاح حالياً، حاول تحديث الصفحة.`, "warning");
+        const why = (cleanType === "exam") ? getExamUnavailableReason(cleanSubjectKey) : "";
+        showCustomToast(`<i class="fas fa-triangle-exclamation"></i> ${why ? escapeHtml(why) : 'تنبيه: الامتحان غير متاح حالياً، حاول تحديث الصفحة.'}`, "warning");
         return;
     }
 
@@ -2697,16 +2795,25 @@ function startTimer(targetEndTime) {
 }
 
 function submitExamWithCheck() {
+    let savedAnswers = {};
+    try {
+        savedAnswers = JSON.parse(localStorage.getItem('saved_exam_answers_' + currentActiveSubject) || '{}');
+    } catch(e) {
+        savedAnswers = {};
+    }
+
     let unansweredIndices = [];
 
     activeQuestionsList.forEach((q, qIndex) => {
         const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
         if (isChoice) {
             let selected = document.querySelector(`input[name="q${qIndex}"]:checked`);
-            if (!selected) unansweredIndices.push(qIndex + 1);
+            let val = selected ? selected.value : (savedAnswers[`q${qIndex}`] || "");
+            if (!val) unansweredIndices.push(qIndex + 1);
         } else {
             let textarea = document.querySelector(`textarea[name="q${qIndex}"]`);
-            if (!textarea || textarea.value.trim() === "") unansweredIndices.push(qIndex + 1);
+            let val = textarea ? textarea.value.trim() : String(savedAnswers[`q${qIndex}`] || "").trim();
+            if (!val) unansweredIndices.push(qIndex + 1);
         }
     });
 
@@ -2739,7 +2846,7 @@ function confirmFinalSubmit() {
     calculateAndSend(true);
 }
 
-function calculateAndSend(bypassValidation = false) {
+async function calculateAndSend(bypassValidation = false) {
     let savedAnswersForSubmit = {};
     try {
         savedAnswersForSubmit = JSON.parse(localStorage.getItem('saved_exam_answers_' + currentActiveSubject) || '{}');
@@ -2757,15 +2864,16 @@ function calculateAndSend(bypassValidation = false) {
     let solvedQuestionsCount = 0;
 
     activeQuestionsList.forEach((q, qIndex) => {
-        let questionKey = "س" + (qIndex + 1) + ": " + q.question;
+        let qTitle = q.question || q.text || q.questionText || `سؤال ${qIndex + 1}`;
+        let questionKey = "س" + (qIndex + 1) + ": " + qTitle;
         let studentValue = "";
         let correctionStatus = "";
         let isCorrect = false;
-        let points = q.points || 1;
+        let points = (q.points !== undefined && q.points !== null && !isNaN(q.points)) ? Number(q.points) : 1;
         let studentIdx = -1, correctIdx = -1;
 
         totalExamPointsPossible += points;
-        const isChoice = (q.type === "choice" || q.type === "mcq") || (q.options && q.options.length > 0);
+        const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
 
         if (isChoice) {
             maxMcqScorePossible += points;
@@ -2807,7 +2915,9 @@ function calculateAndSend(bypassValidation = false) {
             }
         } else {
             let textarea = document.querySelector(`textarea[name="q${qIndex}"]`);
-            let essayValue = textarea ? textarea.value.trim() : String(savedAnswersForSubmit[`q${qIndex}`] || "").trim();
+            let domVal = textarea ? textarea.value.trim() : "";
+            let storedVal = String(savedAnswersForSubmit[`q${qIndex}`] || "").trim();
+            let essayValue = domVal || storedVal;
             if (essayValue !== "") {
                 studentValue = essayValue;
                 solvedQuestionsCount++;
@@ -2820,16 +2930,18 @@ function calculateAndSend(bypassValidation = false) {
         studentAnswersText[questionKey] = studentValue + correctionStatus;
 
         answersForAdmin.push({
-            question: q.question,
+            question: qTitle,
             studentAnswer: studentValue,
             correctAnswer: q.correctAnswer || "",
-            modelAnswer: isChoice ? "" : (q.modelAnswer || ""),
-            isCorrect: isCorrect,
+            modelAnswer: isChoice ? "" : (q.modelAnswer || q.correctAnswer || ""),
+            isCorrect: !!isCorrect,
             type: isChoice ? "choice" : "essay",
             points: points,
+            earnedPoints: isChoice ? (isCorrect ? points : 0) : null,
             options: (isChoice && Array.isArray(q.options)) ? q.options.map(o => String(o)) : [],
-            studentIndex: studentIdx,
-            correctIndex: correctIdx
+            studentIndex: (studentIdx !== undefined && studentIdx !== null) ? studentIdx : -1,
+            correctIndex: (correctIdx !== undefined && correctIdx !== null) ? correctIdx : -1,
+            imageUrl: q.imageUrl || q.image || ""
         });
     });
 
@@ -2903,11 +3015,13 @@ function calculateAndSend(bypassValidation = false) {
         return;
     }
 
-    let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "طالب مجهول";
-    let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
-    let studentPhone = localStorage.getItem('student_phone') || "";
-    let parentPhone = localStorage.getItem('parent_phone') || "";
-    let studentStage = localStorage.getItem('student_stage') || "الصف الثاني الإعدادي";
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    let studentFullName = session.studentName || localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "";
+    let studentCode = session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
+    let studentPhone = session.studentPhone || localStorage.getItem('student_phone') || "";
+    let parentPhone = session.parentPhone || localStorage.getItem('parent_phone') || "";
+    let studentStage = session.studentStage || localStorage.getItem('student_stage') || "الصف الثاني الإعدادي";
+    let studentDocId = (session.studentDocId || localStorage.getItem('student_doc_id') || "").trim();
 
     let currentExamTitle = (dynamicExamsDatabase[currentActiveSubject] && dynamicExamsDatabase[currentActiveSubject].examTitle)
                             ? dynamicExamsDatabase[currentActiveSubject].examTitle
@@ -2969,85 +3083,225 @@ function calculateAndSend(bypassValidation = false) {
     saveStoredHistory(history);
 
     if (typeof db !== 'undefined') {
-        const studentDocId = (localStorage.getItem('student_doc_id') || '').trim();
-        const uniqueDocId = getUniqueDocId(studentCode || studentFullName, currentActiveSubject);
+        let studentCodeVal = (session.studentCode || studentCode || '').trim();
+        let studentNameVal = (session.studentName || studentFullName || '').trim();
 
-        db.collection("students").doc(uniqueDocId).set({
-            studentDocId: studentDocId,
-            userId: studentDocId,
-            studentName: studentFullName,
-            name: studentFullName,
-            studentCode: studentCode,
-            code: studentCode,
-            studentPhone: studentPhone,
-            phone: studentPhone,
-            parentPhone: parentPhone,
-            stage: studentStage,
-            grade: studentStage,
-            examName: currentExamTitle,
-            examTitle: currentExamTitle,
-            title: currentExamTitle,
-            examCode: currentActiveSubject,
-            courseId: window.currentCourseIdForExam || null,
-            examType: currentActiveType,
-            mcqScore: mcqScoreObtained,
-            score: mcqScoreObtained,
-            finalScore: mcqScoreObtained,
-            maxScore: totalExamPointsPossible || 10,
-            maxExamScore: totalExamPointsPossible || 10,
-            correctCount: correctCount,
-            wrongCount: wrongCount,
-            serial: serialGenerated,
-            answers: answersForAdmin,
-            startTimeFormatted: realStartFormatted,
-            durationTaken: durationTaken,
-            hasSubmitted: true,
-            isSubmitted: true,
-            hasEssay: hasEssay,
-            aiSuspected: aiSuspected,
-            aiReasons: aiReasons,
-            aiSignals: { leaves: sig.leaves || 0, paste: sig.paste || 0, copy: sig.copy || 0, hiddenSeconds: Math.round((sig.hiddenMs || 0) / 1000) },
-            examCancelled: cancelExam,
-            cancelReason: cancelExam ? 'استخدام AI' : '',
-            showScore: releaseNow,
-            showResult: releaseNow,
-            isResultVisible: releaseNow,
-            submittedAt: currentFormattedTime,
-            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).then(async () => {
-            // تحديث مستند الطالب الرئيسي بإضافة سجل الامتحان في مصفوفة examHistory
-            if (studentDocId) {
-                db.collection("students").doc(studentDocId).set({
-                    examHistory: firebase.firestore.FieldValue.arrayUnion({
-                        id: `exam_${Date.now()}`,
-                        serial: serialGenerated,
-                        examName: currentExamTitle,
-                        examCode: currentActiveSubject,
-                        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'تم استلام إجاباتك',
-                        scoreNum: mcqScoreObtained,
-                        maxScoreNum: totalExamPointsPossible || 10,
-                        percentage: releaseNow ? `% ${finalPercent}` : '—',
-                        solvedQuestions: solvedQuestionsCount,
-                        totalQuestions: activeQuestionsList.length,
-                        canReview: releaseNow,
-                        submittedAt: currentFormattedTime,
-                        submittedAtMs: Date.now()
-                    }),
-                    lastActive: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).catch(err => console.warn("تعذر تحديث مستند الطالب الرئيسي:", err));
+        // إذا لم يكن studentDocId أو كود الطالب متوفراً، نسترجعه من الكوكيز
+        if (!studentDocId || !studentCodeVal || !studentNameVal) {
+            try {
+                const remembered = (typeof readRememberedLogin === 'function') ? readRememberedLogin() : null;
+                if (remembered) {
+                    if (!studentDocId && remembered.docId) {
+                        studentDocId = remembered.docId;
+                        localStorage.setItem('student_doc_id', studentDocId);
+                    }
+                    if (!studentCodeVal && remembered.code) studentCodeVal = remembered.code;
+                    if (!studentNameVal && (remembered.studentName || remembered.name)) {
+                        studentNameVal = remembered.studentName || remembered.name;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // استرجاع وثيقة الطالب بواسطة الكود إن لم يتوفر معرف الحساب بعد
+        if (!studentDocId && studentCodeVal) {
+            try {
+                let snap = await db.collection("students").where("studentCode", "==", studentCodeVal).limit(1).get().catch(() => null);
+                if (!snap || snap.empty) {
+                    snap = await db.collection("students").where("code", "==", studentCodeVal).limit(1).get().catch(() => null);
+                }
+                if ((!snap || snap.empty) && !isNaN(studentCodeVal)) {
+                    snap = await db.collection("students").where("studentCode", "==", Number(studentCodeVal)).limit(1).get().catch(() => null);
+                }
+                if (snap && !snap.empty) {
+                    const sDoc = snap.docs[0];
+                    const sData = sDoc.data() || {};
+                    studentDocId = sDoc.id;
+                    if (!studentNameVal) studentNameVal = sData.studentName || sData.name || "";
+                    if (!studentPhone) studentPhone = sData.studentPhone || sData.phone || "";
+                    if (!parentPhone) parentPhone = sData.parentPhone || "";
+                    if (!studentStage) studentStage = sData.stage || sData.grade || studentStage;
+                    try {
+                        localStorage.setItem('student_doc_id', studentDocId);
+                    } catch (_) {}
+                }
+            } catch (e) {}
+        }
+
+        // استرجاع بيانات الحساب من studentDocId إذا كانت الأسماء أو الكود مفقودة
+        if (studentDocId && (!studentCodeVal || !studentNameVal)) {
+            try {
+                const docSnap = await db.collection("students").doc(studentDocId).get().catch(() => null);
+                if (docSnap && docSnap.exists) {
+                    const d = docSnap.data() || {};
+                    if (!studentCodeVal) studentCodeVal = (d.studentCode || d.code || '').toString().trim();
+                    if (!studentNameVal) studentNameVal = (d.studentName || d.name || '').toString().trim();
+                    if (!studentPhone) studentPhone = (d.studentPhone || d.phone || '').toString().trim();
+                    if (!parentPhone) parentPhone = (d.parentPhone || '').toString().trim();
+                    if (!studentStage) studentStage = (d.stage || d.grade || studentStage).toString().trim();
+                }
+            } catch (_) {}
+        }
+
+        studentCode = studentCodeVal || studentCode;
+        studentFullName = studentNameVal || studentFullName || (studentCode ? ("طالب كود " + studentCode) : "طالب");
+        if (studentFullName && !localStorage.getItem('student_fullname')) {
+            try { localStorage.setItem('student_fullname', studentFullName); } catch (_) {}
+        }
+        if (studentCode && !localStorage.getItem('student_code')) {
+            try { localStorage.setItem('student_code', studentCode); } catch (_) {}
+        }
+
+        const studentIdentifier = (studentCode || studentFullName || "student").toString().trim();
+        const uniqueDocId = getUniqueDocId(studentIdentifier, currentActiveSubject);
+
+        try {
+            const examSubmissionPayload = {
+                studentDocId: studentDocId || "",
+                userId: studentDocId || "",
+                studentId: studentDocId || "",
+                studentName: studentFullName,
+                name: studentFullName,
+                studentCode: studentCode,
+                code: studentCode,
+                studentPhone: studentPhone || "",
+                phone: studentPhone || "",
+                parentPhone: parentPhone || "",
+                stage: studentStage || "",
+                grade: studentStage || "",
+                examName: currentExamTitle,
+                examTitle: currentExamTitle,
+                title: currentExamTitle,
+                examCode: currentActiveSubject,
+                examId: currentActiveSubject,
+                courseId: window.currentCourseIdForExam || null,
+                examType: currentActiveType || "exam",
+                mcqScore: mcqScoreObtained,
+                score: mcqScoreObtained,
+                finalScore: mcqScoreObtained,
+                maxScore: totalExamPointsPossible || 10,
+                maxExamScore: totalExamPointsPossible || 10,
+                scoreNum: mcqScoreObtained,
+                maxScoreNum: totalExamPointsPossible || 10,
+                percentage: releaseNow ? `% ${finalPercent}` : '—',
+                correctCount: correctCount,
+                wrongCount: wrongCount,
+                solvedQuestions: solvedQuestionsCount,
+                totalQuestions: activeQuestionsList.length,
+                serial: serialGenerated,
+                answers: answersForAdmin,
+                answersList: answersForAdmin,
+                studentAnswersText: studentAnswersText,
+                startTimeFormatted: realStartFormatted,
+                durationTaken: durationTaken,
+                submittedAt: currentFormattedTime,
+                hasSubmitted: true,
+                isSubmitted: true,
+                hasEssay: hasEssay,
+                status: 'approved',
+                accountStatus: 'approved',
+                isApproved: true,
+                isSubmissionDoc: true,
+                aiSuspected: !!aiSuspected,
+                aiReasons: aiReasons || [],
+                aiSignals: {
+                    leaves: (sig && sig.leaves) || 0,
+                    paste: (sig && sig.paste) || 0,
+                    copy: (sig && sig.copy) || 0,
+                    hiddenSeconds: Math.round(((sig && sig.hiddenMs) || 0) / 1000)
+                },
+                examCancelled: !!cancelExam,
+                cancelReason: cancelExam ? 'استخدام AI' : '',
+                showScore: !!releaseNow,
+                showResult: !!releaseNow,
+                isResultVisible: !!releaseNow,
+                canReview: !!releaseNow
+            };
+
+            // تنظيف الحقول لمنع أي قيم undefined تتسبب في فشل الحفظ في Firestore
+            const cleanPayload = JSON.parse(JSON.stringify(examSubmissionPayload, (key, value) => {
+                return value === undefined ? null : value;
+            }));
+            cleanPayload.lastActive = firebase.firestore.FieldValue.serverTimestamp();
+            cleanPayload.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+            const historyRecordForDoc = {
+                id: `exam_${Date.now()}`,
+                key: serialGenerated,
+                serial: serialGenerated,
+                examName: currentExamTitle,
+                examCode: currentActiveSubject,
+                examId: currentActiveSubject,
+                courseId: window.currentCourseIdForExam || null,
+                score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'تم استلام إجاباتك',
+                scoreNum: mcqScoreObtained,
+                maxScoreNum: totalExamPointsPossible || 10,
+                percentage: releaseNow ? `% ${finalPercent}` : '—',
+                solvedQuestions: solvedQuestionsCount,
+                totalQuestions: activeQuestionsList.length,
+                canReview: !!releaseNow,
+                startTime: realStartFormatted,
+                endTime: realEndFormatted,
+                durationTaken: durationTaken,
+                submittedAt: currentFormattedTime,
+                submittedAtMs: Date.now(),
+                timestampMs: Date.now(),
+                answers: answersForAdmin,
+                aiSuspected: !!aiSuspected,
+                hasEssay: hasEssay
+            };
+            if (cancelExam) {
+                historyRecordForDoc.percentage = 'ملغي';
+                historyRecordForDoc.score = 'ملغي';
+                historyRecordForDoc.canReview = false;
             }
 
-            // قفل الامتحان في مجموعة exam_locks لضمان ظهوره مقفولاً فوراً على كل أجهزة الطالب
+            const cleanHistoryRecordForDoc = JSON.parse(JSON.stringify(historyRecordForDoc, (k, v) => v === undefined ? null : v));
+
+            const dbTasks = [];
+
+            // 1) مستند تسليم الامتحان الرئيسي في مجموعة students (مطلوب للوحة الأدمن ولعرض الإجابات وتصحيح المقالي)
+            // وضعنا status: 'approved' و isSubmissionDoc: true لضمان دمجه بحساب الطالب وعدم إنشاء أي حساب معلق فارغ
+            dbTasks.push(
+                db.collection("students").doc(uniqueDocId).set(cleanPayload, { merge: true })
+                    .catch(err => console.warn("تعذر كتابة مستند التسليم في students:", err))
+            );
+
+            // 2) تحديث مستند حساب الطالب المسجل حالياً في مجموعة students (تحديث سجل الامتحانات فقط دون الكتابة فوق بيانات الحساب الأساسية)
+            if (studentDocId && studentDocId !== uniqueDocId) {
+                dbTasks.push(
+                    db.collection("students").doc(studentDocId).set({
+                        examHistory: firebase.firestore.FieldValue.arrayUnion(cleanHistoryRecordForDoc),
+                        lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true }).catch(err => console.warn("تعذر تحديث مستند الطالب الرئيسي:", err))
+                );
+            }
+
+            // 3) حفظ نسخة في مجموعة results المخصصة للنتائج (محمية بـ catch حتى لا تفشل العملية لو كانت قواعد Firestore لم تُفتح بعد)
+            dbTasks.push(
+                db.collection("results").doc(uniqueDocId).set(cleanPayload, { merge: true })
+                    .catch(err => console.warn("ملاحظة: تعذر الكتابة في مجموعة results (افحص قواعد Firestore):", err))
+            );
+
+            // 4) قفل الامتحان في مجموعة exam_locks لضمان ظهوره مقفولاً فوراً على كل أجهزة الطالب
             if (studentCode) {
-                db.collection("exam_locks").doc(getUniqueDocId(studentCode, currentActiveSubject)).set({
-                    studentCode: studentCode,
-                    examId: currentActiveSubject,
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).catch(() => {});
+                dbTasks.push(
+                    db.collection("exam_locks").doc(getUniqueDocId(studentCode, currentActiveSubject)).set({
+                        studentCode: studentCode,
+                        studentDocId: studentDocId || "",
+                        examId: currentActiveSubject,
+                        examName: currentExamTitle,
+                        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true }).catch(() => {})
+                );
             }
 
-            // مزامنة تقدم الكورس فوراً في السحابة
+            // 5) أرشفة النتيجة في results_archive متضمنة الإجابات
+            dbTasks.push(
+                archiveHistoryRecord(historyRecordForDoc).catch(() => {})
+            );
+
+            // 6) مزامنة تقدم الكورس فوراً في السحابة
             syncStudentProgressItemToCloud(currentActiveSubject, 'exam', {
                 submitted: true,
                 score: mcqScoreObtained,
@@ -3055,16 +3309,13 @@ function calculateAndSend(bypassValidation = false) {
                 submittedAt: Date.now()
             });
 
+            // ننتظر كل العمليات بصورة آمنة ومحمية لا تعطل الطالب أو تظهر أخطاء
+            await Promise.allSettled(dbTasks);
+
             localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
             localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
             localStorage.removeItem('active_running_exam_session');
             if (examLockedIdsCache) examLockedIdsCache.add(currentActiveSubject);
-
-            try {
-                await archiveHistoryRecord(newHistoryRecord);
-            } catch (err) {
-                console.warn("تعذر أرشفة النتيجة:", err);
-            }
 
             maybeShowExamSurvey(currentActiveSubject, currentExamTitle, studentFullName, studentCode, () => {
                 showSubmissionResultModal({
@@ -3077,14 +3328,21 @@ function calculateAndSend(bypassValidation = false) {
                 });
             });
 
-        }).catch((error) => {
-            console.error("خطأ أثناء تسليم الامتحان: ", error);
-            showCustomToast("<i class='fas fa-circle-xmark'></i> حدث خطأ أثناء تسليم إجاباتك، يرجى المحاولة مرة أخرى.", "error");
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = "تسليم الامتحان <i class='fas fa-paper-plane'></i>";
-            }
-        });
+        } catch (error) {
+            console.error("تنبيه أثناء حفظ الامتحان: ", error);
+            // في حالة حدوث أي استثناء غير متوقع، ننهي تسليم الامتحان محلياً ونعرض النتيجة للطالب لضمان عدم ضياع درجاته
+            localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
+            localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
+            localStorage.removeItem('active_running_exam_session');
+            showSubmissionResultModal({
+                examTitle: currentExamTitle,
+                released: releaseNow,
+                scoreText: `${fmtPts(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}`,
+                percent: finalPercent,
+                cancelled: cancelExam,
+                answers: answersForAdmin
+            });
+        }
     } else {
         localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
         localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
@@ -3159,12 +3417,22 @@ function maybeShowExamSurvey(examId, examTitle, studentName, studentCode, onDone
         };
 
         if (typeof db !== 'undefined') {
-            // بتتحفظ جوه نفس مستند إجابات الامتحان بتاع الطالب، عشان تتعرض مع بعض في الأدمن
             const uniqueDocId = getUniqueDocId(studentCode || studentName, examId);
-            db.collection("students").doc(uniqueDocId).set({
+            const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+            const studentDocId = (session.studentDocId || localStorage.getItem('student_doc_id') || '').trim();
+
+            const surveyPayload = {
                 surveyAnswers: answers,
                 surveySubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).then(finish).catch(() => finish());
+            };
+
+            const writes = [
+                db.collection("results").doc(uniqueDocId).set(surveyPayload, { merge: true }).catch(() => {})
+            ];
+            if (studentDocId) {
+                writes.push(db.collection("students").doc(studentDocId).set(surveyPayload, { merge: true }).catch(() => {}));
+            }
+            Promise.allSettled(writes).then(finish).catch(finish);
         } else {
             finish();
         }
@@ -3363,7 +3631,11 @@ async function resetStudentExamByAdmin(studentFullName, subjectKey, studentCode 
     const uniqueDocId = getUniqueDocId(studentCode || studentFullName, subjectKey);
 
     try {
-        await db.collection("students").doc(uniqueDocId).delete();
+        await Promise.allSettled([
+            db.collection("results").doc(uniqueDocId).delete(),
+            db.collection("students").doc(uniqueDocId).delete(),
+            db.collection("exam_locks").doc(uniqueDocId).delete()
+        ]);
 
         localStorage.removeItem('finished_' + subjectKey);
         localStorage.removeItem('saved_exam_answers_' + subjectKey);
@@ -3896,7 +4168,9 @@ function buildUnitItemRowHtml(it, openCallExpr) {
     if (it.type === 'exam') {
         const examObj = (window.__allExamsRaw || []).find(e => e.id === it.examId);
         const hasSubmitted = isExamSubmittedForStudent(it.examId);
-        const available = !!(dynamicExamsDatabase && dynamicExamsDatabase[it.examId]);
+        const examsNeverLoaded = !!window.__examsLoadFailed && !(Array.isArray(window.__allExamsRaw) && window.__allExamsRaw.length);
+        // لو تحميل الامتحانات فشل، بنسيب الزرار شغال: الضغط عليه بيجيب الامتحان لوحده بدل "غير متاح" غلط
+        const available = isExamAvailableNow(it.examId) || examsNeverLoaded;
         const closeTs = (examObj && examObj.closesAt) ? new Date(examObj.closesAt).getTime() : NaN;
         const isHardClosed = !!(examObj && (examObj.isClosed === true || (!isNaN(closeTs) && Date.now() >= closeTs)));
 
@@ -3949,9 +4223,10 @@ function buildUnitItemRowHtml(it, openCallExpr) {
             rowExtraClass = ' unit-row-locked';
             reasonHtml = `<div class="unit-row-sub" style="color:#ff4d6d;"><i class="fas fa-lock"></i> الامتحان اتقفل ولم تقم بحله</div>`;
         } else if (!available) {
-            label = 'غير متاح حالياً';
+            const stillLoading = !!window.__examsLoading;
+            label = stillLoading ? 'جاري تحميل الامتحان...' : 'غير متاح حالياً';
             disabled = true;
-            const why = getExamUnavailableReason(it.examId);
+            const why = stillLoading ? '' : getExamUnavailableReason(it.examId);
             if (why) reasonHtml = `<div class="unit-row-sub">${escapeHtml(why)}</div>`;
         } else if (!isNaN(closeTs) && closeTs > Date.now()) {
             detailsHtml += `<div class="unit-countdown" data-closes-at="${closeTs}"><i class="fas fa-hourglass-half"></i> يُقفل الامتحان خلال: ${escapeHtml(formatCountdown(closeTs - Date.now()) || '')}</div>`;
@@ -4052,6 +4327,11 @@ async function renderUnitsSection() {
             loadVideoPurchasesCache()
         ]);
 
+        if (studentUnitsCache && studentUnitsCache.length > 0 && (Date.now() - (window.__unitsLoadedAt || 0) < 45000)) {
+            renderUnitsToDOM(studentUnitsCache);
+            return;
+        }
+
         const snap = await db.collection("units").get();
         let units = [];
         snap.forEach(d => units.push({ id: d.id, ...d.data() }));
@@ -4061,6 +4341,7 @@ async function renderUnitsSection() {
             .sort((a, b) => (a.order || 0) - (b.order || 0));
 
         studentUnitsCache = units;
+        window.__unitsLoadedAt = Date.now();
         renderUnitsToDOM(units);
     } catch (err) {
         console.error("خطأ في تحميل الوحدات:", err);
@@ -4124,7 +4405,7 @@ function openUnitItem(unitId, itemId) {
         openVideoModal(it.title, it.url);
         renderUnitsSection();
     } else if (it.type === 'exam') {
-        window.currentCourseIdForExam = null;
+        window.currentCourseIdForExam = activeCourseId || null;
         resetPortalToStep1(it.examId, 'exam');
     }
 }
