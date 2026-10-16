@@ -122,10 +122,12 @@ function saveStudentNoticeReadState() {
     ref.set(payload, { merge: true }).catch(error => console.warn('تعذر مزامنة حالة قراءة الإشعارات:', error));
 }
 
+let isNoticeSyncingWithServer = false;
 function startStudentNoticeReadSync() {
     const ref = getStudentNoticeStateRef();
     if (!ref || studentNoticeStateUnsubscribe) return;
     studentNoticeStateUnsubscribe = ref.onSnapshot(snapshot => {
+        if (isNoticeSyncingWithServer) return;
         const remoteIds = snapshot.exists && Array.isArray(snapshot.data().notificationReadIds)
             ? snapshot.data().notificationReadIds
             : [];
@@ -138,9 +140,10 @@ function startStudentNoticeReadSync() {
             localStorage.setItem(studentNoticeReadStorageKey(), JSON.stringify(Array.from(studentNoticeReadIds)));
             renderStudentNotifications();
         }
-        if (localReadsMissingOnServer) {
-            // ارفع أي قراءات محلية لم تكن موجودة على الحساب بعد.
+        if (localReadsMissingOnServer && !isNoticeSyncingWithServer) {
+            isNoticeSyncingWithServer = true;
             saveStudentNoticeReadState();
+            setTimeout(() => { isNoticeSyncingWithServer = false; }, 2000);
         }
     }, error => console.warn('تعذر تحميل حالة قراءة الإشعارات من الحساب:', error));
 }
@@ -148,7 +151,8 @@ function startStudentNoticeReadSync() {
 async function getStudentNotificationHash() {
     if (!studentNoticeHashPromise) {
         studentNoticeHashPromise = (async () => {
-            const code = (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
+            const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+            const code = (session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || '').trim().toLowerCase();
             if (!code || !crypto.subtle) return '';
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
             return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
@@ -255,32 +259,57 @@ function markAllStudentNotificationsRead() {
 }
 
 function startStudentNotificationCenter() {
-    if (!db || studentNoticeUnsubscribe) return;
+    if (typeof db === 'undefined' || studentNoticeUnsubscribe) return;
     loadStudentNoticeReadIds();
     startStudentNoticeReadSync();
-    studentNoticeUnsubscribe = db.collection('platform_notifications').orderBy('createdAt', 'desc').limit(75).onSnapshot(async snapshot => {
-        const myHash = await getStudentNotificationHash();
-        const visible = [];
-        const fresh = [];
-        const newlyAddedIds = new Set(snapshot.docChanges().filter(change => change.type === 'added').map(change => change.doc.id));
-        snapshot.forEach(doc => {
-            const data = doc.data() || {};
-            if (data.active === false || !studentMatchesNotice(data, myHash)) return;
-            const item = { id: doc.id, ...data };
-            visible.push(item);
-            // لا نعتمد على ساعة الجهاز لتحديد هل الإشعار جديد؛ اختلاف الساعة عن
-            // توقيت Firestore كان ممكن يعتبر الإشعار الجديد مقروءاً من غير ما الطالب يشوفه.
-            if (newlyAddedIds.has(doc.id) && !studentNoticeReadIds.has(doc.id)) fresh.push(item);
-        });
-        studentNoticeItems = visible.sort((a, b) => getNoticeDate(b.createdAt) - getNoticeDate(a.createdAt));
-        const notificationsSection = document.getElementById('notifications-section');
-        if (notificationsSection && notificationsSection.style.display === 'block') markAllStudentNotificationsRead();
-        else renderStudentNotifications();
-        if (studentNoticeInitialized && fresh.length) {
-            showCustomToast(`<i class="fas fa-bell"></i> ${escapeHtml(getStudentNoticeTitle(fresh[0]))}`, 'success');
+
+    const processSnapshot = async snapshot => {
+        try {
+            const myHash = await getStudentNotificationHash();
+            const visible = [];
+            const fresh = [];
+            const newlyAddedIds = new Set(snapshot.docChanges().filter(change => change.type === 'added').map(change => change.doc.id));
+            snapshot.forEach(doc => {
+                const data = doc.data() || {};
+                if (data.active === false || !studentMatchesNotice(data, myHash)) return;
+                const item = { id: doc.id, ...data };
+                visible.push(item);
+                if (newlyAddedIds.has(doc.id) && !studentNoticeReadIds.has(doc.id)) fresh.push(item);
+            });
+            studentNoticeItems = visible.sort((a, b) => getNoticeDate(b.createdAt) - getNoticeDate(a.createdAt));
+            const notificationsSection = document.getElementById('notifications-section');
+            if (notificationsSection && notificationsSection.style.display === 'block') markAllStudentNotificationsRead();
+            else renderStudentNotifications();
+            if (studentNoticeInitialized && fresh.length) {
+                showCustomToast(`<i class="fas fa-bell"></i> ${escapeHtml(getStudentNoticeTitle(fresh[0]))}`, 'success');
+            }
+            studentNoticeInitialized = true;
+        } catch (e) {
+            console.warn('خطأ في معالجة الإشعارات:', e);
+            renderStudentNotifications();
         }
-        studentNoticeInitialized = true;
-    }, error => console.warn('تعذر تحميل إشعارات المنصة:', error));
+    };
+
+    try {
+        studentNoticeUnsubscribe = db.collection('platform_notifications')
+            .orderBy('createdAt', 'desc').limit(50)
+            .onSnapshot(processSnapshot, error => {
+                console.warn('استعلام الإشعارات بالترتيب فشل، جاري المحاولة بدون فهرس:', error);
+                try {
+                    if (typeof studentNoticeUnsubscribe === 'function') studentNoticeUnsubscribe();
+                    studentNoticeUnsubscribe = db.collection('platform_notifications')
+                        .limit(50)
+                        .onSnapshot(processSnapshot, err2 => {
+                            console.warn('تعذر تحميل إشعارات المنصة نهائياً:', err2);
+                            renderStudentNotifications();
+                        });
+                } catch(e) {
+                    renderStudentNotifications();
+                }
+            });
+    } catch(e) {
+        renderStudentNotifications();
+    }
 }
 
 function showCustomToast(message, type = 'error') {
@@ -576,9 +605,83 @@ function generateQuestionsReviewHtml(answers, released = true) {
 }
 
 // ==========================================
-// <i class="fas fa-floppy-disk"></i> نظام مزامنة "حسابي" مع النتائج الحقيقية فقط
+// <i class="fas fa-floppy-disk"></i> نظام استعادة جلسة الطالب وإدارة النتائج
 // ==========================================
+function restoreStudentSession() {
+    let studentCode = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "").trim();
+    let studentName = (localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+    let studentDocId = (localStorage.getItem("student_doc_id") || "").trim();
+    let studentPhone = (localStorage.getItem("student_phone") || "").trim();
+    let parentPhone = (localStorage.getItem("parent_phone") || "").trim();
+    let studentStage = (localStorage.getItem("student_stage") || "").trim();
+
+    // 1. استعادة من كائن studentData أو currentStudent المحفوظ في localStorage
+    if (!studentCode || !studentName || !studentDocId) {
+        try {
+            const rawObj = localStorage.getItem("studentData") || localStorage.getItem("currentStudent");
+            if (rawObj) {
+                const parsed = JSON.parse(rawObj);
+                if (parsed && typeof parsed === 'object') {
+                    if (!studentCode && (parsed.code || parsed.studentCode || parsed.examCode)) {
+                        studentCode = String(parsed.code || parsed.studentCode || parsed.examCode).trim();
+                        localStorage.setItem("student_code", studentCode);
+                        localStorage.setItem("exam_code", studentCode);
+                    }
+                    if (!studentName && (parsed.name || parsed.studentName || parsed.fullname)) {
+                        studentName = String(parsed.name || parsed.studentName || parsed.fullname).trim();
+                        localStorage.setItem("student_fullname", studentName);
+                    }
+                    if (!studentDocId && (parsed.docId || parsed.studentDocId || parsed.id)) {
+                        studentDocId = String(parsed.docId || parsed.studentDocId || parsed.id).trim();
+                        localStorage.setItem("student_doc_id", studentDocId);
+                    }
+                    if (!studentPhone && (parsed.phone || parsed.studentPhone || parsed.mobile)) {
+                        studentPhone = String(parsed.phone || parsed.studentPhone || parsed.mobile).trim();
+                        localStorage.setItem("student_phone", studentPhone);
+                    }
+                    if (!parentPhone && (parsed.parentPhone || parsed.guardianPhone)) {
+                        parentPhone = String(parsed.parentPhone || parsed.guardianPhone).trim();
+                        localStorage.setItem("parent_phone", parentPhone);
+                    }
+                    if (!studentStage && (parsed.stage || parsed.grade || parsed.studentStage)) {
+                        studentStage = String(parsed.stage || parsed.grade || parsed.studentStage).trim();
+                        localStorage.setItem("student_stage", studentStage);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 2. استعادة من كوكي تسجيل الدخول الدائم (kaiser_student_login)
+    if (!studentCode || !studentName || !studentDocId) {
+        try {
+            const entry = document.cookie.split(";").map(part => part.trim()).find(part => part.startsWith("kaiser_student_login="));
+            if (entry) {
+                const remembered = JSON.parse(decodeURIComponent(entry.slice("kaiser_student_login=".length)));
+                if (remembered && typeof remembered === 'object') {
+                    if (!studentDocId && remembered.docId) {
+                        studentDocId = String(remembered.docId).trim();
+                        localStorage.setItem("student_doc_id", studentDocId);
+                    }
+                    if (!studentCode && remembered.code) {
+                        studentCode = String(remembered.code).trim();
+                        localStorage.setItem("student_code", studentCode);
+                        localStorage.setItem("exam_code", studentCode);
+                    }
+                    if (!studentName && remembered.name) {
+                        studentName = String(remembered.name).trim();
+                        localStorage.setItem("student_fullname", studentName);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    return { studentCode, studentName, studentDocId, studentPhone, parentPhone, studentStage };
+}
+
 function getHistoryOwner() {
+    restoreStudentSession();
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").toString().trim().toLowerCase();
     if (code) return code;
     return normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
@@ -587,17 +690,14 @@ function getHistoryOwner() {
 function getAllStoredHistory() {
     try {
         let history = JSON.parse(localStorage.getItem('alqeisar_exam_history') || '[]');
-        history = history.filter(item => {
-            if (!item || !item.examName) return false;
-            if (!item.owner) return false;
+        if (!Array.isArray(history)) history = [];
+        return history.filter(item => {
+            if (!item || !(item.examName || item.examTitle || item.title)) return false;
             const s = String(item.serial || '');
             if (['11028', '83978', '84457'].includes(s)) return false;
             if (item.id && item.id.startsWith('init_')) return false;
-            if (item.solvedQuestions === 0 && item.score && item.score.includes('0.0') && (!item.answers || item.answers.length === 0)) return false;
             return true;
         });
-        localStorage.setItem('alqeisar_exam_history', JSON.stringify(history));
-        return history;
     } catch (e) {
         return [];
     }
@@ -605,30 +705,47 @@ function getAllStoredHistory() {
 
 function getStoredHistory() {
     const owner = getHistoryOwner();
-    if (!owner) return [];
-    return getAllStoredHistory().filter(item => item.owner === owner);
+    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").toString().trim().toLowerCase();
+    const name = normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
+    const all = getAllStoredHistory();
+    if (!owner && !code && !name) return all;
+
+    return all.filter(item => {
+        if (!item.owner) return true; // احتفظ بالامتحانات القديمة حتى لو السجل معندوش حقل owner
+        const itemOwner = String(item.owner).trim().toLowerCase();
+        if (owner && itemOwner === owner) return true;
+        if (code && itemOwner === code) return true;
+        if (name && itemOwner === name) return true;
+        return false;
+    });
 }
 
 function saveStoredHistory(currentList) {
-    const owner = getHistoryOwner();
-    if (!owner) return;
-    const others = getAllStoredHistory().filter(item => item.owner !== owner);
-    const mine = (currentList || []).map(r => ({ ...r, owner: owner }));
+    const owner = getHistoryOwner() || 'default_student';
+    const all = getAllStoredHistory();
+    const isOther = (item) => {
+        if (!item || !item.owner) return false;
+        const o = String(item.owner).trim().toLowerCase();
+        return o !== owner.toLowerCase();
+    };
+    const others = all.filter(isOther);
+    const mine = (currentList || []).map(r => ({ ...r, owner: r.owner || owner }));
     localStorage.setItem('alqeisar_exam_history', JSON.stringify(others.concat(mine)));
 }
 
 function getHistoryRecordKey(r) {
-    // لازم الدمج والتفريد يكونوا بمعرّف الامتحان الثابت، مش بالسيريال العشوائي
-    // (السيريال بيتغيّر كل مرة الطالب يعيد الامتحان، فكان بيعمل صف مكرر بدل ما يحدّث نفس الصف)
-    if (r && r.examId) return String(r.examId);
-    return String((r && (r.key || r.serial || r.id)) || '');
+    if (!r) return '';
+    if (r.examId) return String(r.examId);
+    if (r.examCode) return String(r.examCode);
+    const title = r.examName || r.examTitle || r.title;
+    if (title) return String(title);
+    return String(r.key || r.serial || r.id || '');
 }
 
 function prettifyExamName(name, totalQuestions) {
     const n = (name || '').toString().trim();
-    // أسماء زي كود مستندات فايربيز العشوائي (حروف وأرقام متلخبطة من غير مسافات) مش اسم امتحان حقيقي
     const looksLikeRawId = /^[A-Za-z0-9_-]{12,}$/.test(n) && !/\s/.test(n) && /[a-z]/.test(n) && /[A-Z0-9]/.test(n);
-    if (!n || looksLikeRawId) return "امتحان غير متاح حالياً (محذوف أو منتهي)";
+    if (!n || looksLikeRawId) return "امتحان أونلاين";
     return n;
 }
 
@@ -644,22 +761,36 @@ function mergeHistoryRecords(localList, archiveList, liveList) {
     const map = new Map();
 
     (localList || []).forEach(r => {
-        if (r && r.examName) map.set(getHistoryRecordKey(r), r);
+        const title = r && (r.examName || r.examTitle || r.title);
+        if (r && title) {
+            r.examName = title;
+            map.set(getHistoryRecordKey(r), r);
+        }
     });
 
     (archiveList || []).forEach(r => {
-        if (!r || !r.examName) return;
+        const title = r && (r.examName || r.examTitle || r.title);
+        if (!r || !title) return;
+        r.examName = title;
         const k = getHistoryRecordKey(r);
         const ex = map.get(k);
-        if (!ex || (r.canReview && !ex.canReview)) map.set(k, r);
+        const ansLen = Array.isArray(r.answers) ? r.answers.length : 0;
+        const exAnsLen = (ex && Array.isArray(ex.answers)) ? ex.answers.length : 0;
+        if (!ex || (r.canReview && !ex.canReview) || ansLen > exAnsLen) map.set(k, r);
     });
 
     (liveList || []).forEach(r => {
-        if (!r || !r.examName) return;
+        const title = r && (r.examName || r.examTitle || r.title);
+        if (!r || !title) return;
+        r.examName = title;
         const k = getHistoryRecordKey(r);
         const ex = map.get(k);
         if (ex && !r.timestampMs && getHistoryRecordTime(ex)) r.timestampMs = getHistoryRecordTime(ex);
-        map.set(k, r);
+        const ansLen = Array.isArray(r.answers) ? r.answers.length : 0;
+        const exAnsLen = (ex && Array.isArray(ex.answers)) ? ex.answers.length : 0;
+        if (!ex || (r.canReview && !ex.canReview) || ansLen > exAnsLen) {
+            map.set(k, r);
+        }
     });
 
     return Array.from(map.values()).sort((a, b) => getHistoryRecordTime(b) - getHistoryRecordTime(a));
@@ -667,29 +798,53 @@ function mergeHistoryRecords(localList, archiveList, liveList) {
 
 async function archiveHistoryRecord(record) {
     if (typeof db === 'undefined' || !record) return;
-    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
-    const name = (localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
-    if (!code && !name) return;
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    const code = (session.studentCode || localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    const name = (session.studentName || localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+    const docId = (session.studentDocId || localStorage.getItem("student_doc_id") || "").trim();
+    if (!code && !name && !docId) return;
 
     try {
         const clean = JSON.parse(JSON.stringify(record));
         clean.key = getHistoryRecordKey(record);
         clean.studentCode = code;
+        clean.code = code;
         clean.studentName = name;
+        clean.name = name;
+        clean.studentDocId = docId;
+        clean.userId = docId;
         clean.archivedAtMs = Date.now();
-        await db.collection("results_archive")
-            .doc(getUniqueDocId(code || name, clean.key))
-            .set(clean, { merge: true });
+        
+        const writes = [];
+        const uniqueKey = getUniqueDocId(code || name, clean.key);
+        writes.push(db.collection("results_archive").doc(uniqueKey).set(clean, { merge: true }));
+        if (clean.examId && clean.examId !== clean.key) {
+            writes.push(db.collection("results_archive").doc(getUniqueDocId(code || name, clean.examId)).set(clean, { merge: true }));
+        }
+        await Promise.allSettled(writes);
     } catch (e) {
-        console.warn("تعذر حفظ نسخة الأرشيف (غير مؤثر على النتائج المحلية):", e);
+        console.warn("تعذر حفظ نسخة الأرشيف:", e);
     }
 }
 
-// الاسم المخزّن في السجل يطابق اسم الطالب الحالي؟ (لو السجل مفيهوش اسم نعتبره مطابق)
+// الاسم المخزّن في السجل يطابق اسم الطالب الحالي أو كوده؟
 function recordBelongsToMe(data) {
-    const me = normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
-    const other = normalizeArabicText((data && (data.studentName || data.name)) || "");
-    return !me || !other || me === other;
+    if (!data) return false;
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    const myCode = (session.studentCode || localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim().toLowerCase();
+    const docCode = String(data.studentCode || data.code || "").trim().toLowerCase();
+    if (myCode && docCode && myCode === docCode) return true;
+
+    const myDocId = (session.studentDocId || localStorage.getItem("student_doc_id") || "").trim();
+    const docUserId = String(data.studentDocId || data.userId || data.studentId || "").trim();
+    if (myDocId && docUserId && myDocId === docUserId) return true;
+
+    const me = normalizeArabicText(session.studentName || localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
+    const other = normalizeArabicText((data && (data.studentName || data.name || data.fullname)) || "");
+    if (!me || !other) return true;
+    if (me === other) return true;
+    if (me.includes(other) || other.includes(me)) return true;
+    return false;
 }
 
 async function fetchPracticeHistory(studentCode) {
@@ -699,7 +854,8 @@ async function fetchPracticeHistory(studentCode) {
         const list = [];
         snap.forEach(doc => {
             const d = doc.data();
-            if (d && d.record && d.record.examName && recordBelongsToMe(d)) list.push(d.record);
+            const examTitle = d && d.record && (d.record.examName || d.record.examTitle || d.record.title);
+            if (d && d.record && examTitle && recordBelongsToMe(d)) list.push({ ...d.record, examName: examTitle });
         });
         return list;
     } catch (e) {
@@ -716,26 +872,63 @@ function savePracticeToServer(record) {
     try {
         db.collection("student_practice_results").doc(getUniqueDocId(code || name, record.examId)).set({
             studentCode: code,
+            code: code,
             studentName: name,
+            name: name,
             record: JSON.parse(JSON.stringify(record)),
             createdAtMs: Date.now()
         }).catch(e => console.warn("تعذر حفظ نتيجة التدريب:", e));
     } catch (e) {}
 }
 
-async function fetchArchivedHistory(studentCode) {
-    if (typeof db === 'undefined' || !studentCode) return [];
+async function fetchArchivedHistory(studentCode, studentName, studentDocId) {
+    if (typeof db === 'undefined') return [];
+    const code = studentCode || (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+    const name = studentName || (localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "").trim();
+    const docId = studentDocId || (localStorage.getItem("student_doc_id") || "").trim();
+    if (!code && !name && !docId) return [];
+
     try {
-        const snap = await db.collection("results_archive").where("studentCode", "==", studentCode).get();
+        const queries = [];
+        if (code) {
+            queries.push(db.collection("results_archive").where("studentCode", "==", code).get().catch(() => ({ docs: [] })));
+            queries.push(db.collection("results_archive").where("code", "==", code).get().catch(() => ({ docs: [] })));
+            if (!isNaN(code)) {
+                const numCode = Number(code);
+                queries.push(db.collection("results_archive").where("studentCode", "==", numCode).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("results_archive").where("code", "==", numCode).get().catch(() => ({ docs: [] })));
+            }
+        }
+        if (docId) {
+            queries.push(db.collection("results_archive").where("studentDocId", "==", docId).get().catch(() => ({ docs: [] })));
+            queries.push(db.collection("results_archive").where("userId", "==", docId).get().catch(() => ({ docs: [] })));
+        }
+        if (name) {
+            queries.push(db.collection("results_archive").where("studentName", "==", name).get().catch(() => ({ docs: [] })));
+            queries.push(db.collection("results_archive").where("name", "==", name).get().catch(() => ({ docs: [] })));
+        }
+
+        const snapshots = await Promise.allSettled(queries);
         const list = [];
-        snap.forEach(doc => {
-            const d = doc.data();
-            if (d && d.examName && recordBelongsToMe(d)) {
-                const rec = { ...d };
-                delete rec.studentCode;
-                delete rec.studentName;
-                delete rec.archivedAtMs;
-                list.push(rec);
+        const seenKeys = new Set();
+
+        snapshots.forEach(res => {
+            if (res.status === "fulfilled" && res.value && res.value.docs) {
+                res.value.docs.forEach(doc => {
+                    const d = doc.data();
+                    const examTitle = d.examName || d.examTitle || d.title;
+                    if (d && examTitle && recordBelongsToMe(d)) {
+                        const recKey = getHistoryRecordKey({ ...d, id: doc.id });
+                        if (!seenKeys.has(recKey)) {
+                            seenKeys.add(recKey);
+                            const rec = { ...d, id: d.id || doc.id, examName: examTitle };
+                            delete rec.studentCode;
+                            delete rec.studentName;
+                            delete rec.archivedAtMs;
+                            list.push(rec);
+                        }
+                    }
+                });
             }
         });
         return list;
@@ -745,110 +938,238 @@ async function fetchArchivedHistory(studentCode) {
     }
 }
 
-async function syncAccountWithFirebase() {
-    const studentCode = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
-    const studentName = normalizeArabicText(localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "");
+function convertDocToHistoryRecord(docData, docId = '', idx = 0) {
+    if (!docData) return null;
+    const examTitle = docData.examName || docData.examTitle || docData.title;
+    if (!examTitle && !docData.examCode && !docData.examId) return null;
 
-    if (!studentCode && !studentName) {
+    const answersArr = Array.isArray(docData.answers) ? docData.answers : (docData.answers && typeof docData.answers === 'object' ? Object.values(docData.answers) : []);
+    const hasEssayQuestions = (docData.hasEssay === true) || answersArr.some(a => a && (a.type === 'essay' || a.modelAnswer));
+    const isExplicitlyReleased = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true || docData.isGraded === true);
+    // إتاحة النتيجة فوراً للامتحانات الاختيارية أو المعتمدة، طالما لم يتم إخفاؤها صراحة أو إلغاء الامتحان
+    const isCancelled = docData.examCancelled === true;
+    const isApproved = !isCancelled && (isExplicitlyReleased || (!hasEssayQuestions && docData.showScore !== false));
+
+    const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : ((docData.mcqScore !== undefined) ? docData.mcqScore : 0));
+    const maxScore = docData.maxScore || docData.maxExamScore || 10;
+    const percentage = maxScore > 0 ? Math.round((Number(score) / Number(maxScore)) * 100) : 0;
+
+    const totalQuestions = answersArr.length || docData.totalQuestions || 10;
+    const solvedCount = answersArr.length > 0 
+        ? answersArr.filter(a => a && a.studentAnswer && a.studentAnswer !== "لم يحل" && a.studentAnswer !== "لم يكتب إجابة").length 
+        : (docData.correctCount !== undefined ? docData.correctCount : totalQuestions);
+
+    let timestampMs = 0;
+    if (docData.timestamp) {
+        if (typeof docData.timestamp.toMillis === 'function') timestampMs = docData.timestamp.toMillis();
+        else if (docData.timestamp.seconds) timestampMs = docData.timestamp.seconds * 1000;
+        else if (typeof docData.timestamp === 'number') timestampMs = docData.timestamp;
+    }
+    if (!timestampMs && docData.archivedAtMs) timestampMs = Number(docData.archivedAtMs) || 0;
+    if (!timestampMs && docData.createdAtMs) timestampMs = Number(docData.createdAtMs) || 0;
+    if (!timestampMs && docData.submittedAtMs) timestampMs = Number(docData.submittedAtMs) || 0;
+    if (!timestampMs && docId && docId.startsWith('exam_')) {
+        const parsed = Number(docId.slice(5));
+        if (parsed > 1000000) timestampMs = parsed;
+    }
+
+    const recId = docData.id || docId || `exam_${timestampMs || Date.now()}`;
+    const serial = (docData.serial || (20000 + idx)).toString();
+
+    return {
+        id: recId,
+        key: docData.serial ? String(docData.serial) : (docData.examCode || String(recId)),
+        serial: serial,
+        examName: examTitle || "اختبار أونلاين",
+        totalQuestions: totalQuestions,
+        percentage: isCancelled ? 'ملغي' : (isApproved ? `% ${percentage}` : '—'),
+        score: isCancelled ? 'ملغي' : (isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'تم استلام إجاباتك'),
+        scoreNum: Number(score) || 0,
+        maxScoreNum: Number(maxScore) || 10,
+        solvedQuestions: solvedCount,
+        canReview: isApproved && !isCancelled,
+        startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
+        endTime: docData.submittedAt || 'تم التسليم',
+        durationTaken: docData.durationTaken || '',
+        examId: docData.examCode || docData.examId || docId || '',
+        timestampMs: timestampMs,
+        answers: answersArr
+    };
+}
+
+let accountHistoryLoadedAt = 0;
+let accountHistorySyncPromise = null;
+
+async function syncAccountWithFirebase(forceRefresh = false) {
+    const session = restoreStudentSession();
+    const studentCode = session.studentCode;
+    const studentDocId = session.studentDocId;
+    const studentName = session.studentName;
+    const normalizedName = normalizeArabicText(studentName);
+
+    if (!studentCode && !normalizedName && !studentDocId) {
         renderAccountHistoryTable();
+        renderStudentPerformanceSummary();
         return;
     }
 
-    if (typeof db !== 'undefined') {
+    // 1. عرض النتائج المخزنة محلياً فوراً بدون أي تأخير (0ms)
+    const localHistory = getStoredHistory();
+    if (localHistory.length > 0) {
+        renderAccountHistoryTable(localHistory);
+        renderStudentPerformanceSummary();
+    } else {
+        const tbody = document.getElementById('student-history-tbody');
+        if (tbody && !tbody.children.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 35px 15px; color: var(--accent-cyan);">
+                        <i class="fas fa-spinner fa-spin"></i> جاري مزامنة وتحميل نتائج الامتحانات السابقة...
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // 2. كاش زمني ذكي: لو تم التحديث خلال آخر 60 ثانية ولم يطلب إجبار التحديث، اكتفِ بالكاش فوراً
+    if (!forceRefresh && localHistory.length > 0 && (Date.now() - accountHistoryLoadedAt < 60000)) {
+        return;
+    }
+
+    if (accountHistorySyncPromise) return accountHistorySyncPromise;
+
+    if (typeof db === 'undefined') {
+        renderAccountHistoryTable();
+        renderStudentPerformanceSummary();
+        return;
+    }
+
+    accountHistorySyncPromise = (async () => {
         let liveRecords = [];
         let archiveRecords = [];
+        const seenRecordsMap = new Map();
 
         try {
-            let snapshot = await db.collection("students").where("studentCode", "==", studentCode).get();
-            if (snapshot.empty && studentCode) {
-                snapshot = await db.collection("students").where("code", "==", studentCode).get();
+            const queries = [];
+
+            // أ) جلب مستند الطالب الأساسي مباشرة ومصفوفات الامتحانات
+            if (studentDocId) {
+                queries.push(
+                    db.collection("students").doc(studentDocId).get()
+                        .then(snap => ({ docs: snap.exists ? [snap] : [] }))
+                        .catch(() => ({ docs: [] }))
+                );
+                queries.push(db.collection("students").where("studentDocId", "==", studentDocId).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("students").where("userId", "==", studentDocId).get().catch(() => ({ docs: [] })));
             }
 
-            let realSubmissions = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const sName = normalizeArabicText(data.studentName || data.name || "");
-                // لازم الاسم يتطابق برضو مش بس الكود، عشان لو حصل واتكرر نفس الكود بالغلط بين طالبين مختلفين ميحصلش تداخل في النتايج
-                if (studentName && sName && sName !== studentName) return;
-                if (data.hasSubmitted === true || data.isSubmitted === true || (data.answers && data.answers.length > 0)) {
-                    realSubmissions.push({ id: doc.id, ...data });
+            // ب) استعلام مجمّع وسريع بكود الطالب (يرجع كل تسليمات الطالب بطلب واحد)
+            if (studentCode) {
+                queries.push(db.collection("students").where("studentCode", "==", studentCode).get().catch(() => ({ docs: [] })));
+                if (!isNaN(studentCode)) {
+                    queries.push(db.collection("students").where("studentCode", "==", Number(studentCode)).get().catch(() => ({ docs: [] })));
+                }
+                queries.push(db.collection("results").where("studentCode", "==", studentCode).get().catch(() => ({ docs: [] })));
+            }
+
+            // ج) استعلام بديل بالاسم لو الكود غير متوفر
+            if (studentName && !studentCode) {
+                queries.push(db.collection("students").where("studentName", "==", studentName).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection("results").where("studentName", "==", studentName).get().catch(() => ({ docs: [] })));
+            }
+
+            // د) استعلامات الأرشيف والتدريب بالتوازي
+            const archivePromise = fetchArchivedHistory(studentCode, studentName, studentDocId);
+            const practicePromise = fetchPracticeHistory(studentCode);
+
+            const [queryResults, archDocs, pracDocs] = await Promise.all([
+                Promise.allSettled(queries),
+                archivePromise,
+                practicePromise
+            ]);
+
+            archiveRecords = (archDocs || []).concat(pracDocs || []);
+
+            const seenDocs = new Map();
+            queryResults.forEach(res => {
+                if (res.status === "fulfilled" && res.value && res.value.docs) {
+                    res.value.docs.forEach(doc => {
+                        if (!seenDocs.has(doc.id)) {
+                            seenDocs.set(doc.id, doc.data());
+                        }
+                    });
                 }
             });
 
-            if (realSubmissions.length === 0 && studentName && !studentCode) {
-                const allSnap = await db.collection("students").get();
-                allSnap.forEach(doc => {
-                    const data = doc.data();
-                    const sName = normalizeArabicText(data.studentName || data.name || "");
-                    const docCode = (data.studentCode || data.code || "").toString().trim();
-                    const codeOk = !docCode;
-                    if (sName && sName === studentName && codeOk) {
-                        if (data.hasSubmitted === true || data.isSubmitted === true || (data.answers && data.answers.length > 0)) {
-                            realSubmissions.push({ id: doc.id, ...data });
-                        }
+            // تفريغ المستندات
+            seenDocs.forEach((data, id) => {
+                if (!data) return;
+
+                // مصفوفات النتائج المدمجة داخل مستند الطالب
+                const embeddedArrays = [data.examHistory, data.previousResults, data.resultsHistory, data.exams, data.results];
+                embeddedArrays.forEach(arr => {
+                    if (Array.isArray(arr)) {
+                        arr.forEach((item, itemIdx) => {
+                            if (item && (item.examName || item.examTitle || item.title || item.score !== undefined)) {
+                                const rec = convertDocToHistoryRecord(item, `${id}_item_${itemIdx}`, itemIdx);
+                                if (rec) {
+                                    const k = getHistoryRecordKey(rec);
+                                    if (!seenRecordsMap.has(k)) seenRecordsMap.set(k, rec);
+                                }
+                            }
+                        });
                     }
                 });
+
+                // مستند تسليم امتحان فردي
+                const isSubmission = data.hasSubmitted === true || data.isSubmitted === true || 
+                                     (Array.isArray(data.answers) && data.answers.length > 0) ||
+                                     data.score !== undefined || data.finalScore !== undefined;
+
+                if (isSubmission && recordBelongsToMe(data)) {
+                    const rec = convertDocToHistoryRecord(data, id, seenRecordsMap.size);
+                    if (rec) {
+                        const k = getHistoryRecordKey(rec);
+                        const existing = seenRecordsMap.get(k);
+                        const ansLen = Array.isArray(rec.answers) ? rec.answers.length : 0;
+                        const exAnsLen = (existing && Array.isArray(existing.answers)) ? existing.answers.length : 0;
+                        if (!existing || (rec.canReview && !existing.canReview) || ansLen > exAnsLen) {
+                            seenRecordsMap.set(k, rec);
+                        }
+                    }
+                }
+            });
+
+            liveRecords = Array.from(seenRecordsMap.values());
+            const mergedHistory = mergeHistoryRecords(getStoredHistory(), archiveRecords, liveRecords);
+            if (mergedHistory.length > 0) {
+                saveStoredHistory(mergedHistory);
             }
 
-            liveRecords = realSubmissions.map((docData, idx) => {
-                const isApproved = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true || docData.isGraded === true);
-                const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : 0);
-                const maxScore = docData.maxScore || docData.maxExamScore || 10;
-                const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-                
-                const totalQuestions = (docData.answers && Array.isArray(docData.answers)) ? docData.answers.length : (docData.totalQuestions || 10);
-                const solvedCount = (docData.answers && Array.isArray(docData.answers)) 
-                    ? docData.answers.filter(a => a.studentAnswer && a.studentAnswer !== "لم يحل" && a.studentAnswer !== "لم يكتب إجابة").length 
-                    : (docData.correctCount || totalQuestions);
+            accountHistoryLoadedAt = Date.now();
+            renderAccountHistoryTable(mergedHistory);
+            renderStudentPerformanceSummary();
 
-                const isCancelled = docData.examCancelled === true;
-                return {
-                    id: docData.id,
-                    key: docData.serial ? String(docData.serial) : String(docData.id),
-                    serial: (docData.serial || (20000 + idx)).toString(),
-                    examName: docData.examName || docData.examTitle || docData.title || "اختبار أونلاين",
-                    totalQuestions: totalQuestions,
-                    percentage: isCancelled ? 'ملغي' : (isApproved ? `% ${percentage}` : '—'),
-                    score: isCancelled ? 'ملغي' : (isApproved ? `${fmtScoreText(score)} من ${fmtPts(maxScore)}` : 'تم استلام إجاباتك'),
-                    scoreNum: Number(score) || 0,
-                    maxScoreNum: Number(maxScore) || 10,
-                    solvedQuestions: solvedCount,
-                    canReview: isApproved && !isCancelled,
-                    startTime: docData.startTimeFormatted || docData.submittedAt || 'غير محدد',
-                    endTime: docData.submittedAt || 'تم التسليم',
-                    durationTaken: docData.durationTaken || '',
-                    examId: docData.examCode || docData.id || '',
-                    timestampMs: (docData.timestamp && typeof docData.timestamp.toMillis === 'function') ? docData.timestamp.toMillis() : 0,
-                    answers: docData.answers || []
-                };
-            });
+            // أرشفة غير معطلة للواجهة في الخلفية
+            setTimeout(() => {
+                const archiveMap = new Map(archiveRecords.map(r => [getHistoryRecordKey(r), r]));
+                liveRecords.forEach(r => {
+                    const a = archiveMap.get(getHistoryRecordKey(r));
+                    if (!a || a.score !== r.score || a.percentage !== r.percentage || a.canReview !== r.canReview) {
+                        archiveHistoryRecord(r);
+                    }
+                });
+            }, 300);
+
         } catch (e) {
             console.warn("خطأ في المزامنة مع السيرفر:", e);
+            renderAccountHistoryTable();
+            renderStudentPerformanceSummary();
         }
+    })();
 
-        try {
-            archiveRecords = await fetchArchivedHistory(studentCode);
-            archiveRecords = archiveRecords.concat(await fetchPracticeHistory(studentCode));
-        } catch (e) {
-            archiveRecords = [];
-        }
-
-        const mergedHistory = mergeHistoryRecords(getStoredHistory(), archiveRecords, liveRecords);
-        if (mergedHistory.length > 0) {
-            saveStoredHistory(mergedHistory);
-        }
-
-        const archiveMap = new Map(archiveRecords.map(r => [getHistoryRecordKey(r), r]));
-        liveRecords.forEach(r => {
-            const a = archiveMap.get(getHistoryRecordKey(r));
-            if (!a || a.score !== r.score || a.percentage !== r.percentage || a.canReview !== r.canReview ||
-                JSON.stringify(a.answers || []) !== JSON.stringify(r.answers || [])) {
-                archiveHistoryRecord(r);
-            }
-        });
-    }
-
-    renderAccountHistoryTable();
+    try { await accountHistorySyncPromise; }
+    finally { accountHistorySyncPromise = null; }
 }
 
 let historyCurrentPage = 1;
@@ -859,23 +1180,26 @@ function changeHistoryPage(page) {
     renderAccountHistoryTable();
 }
 
-function renderAccountHistoryTable() {
+function renderAccountHistoryTable(customList) {
     const tbody = document.getElementById('student-history-tbody');
+    const pageControls = document.getElementById('history-page-controls');
     const rangeStart = document.getElementById('history-range-start');
     const rangeEnd = document.getElementById('history-range-end');
     const totalDisplay = document.getElementById('history-total-display');
-    const pageControls = document.getElementById('history-page-controls');
+    const countDisplay = document.getElementById('history-count-display');
     if (!tbody) return;
 
-    // الصفحة الأولى تعرض أقدم النتائج، ثم تتتابع الصفحات نحو الأحدث.
-    let history = getStoredHistory().sort((a, b) => getHistoryRecordTime(a) - getHistoryRecordTime(b));
-    if (totalDisplay) totalDisplay.textContent = history.length;
+    let sourceList = Array.isArray(customList) ? customList : getStoredHistory();
+    // عرض أحدث النتائج أولاً (الأحدث بالأعلى)
+    let history = (sourceList || []).slice().sort((a, b) => getHistoryRecordTime(b) - getHistoryRecordTime(a));
+    if (totalDisplay) totalDisplay.textContent = String(history.length);
     tbody.innerHTML = '';
 
     if (history.length === 0) {
         historyCurrentPage = 1;
         if (rangeStart) rangeStart.textContent = '0';
         if (rangeEnd) rangeEnd.textContent = '0';
+        if (countDisplay) countDisplay.textContent = '0';
         if (pageControls) pageControls.innerHTML = '';
         tbody.innerHTML = `
             <tr>
@@ -894,6 +1218,7 @@ function renderAccountHistoryTable() {
     const pageHistory = history.slice(firstIndex, firstIndex + historyPageSize);
     if (rangeStart) rangeStart.textContent = String(firstIndex + 1);
     if (rangeEnd) rangeEnd.textContent = String(Math.min(firstIndex + pageHistory.length, history.length));
+    if (countDisplay) countDisplay.textContent = String(Math.min(firstIndex + pageHistory.length, history.length));
 
     if (pageControls) {
         const pageNumbers = pageCount <= 7
@@ -1071,12 +1396,19 @@ async function openAnswersReviewModal(recordId) {
 }
 
 function updateProfileUI() {
-    let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "طالب";
-    let studentStage = localStorage.getItem("student_stage") || "الصف الثاني الإعدادي";
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    let studentName = session.studentName || localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "طالب";
+    let studentStage = session.studentStage || localStorage.getItem("student_stage") || "الصف الثاني الإعدادي";
+    let studentCode = session.studentCode || localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
+    let studentPhone = session.studentPhone || localStorage.getItem("student_phone") || "";
+    let parentPhone = session.parentPhone || localStorage.getItem("parent_phone") || "";
 
     if (document.getElementById("profile-name")) document.getElementById("profile-name").textContent = studentName;
     if (document.getElementById("profile-stage")) document.getElementById("profile-stage").textContent = studentStage;
     if (document.getElementById("user-display-name")) document.getElementById("user-display-name").textContent = "أهلاً: " + studentName;
+    if (document.getElementById("profile-code")) document.getElementById("profile-code").textContent = studentCode || "غير محدد";
+    if (document.getElementById("profile-phone")) document.getElementById("profile-phone").textContent = studentPhone || "غير مسجل";
+    if (document.getElementById("profile-parent-phone")) document.getElementById("profile-parent-phone").textContent = parentPhone || "غير مسجل";
 }
 
 const ENFORCE_EXAM_GRADE = false;
@@ -1150,12 +1482,30 @@ function logoutStudent() {
     window.location.href = "index.html";
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    let studentName = localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
-    let studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
-    let studentPhone = localStorage.getItem("student_phone") || "";
-    let parentPhone = localStorage.getItem("parent_phone") || "";
-    let studentStage = localStorage.getItem("student_stage") || "الصف الثاني الإعدادي";
+function initPlatformApp() {
+    if (window.__platformAppInitialized) return;
+    window.__platformAppInitialized = true;
+
+    // 1. استعادة الكاش فوراً للتحميل الفوري (0ms Instant First Paint)
+    try {
+        const rawC = sessionStorage.getItem('kaiser_cached_courses');
+        if (rawC && (!coursesCache || !coursesCache.length)) coursesCache = JSON.parse(rawC);
+        const rawS = sessionStorage.getItem('kaiser_cached_subscriptions');
+        if (rawS && (!subscriptionsCache || !subscriptionsCache.size)) {
+            subscriptionsCache = new Map(JSON.parse(rawS));
+        }
+        const rawE = sessionStorage.getItem('kaiser_cached_exams');
+        if (rawE && (!window.__allExamsRaw || !window.__allExamsRaw.length)) {
+            window.__allExamsRaw = JSON.parse(rawE);
+        }
+    } catch (e) {}
+
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    let studentName = session.studentName || localStorage.getItem("student_fullname") || localStorage.getItem("student_name") || "";
+    let studentCode = session.studentCode || localStorage.getItem("student_code") || localStorage.getItem("exam_code") || localStorage.getItem("code") || "";
+    let studentPhone = session.studentPhone || localStorage.getItem("student_phone") || "";
+    let parentPhone = session.parentPhone || localStorage.getItem("parent_phone") || "";
+    let studentStage = session.studentStage || localStorage.getItem("student_stage") || "الصف الثاني الإعدادي";
 
     if (!studentName || !studentCode) {
         if (!studentName) {
@@ -1174,8 +1524,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (!studentName || !studentCode) {
-            showCustomToast("<i class='fas fa-triangle-exclamation'></i> بيانات الدخول غير مكتملة، جاري توجيهك لصفحة التسجيل...", "warning");
-            setTimeout(() => { window.location.href = "login.html"; }, 2000);
+            showCustomToast("<i class='fas fa-triangle-exclamation'></i> بيانات الدخول غير مكتملة، جاري توجيهك لصفحة تسجيل الدخول...", "warning");
+            setTimeout(() => { window.location.href = "index.html"; }, 2000);
             return;
         }
     }
@@ -1184,8 +1534,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (displayElement) displayElement.textContent = "أهلاً: " + studentName;
 
     updateProfileUI();
-    syncAccountWithFirebase();
-    startStudentNotificationCenter();
 
     if (document.getElementById("profile-code")) document.getElementById("profile-code").textContent = studentCode || "غير محدد";
     if (document.getElementById("profile-phone")) document.getElementById("profile-phone").textContent = studentPhone || "غير مسجل";
@@ -1200,7 +1548,17 @@ document.addEventListener('DOMContentLoaded', function() {
     createConfirmSubmitModal();
     setupAntiCheatListeners();
     updateStudentLastActive();
-    window.__examsReady = loadAssignedExam();
+
+    // جلب البيانات الأساسية بالتوازي في الخلفية دون تعطيل واجهة المستخدم
+    const initBgFetchers = Promise.allSettled([
+        loadAssignedExam(),
+        loadCourseData(),
+        loadExamLocksCache(),
+        syncAccountWithFirebase()
+    ]);
+    window.__examsReady = initBgFetchers;
+
+    startStudentNotificationCenter();
     checkAndResumeRunningExam();
 
     try {
@@ -1210,7 +1568,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const noticeId = new URLSearchParams(location.search).get('notice');
         if (noticeId && nextTab === 'account') setTimeout(() => openStudentNoticeResult(noticeId), 900);
     } catch (e) {}
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPlatformApp);
+} else {
+    initPlatformApp();
+}
 
 async function updateStudentLastActive() {
     try {
@@ -1315,7 +1679,98 @@ function setupAntiCheatListeners() {
     });
 }
 
-async function loadAssignedExam() {
+let examsLoadedAt = 0;
+let examsFetchPromise = null;
+
+function renderAssignedExamsToDOM(accessibleExams, examsGrid, studentStage) {
+    if (!examsGrid) return;
+    if (!accessibleExams || accessibleExams.length === 0) {
+        examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان مخصص لك حالياً.</p>";
+        return;
+    }
+
+    examsGrid.innerHTML = "";
+    accessibleExams.forEach(activeExam => {
+        const convertedQuestions = (activeExam.questions || []).map(q => {
+            const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
+            let correctAns = "";
+            if (q.options && q.correctAnswerIndex !== undefined && q.options[q.correctAnswerIndex] !== undefined) {
+                correctAns = q.options[q.correctAnswerIndex];
+            } else if (q.correctAnswer) {
+                correctAns = q.correctAnswer;
+            }
+
+            return {
+                section: "general",
+                type: isChoice ? "choice" : "essay",
+                question: q.question || q.text || q.questionText || "بدون نص",
+                imageUrl: q.imageUrl || q.image || "",
+                options: q.options || [],
+                correctAnswer: correctAns,
+                modelAnswer: q.modelAnswer || "",
+                points: q.points || 1
+            };
+        });
+
+        const examDuration = activeExam.duration || activeExam.durationMinutes || DEFAULT_EXAM_DURATION;
+
+        dynamicExamsDatabase[activeExam.id] = {
+            version: activeExam.version || 1,
+            examTitle: activeExam.examCode || activeExam.title || activeExam.examName || "اختبار أونلاين",
+            duration: examDuration,
+            questions: convertedQuestions,
+            surveyQuestions: Array.isArray(activeExam.surveyQuestions) ? activeExam.surveyQuestions : []
+        };
+
+        examsGrid.innerHTML += `
+            <div class="exam-card" id="card-${activeExam.id}">
+                <h3><i class="fas fa-school"></i> ${activeExam.grade || studentStage || 'عام'}</h3>
+                <h4>${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
+                <p><i class="fas fa-pen-to-square"></i> عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br><i class="fas fa-stopwatch"></i> مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
+                <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن <i class="fas fa-rocket"></i></button>
+            </div>
+        `;
+    });
+
+    updateExamButtonsStatus();
+}
+
+function filterAccessibleExams(allExams, studentCode, studentStage, studentName, studentPhone) {
+    const now = Date.now();
+    return (allExams || []).filter(exam => {
+        if (exam.isActive === false || exam.status === 'archived' || exam.status === 'expired' || exam.isOld === true) {
+            return false;
+        }
+        if (exam.isPublished === false || exam.status === 'draft') return false;
+
+        if (exam.scheduledAt) {
+            const openTime = new Date(exam.scheduledAt).getTime();
+            if (!isNaN(openTime) && now < openTime) return false;
+        }
+
+        if (exam.closesAt) {
+            const closeTime = new Date(exam.closesAt).getTime();
+            if (!isNaN(closeTime) && now >= closeTime) return false;
+        }
+
+        if (exam.expiryDate) {
+            const expTime = new Date(exam.expiryDate).getTime();
+            if (!isNaN(expTime) && now > expTime) return false;
+        }
+        if (exam.endDate) {
+            const endTime = new Date(exam.endDate).getTime();
+            if (!isNaN(endTime) && now > endTime) return false;
+        }
+
+        return canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone);
+    }).sort((a, b) => {
+        const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+        const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        return bTime - aTime;
+    });
+}
+
+async function loadAssignedExam(forceRefresh = false) {
     const examsGrid = document.getElementById('assigned-exam-grid');
     const studentStage = localStorage.getItem("student_stage") || "";
     const studentCode = localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "";
@@ -1324,135 +1779,75 @@ async function loadAssignedExam() {
 
     if (!examsGrid) return;
 
+    // عرض الامتحانات فوراً من الكاش إذا كانت موجودة (Stale-While-Revalidate)
+    if (window.__allExamsRaw && window.__allExamsRaw.length > 0) {
+        const cachedAccessible = filterAccessibleExams(window.__allExamsRaw, studentCode, studentStage, studentName, studentPhone);
+        renderAssignedExamsToDOM(cachedAccessible, examsGrid, studentStage);
+    }
+
+    if (!forceRefresh && (Date.now() - examsLoadedAt < 60000) && window.__allExamsRaw && window.__allExamsRaw.length > 0) {
+        return;
+    }
+    if (examsFetchPromise) return examsFetchPromise;
+
     if (typeof db === 'undefined') {
-        examsGrid.innerHTML = "<p style='text-align:center;color:#e74c3c;grid-column:1/-1;'><i class='fas fa-circle-xmark'></i> تعذر الاتصال بقاعدة البيانات. تحقق من الاتصال بالإنترنت.</p>";
+        if (!window.__allExamsRaw || window.__allExamsRaw.length === 0) {
+            examsGrid.innerHTML = "<p style='text-align:center;color:#e74c3c;grid-column:1/-1;'><i class='fas fa-circle-xmark'></i> تعذر الاتصال بقاعدة البيانات. تحقق من الاتصال بالإنترنت.</p>";
+        }
         return;
     }
 
-    try {
-        const fetchPromise = db.collection("exams").get();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
-        
-        const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
+    examsFetchPromise = (async () => {
+        try {
+            const fetchPromise = db.collection("exams").get();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
+            
+            const snapshot = await Promise.race([fetchPromise, timeoutPromise]);
 
-        if (snapshot.empty) {
-            window.__allExamsRaw = [];
-            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان منشور حالياً.</p>";
-            return;
+            if (snapshot.empty) {
+                window.__allExamsRaw = [];
+                try { sessionStorage.removeItem('kaiser_cached_exams'); } catch (e) {}
+                examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان منشور حالياً.</p>";
+                return;
+            }
+
+            let allExams = [];
+            snapshot.forEach(doc => allExams.push({ id: doc.id, ...doc.data() }));
+            window.__allExamsRaw = allExams;
+            examsLoadedAt = Date.now();
+            try { sessionStorage.setItem('kaiser_cached_exams', JSON.stringify(allExams)); } catch (e) {}
+
+            const accessibleExams = filterAccessibleExams(allExams, studentCode, studentStage, studentName, studentPhone);
+            cleanStaleExamStorage(accessibleExams.map(e => e.id));
+            renderAssignedExamsToDOM(accessibleExams, examsGrid, studentStage);
+
+        } catch (err) {
+            console.error("خطأ أثناء تحميل الامتحان:", err);
+            if (!window.__allExamsRaw || window.__allExamsRaw.length === 0) {
+                examsGrid.innerHTML = `
+                    <div style="text-align:center; color:#e74c3c; grid-column:1/-1; padding:20px;">
+                        <p><i class="fas fa-circle-xmark"></i> تعذر تحميل الامتحانات بسبب بطء شبكة الموبايل أو عدم استجابة السيرفر.</p>
+                        <button onclick="loadAssignedExam(true)" style="padding:8px 16px; background:#0066ff; color:#fff; border:none; border-radius:6px; cursor:pointer;">إعادة المحاولة <i class="fas fa-arrows-rotate"></i></button>
+                    </div>`;
+            }
+        } finally {
+            examsFetchPromise = null;
         }
+    })();
 
-        let allExams = [];
-        snapshot.forEach(doc => allExams.push({ id: doc.id, ...doc.data() }));
-        window.__allExamsRaw = allExams;
-
-        const now = Date.now();
-
-        const accessibleExams = allExams.filter(exam => {
-            if (exam.isActive === false || exam.status === 'archived' || exam.status === 'expired' || exam.isOld === true) {
-                return false;
-            }
-
-            if (exam.isPublished === false || exam.status === 'draft') return false;
-
-            if (exam.scheduledAt) {
-                const openTime = new Date(exam.scheduledAt).getTime();
-                if (!isNaN(openTime) && now < openTime) return false;
-            }
-
-            if (exam.closesAt) {
-                const closeTime = new Date(exam.closesAt).getTime();
-                if (!isNaN(closeTime) && now >= closeTime) return false;
-            }
-
-            if (exam.expiryDate) {
-                const expTime = new Date(exam.expiryDate).getTime();
-                if (!isNaN(expTime) && now > expTime) return false;
-            }
-            if (exam.endDate) {
-                const endTime = new Date(exam.endDate).getTime();
-                if (!isNaN(endTime) && now > endTime) return false;
-            }
-
-            return canStudentAccessExam(exam, studentCode, studentStage, studentName, studentPhone);
-        });
-
-        cleanStaleExamStorage(accessibleExams.map(e => e.id));
-
-        if (accessibleExams.length === 0) {
-            examsGrid.innerHTML = "<p style='text-align:center;color:#cbd5e1;grid-column:1/-1;padding:20px;'><i class='fas fa-inbox'></i> لا يوجد امتحان مخصص لك حالياً.</p>";
-            return;
-        }
-
-        accessibleExams.sort((a, b) => {
-            const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-            const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
-            return bTime - aTime;
-        });
-
-        examsGrid.innerHTML = "";
-
-        accessibleExams.forEach(activeExam => {
-            const convertedQuestions = (activeExam.questions || []).map(q => {
-                const isChoice = (q.type === "choice" || q.type === "mcq") || (Array.isArray(q.options) && q.options.length > 0);
-                
-                let correctAns = "";
-                if (q.options && q.correctAnswerIndex !== undefined && q.options[q.correctAnswerIndex] !== undefined) {
-                    correctAns = q.options[q.correctAnswerIndex];
-                } else if (q.correctAnswer) {
-                    correctAns = q.correctAnswer;
-                }
-
-                return {
-                    section: "general",
-                    type: isChoice ? "choice" : "essay",
-                    question: q.question || q.text || q.questionText || "بدون نص",
-                    imageUrl: q.imageUrl || q.image || "",
-                    options: q.options || [],
-                    correctAnswer: correctAns,
-                    modelAnswer: q.modelAnswer || "",
-                    points: q.points || 1
-                };
-            });
-
-            const examDuration = activeExam.duration || activeExam.durationMinutes || DEFAULT_EXAM_DURATION;
-
-            dynamicExamsDatabase[activeExam.id] = {
-                version: activeExam.version || 1,
-                examTitle: activeExam.examCode || activeExam.title || activeExam.examName || "اختبار أونلاين",
-                duration: examDuration,
-                questions: convertedQuestions,
-                surveyQuestions: Array.isArray(activeExam.surveyQuestions) ? activeExam.surveyQuestions : []
-            };
-
-            examsGrid.innerHTML += `
-                <div class="exam-card" id="card-${activeExam.id}">
-                    <h3><i class="fas fa-school"></i> ${activeExam.grade || studentStage || 'عام'}</h3>
-                    <h4>${activeExam.examCode || activeExam.title || 'اختبار أونلاين'}</h4>
-                    <p><i class="fas fa-pen-to-square"></i> عدد الأسئلة: <strong>${convertedQuestions.length}</strong> أسئلة<br><i class="fas fa-stopwatch"></i> مدة الامتحان: <strong>${examDuration}</strong> دقيقة</p>
-                    <button class="btn btn-exam" onclick="resetPortalToStep1('${activeExam.id}', 'exam')">ابدأ الآن <i class="fas fa-rocket"></i></button>
-                </div>
-            `;
-        });
-
-        updateExamButtonsStatus();
-
-    } catch (err) {
-        console.error("خطأ أثناء تحميل الامتحان:", err);
-        examsGrid.innerHTML = `
-            <div style="text-align:center; color:#e74c3c; grid-column:1/-1; padding:20px;">
-                <p><i class="fas fa-circle-xmark"></i> تعذر تحميل الامتحانات بسبب بطء شبكة الموبايل أو عدم استجابة السيرفر.</p>
-                <button onclick="location.reload()" style="padding:8px 16px; background:#0066ff; color:#fff; border:none; border-radius:6px; cursor:pointer;">إعادة المحاولة <i class="fas fa-arrows-rotate"></i></button>
-            </div>`;
-    }
+    return examsFetchPromise;
 }
 
 async function updateExamButtonsStatus() {
     const buttons = document.querySelectorAll('.main-content .btn');
-    let studentFullName = localStorage.getItem('student_fullname') || localStorage.getItem('student_name') || "";
-    let studentCode = localStorage.getItem('student_code') || localStorage.getItem('exam_code') || "";
+    if (!buttons.length) return;
 
-    for (let btn of buttons) {
-        if (btn.classList.contains('btn-result-card') || btn.classList.contains('tag-answers-btn')) continue;
+    if (!examLockStateLoaded) {
+        try { await loadExamLocksCache(); } catch (e) {}
+    }
+
+    buttons.forEach(btn => {
+        if (btn.classList.contains('btn-result-card') || btn.classList.contains('tag-answers-btn')) return;
 
         const onClickAttr = btn.getAttribute('onclick');
         if (onClickAttr && onClickAttr.includes('resetPortalToStep1')) {
@@ -1461,32 +1856,9 @@ async function updateExamButtonsStatus() {
                 const subjectKey = matches[0].replace(/'/g, '').trim();
                 const type = matches[1].replace(/'/g, '').trim();
 
-                let isSubmittedInDB = false;
-                let isCheckedFromDB = false;
+                const isLocked = isExamSubmittedForStudent(subjectKey) || isExamFinished(subjectKey, type);
 
-                if (typeof db !== 'undefined' && (studentCode || studentFullName)) {
-                    const uniqueDocId = getUniqueDocId(studentCode || studentFullName, subjectKey);
-                    try {
-                        const doc = await db.collection("students").doc(uniqueDocId).get();
-                        isCheckedFromDB = true;
-                        
-                        if (doc.exists && (doc.data().hasSubmitted === true || doc.data().isSubmitted === true)) {
-                            isSubmittedInDB = true;
-                        } else {
-                            isSubmittedInDB = false;
-                            if (!isExamSessionActive(subjectKey)) {
-                                localStorage.removeItem('finished_' + subjectKey);
-                                localStorage.removeItem('saved_exam_answers_' + subjectKey);
-                            }
-                        }
-                    } catch(e) {
-                        console.warn("خطأ في الاتصال بقاعدة البيانات للفحص:", e);
-                    }
-                }
-
-                const isLocallyFinished = isCheckedFromDB ? false : isExamFinished(subjectKey, type);
-
-                if (isSubmittedInDB || isLocallyFinished) {
+                if (isLocked) {
                     btn.style.background = "#64748b";
                     btn.style.cursor = "not-allowed";
                     btn.disabled = true;
@@ -1499,7 +1871,7 @@ async function updateExamButtonsStatus() {
                 }
             }
         }
-    }
+    });
 }
 
 async function checkStudentResult() {
@@ -1685,6 +2057,7 @@ function switchTab(tab) {
     if (tab === 'units') {
         renderUnitsSection();
     }
+    if (tab === 'exams') loadAssignedExam();
     if (tab === 'courses') renderCoursesSection();
     if (tab === 'home') renderHomeSection();
 }
@@ -2430,9 +2803,12 @@ function calculateAndSend(bypassValidation = false) {
     saveStoredHistory(history);
 
     if (typeof db !== 'undefined') {
+        const studentDocId = (localStorage.getItem('student_doc_id') || '').trim();
         const uniqueDocId = getUniqueDocId(studentCode || studentFullName, currentActiveSubject);
 
         db.collection("students").doc(uniqueDocId).set({
+            studentDocId: studentDocId,
+            userId: studentDocId,
             studentName: studentFullName,
             name: studentFullName,
             studentCode: studentCode,
@@ -2473,12 +2849,38 @@ function calculateAndSend(bypassValidation = false) {
             submittedAt: currentFormattedTime,
             lastActive: firebase.firestore.FieldValue.serverTimestamp(),
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).then(() => {
+        }, { merge: true }).then(async () => {
+            // تحديث مستند الطالب الرئيسي بإضافة سجل الامتحان في مصفوفة examHistory
+            if (studentDocId) {
+                db.collection("students").doc(studentDocId).set({
+                    examHistory: firebase.firestore.FieldValue.arrayUnion({
+                        id: `exam_${Date.now()}`,
+                        serial: serialGenerated,
+                        examName: currentExamTitle,
+                        examCode: currentActiveSubject,
+                        score: releaseNow ? `${fmtScoreText(mcqScoreObtained)} من ${fmtPts(totalExamPointsPossible || 10)}` : 'تم استلام إجاباتك',
+                        scoreNum: mcqScoreObtained,
+                        maxScoreNum: totalExamPointsPossible || 10,
+                        percentage: releaseNow ? `% ${finalPercent}` : '—',
+                        solvedQuestions: solvedQuestionsCount,
+                        totalQuestions: activeQuestionsList.length,
+                        canReview: releaseNow,
+                        submittedAt: currentFormattedTime,
+                        submittedAtMs: Date.now()
+                    }),
+                    lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(err => console.warn("تعذر تحديث مستند الطالب الرئيسي:", err));
+            }
+
             localStorage.setItem('finished_' + currentActiveSubject, currentSubjectVersion.toString());
             localStorage.removeItem('saved_exam_answers_' + currentActiveSubject);
             localStorage.removeItem('active_running_exam_session');
 
-            archiveHistoryRecord(newHistoryRecord);
+            try {
+                await archiveHistoryRecord(newHistoryRecord);
+            } catch (err) {
+                console.warn("تعذر أرشفة النتيجة:", err);
+            }
 
             maybeShowExamSurvey(currentActiveSubject, currentExamTitle, studentFullName, studentCode, () => {
                 showSubmissionResultModal({
@@ -2688,8 +3090,9 @@ function showFullResultModal(info) {
             <div style="padding:2px 14px 6px;">
                 ${generateQuestionsReviewHtml(answers, true)}
             </div>
-            <div style="position:sticky; bottom:0; padding:12px; background:linear-gradient(180deg, rgba(13,18,32,0), #0d1220 40%); text-align:center;">
-                <button onclick="closeSubmissionResultModal()" style="padding:12px 44px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:14px; font-weight:900; cursor:pointer; font-family:inherit; font-size:1.05rem; box-shadow:0 6px 22px rgba(0,136,255,0.4);">تمام</button>
+            <div style="position:sticky; bottom:0; padding:12px; background:linear-gradient(180deg, rgba(13,18,32,0), #0d1220 40%); text-align:center; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="closeSubmissionResultModal('account')" style="padding:12px 24px; background:linear-gradient(135deg,#0088ff,#9d4edd); color:#fff; border:none; border-radius:14px; font-weight:900; cursor:pointer; font-family:inherit; font-size:1.05rem; box-shadow:0 6px 22px rgba(0,136,255,0.4);"><i class="fas fa-chart-column"></i> عرض النتيجة في حسابي</button>
+                <button onclick="closeSubmissionResultModal()" style="padding:12px 30px; background:#334155; color:#fff; border:none; border-radius:14px; font-weight:900; cursor:pointer; font-family:inherit; font-size:1.05rem;">تمام</button>
             </div>
         </div>`;
     document.body.appendChild(overlay);
@@ -2825,29 +3228,48 @@ async function deleteOldExamsFromDB(daysOld = 30) {
 let studentUnitsCache = [];
 let examLockedIdsCache = new Set();
 let finishedExamStatsCache = new Map();
+let finishedExamStatsLoadedAt = 0;
+let finishedExamStatsPromise = null;
 
-async function loadFinishedExamStatsCache() {
-    finishedExamStatsCache = new Map();
-    getStoredHistory().forEach(r => { if (r.examId) finishedExamStatsCache.set(r.examId, r); });
-
-    if (typeof db === 'undefined') return;
-    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
-    if (!code) return;
-    try {
-        const snap = await db.collection("results_archive").where("studentCode", "==", code).get();
-        snap.forEach(d => {
-            const data = d.data();
-            if (!recordBelongsToMe(data)) return;
-            if (data.examId && !finishedExamStatsCache.has(data.examId)) finishedExamStatsCache.set(data.examId, data);
-        });
-    } catch (e) {
-        console.warn("تعذر تحميل نتائج الامتحانات المحفوظة:", e);
+async function loadFinishedExamStatsCache(force = false) {
+    if (!force && finishedExamStatsCache.size > 0 && (Date.now() - finishedExamStatsLoadedAt < 60000)) {
+        return;
     }
+    if (finishedExamStatsPromise) return finishedExamStatsPromise;
+
+    finishedExamStatsPromise = (async () => {
+        try {
+            if (finishedExamStatsCache.size === 0) {
+                finishedExamStatsCache = new Map();
+                getStoredHistory().forEach(r => { if (r.examId) finishedExamStatsCache.set(r.examId, r); });
+            }
+            if (typeof db === 'undefined') return;
+            const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+            if (!code) return;
+            const snap = await db.collection("results_archive").where("studentCode", "==", code).get();
+            snap.forEach(d => {
+                const data = d.data();
+                if (!recordBelongsToMe(data)) return;
+                if (data.examId && !finishedExamStatsCache.has(data.examId)) finishedExamStatsCache.set(data.examId, data);
+            });
+            finishedExamStatsLoadedAt = Date.now();
+        } catch (e) {
+            console.warn("تعذر تحميل نتائج الامتحانات المحفوظة:", e);
+        } finally {
+            finishedExamStatsPromise = null;
+        }
+    })();
+    return finishedExamStatsPromise;
 }
+
 let unitsCountdownTimer = null;
 let videoPurchasesCache = new Set();
+let videoPurchasesLoadedAt = 0;
 
-async function loadVideoPurchasesCache() {
+async function loadVideoPurchasesCache(force = false) {
+    if (!force && videoPurchasesCache.size > 0 && (Date.now() - videoPurchasesLoadedAt < 60000)) {
+        return;
+    }
     videoPurchasesCache = new Set();
     if (typeof db === 'undefined') return;
     const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
@@ -2855,47 +3277,61 @@ async function loadVideoPurchasesCache() {
     try {
         const snap = await db.collection("video_purchases").where("studentCode", "==", code).get();
         snap.forEach(d => { const it = d.data().itemId; if (it) videoPurchasesCache.add(it); });
+        videoPurchasesLoadedAt = Date.now();
     } catch (e) {
         console.warn("تعذر تحميل مشتريات الفيديو:", e);
     }
 }
 
 let examLockStateLoaded = false;
+let examLocksLoadedAt = 0;
+let examLocksPromise = null;
 
-async function loadExamLocksCache() {
-    examLockedIdsCache = new Set();
-    examLockStateLoaded = false;
-    if (typeof db === 'undefined') return;
-    const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
-    if (!code) return;
-    try {
-        const [locksSnap, byStudentCode, byCode] = await Promise.all([
-            db.collection("exam_locks").where("studentCode", "==", code).get(),
-            db.collection("students").where("studentCode", "==", code).get(),
-            db.collection("students").where("code", "==", code).get()
-        ]);
-        locksSnap.forEach(d => { const ld = d.data(); if (!recordBelongsToMe(ld)) return; const ex = ld.examId; if (ex) examLockedIdsCache.add(ex); });
-        [byStudentCode, byCode].forEach(snap => snap.forEach(d => {
-            const data = d.data();
-            if (!recordBelongsToMe(data)) return;
-            const ex = data.examId || data.examCode;
-            if (ex && (data.hasSubmitted === true || data.isSubmitted === true)) examLockedIdsCache.add(ex);
-        }));
-        examLockStateLoaded = true;
-
-        // لو الأدمن عمل "إعادة الامتحان": نشيل علامة التسليم القديمة المحفوظة على جهاز الطالب
-        const stale = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('finished_')) {
-                const examId = key.replace('finished_', '');
-                if (!examLockedIdsCache.has(examId) && !isExamSessionActive(examId)) stale.push(key, 'saved_exam_answers_' + examId);
-            }
-        }
-        stale.forEach(k => localStorage.removeItem(k));
-    } catch (e) {
-        console.warn("تعذر تحميل أقفال الامتحانات:", e);
+async function loadExamLocksCache(force = false) {
+    if (!force && examLockStateLoaded && (Date.now() - examLocksLoadedAt < 60000)) {
+        return;
     }
+    if (examLocksPromise) return examLocksPromise;
+
+    examLocksPromise = (async () => {
+        if (typeof db === 'undefined') return;
+        const code = (localStorage.getItem("student_code") || localStorage.getItem("exam_code") || "").trim();
+        if (!code) return;
+        try {
+            const [locksSnap, byStudentCode, byCode] = await Promise.all([
+                db.collection("exam_locks").where("studentCode", "==", code).get().catch(() => ({ forEach: () => {} })),
+                db.collection("students").where("studentCode", "==", code).get().catch(() => ({ forEach: () => {} })),
+                db.collection("students").where("code", "==", code).get().catch(() => ({ forEach: () => {} }))
+            ]);
+            const nextLocks = new Set();
+            locksSnap.forEach(d => { const ld = d.data(); if (!recordBelongsToMe(ld)) return; const ex = ld.examId; if (ex) nextLocks.add(ex); });
+            [byStudentCode, byCode].forEach(snap => snap.forEach(d => {
+                const data = d.data();
+                if (!recordBelongsToMe(data)) return;
+                const ex = data.examId || data.examCode;
+                if (ex && (data.hasSubmitted === true || data.isSubmitted === true)) nextLocks.add(ex);
+            }));
+            examLockedIdsCache = nextLocks;
+            examLockStateLoaded = true;
+            examLocksLoadedAt = Date.now();
+
+            // لو الأدمن عمل "إعادة الامتحان": نشيل علامة التسليم القديمة المحفوظة على جهاز الطالب
+            const stale = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('finished_')) {
+                    const examId = key.replace('finished_', '');
+                    if (!examLockedIdsCache.has(examId) && !isExamSessionActive(examId)) stale.push(key, 'saved_exam_answers_' + examId);
+                }
+            }
+            stale.forEach(k => localStorage.removeItem(k));
+        } catch (e) {
+            console.warn("تعذر تحميل أقفال الامتحانات:", e);
+        } finally {
+            examLocksPromise = null;
+        }
+    })();
+    return examLocksPromise;
 }
 
 // هل الطالب سلّم الامتحان فعلاً؟ (السيرفر هو المرجع، والجهاز فقط عند تعذر الاتصال)
@@ -3397,31 +3833,15 @@ async function renderUnitsSection() {
         return;
     }
 
-    box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'><i class='fas fa-hourglass-half'></i> جاري تحميل المحتوى...</p>";
+    const stage = localStorage.getItem("student_stage") || "";
 
-    try { if (window.__examsReady) await window.__examsReady; } catch (e) {}
-    await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache(), loadVideoPurchasesCache()]);
-
-    try {
-        const snap = await db.collection("units").get();
-        const stage = localStorage.getItem("student_stage") || "";
-
-        let units = [];
-        snap.forEach(d => units.push({ id: d.id, ...d.data() }));
-        units = units
-            .filter(u => u.isPublished !== false)
-            .filter(u => !u.grade || u.grade === 'الكل' || u.grade === 'كل الصفوف' || !stage || u.grade === stage)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        studentUnitsCache = units;
-
-        if (units.length === 0) {
+    const renderUnitsToDOM = (units) => {
+        if (!units || units.length === 0) {
             box.innerHTML = "<p style='text-align:center;color:#cbd5e1;padding:25px;'><i class='fas fa-inbox'></i> لا يوجد محتوى منشور حالياً.</p>";
             return;
         }
 
         box.innerHTML = units.map((unit, idx) => {
-            // الفيديوهات متاحة في الكورس المدفوع فقط
             const items = (Array.isArray(unit.items) ? unit.items : []).filter(it => it.type !== 'video');
             const rows = items.length === 0
                 ? `<div class="unit-row-empty">لا يوجد محتوى في هذه الوحدة بعد.</div>`
@@ -3431,9 +3851,38 @@ async function renderUnitsSection() {
 
         clearInterval(unitsCountdownTimer);
         unitsCountdownTimer = setInterval(tickUnitCountdowns, 30000);
+    };
+
+    // عرض فوري إذا كان المحتوى مخزناً مؤقتاً
+    if (studentUnitsCache && studentUnitsCache.length > 0) {
+        renderUnitsToDOM(studentUnitsCache);
+    } else {
+        box.innerHTML = "<p style='text-align:center;color:var(--text-sub);'><i class='fas fa-hourglass-half'></i> جاري تحميل المحتوى...</p>";
+    }
+
+    try {
+        await Promise.allSettled([
+            window.__examsReady || Promise.resolve(),
+            loadExamLocksCache(),
+            loadFinishedExamStatsCache(),
+            loadVideoPurchasesCache()
+        ]);
+
+        const snap = await db.collection("units").get();
+        let units = [];
+        snap.forEach(d => units.push({ id: d.id, ...d.data() }));
+        units = units
+            .filter(u => u.isPublished !== false)
+            .filter(u => !u.grade || u.grade === 'الكل' || u.grade === 'كل الصفوف' || !stage || u.grade === stage)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        studentUnitsCache = units;
+        renderUnitsToDOM(units);
     } catch (err) {
         console.error("خطأ في تحميل الوحدات:", err);
-        box.innerHTML = "<p style='text-align:center;color:#e74c3c;'><i class='fas fa-circle-xmark'></i> تعذر تحميل المحتوى. حاول مرة أخرى.</p>";
+        if (!studentUnitsCache || studentUnitsCache.length === 0) {
+            box.innerHTML = "<p style='text-align:center;color:#e74c3c;'><i class='fas fa-circle-xmark'></i> تعذر تحميل المحتوى. حاول مرة أخرى.</p>";
+        }
     }
 }
 
@@ -3504,25 +3953,60 @@ let courseDataCacheIdentity = '';
 let courseDataLoadPromise = null;
 
 function currentStudentIdentity() {
-    return (localStorage.getItem('student_code') || localStorage.getItem('exam_code') || localStorage.getItem('student_fullname') || '').trim();
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    return (session.studentCode || localStorage.getItem('student_code') || localStorage.getItem('exam_code') || session.studentName || localStorage.getItem('student_fullname') || '').trim();
 }
 function courseSubscriptionId(courseId) { return getUniqueDocId(currentStudentIdentity(), courseId); }
 
 async function loadCourseData(forceRefresh = false) {
-    const identity = currentStudentIdentity();
+    const session = (typeof restoreStudentSession === 'function') ? restoreStudentSession() : {};
+    const identity = (session.studentCode || session.studentName || currentStudentIdentity() || '').trim();
     if (typeof db === 'undefined' || !identity) return;
-    if (!forceRefresh && courseDataCacheIdentity === identity && Date.now() - courseDataLoadedAt < 15000) return;
+
+    if (!forceRefresh && coursesCache.length > 0 && courseDataCacheIdentity === identity && (Date.now() - courseDataLoadedAt < 120000)) {
+        return;
+    }
     if (courseDataLoadPromise) return courseDataLoadPromise;
+
     courseDataLoadPromise = (async () => {
-        const [coursesSnap, subsSnap] = await Promise.all([
-            db.collection('courses').get(),
-            db.collection('course_enrollments').where('studentKey', '==', identity).get()
-        ]);
-        coursesCache = coursesSnap.docs.map(d => ({id:d.id, ...d.data()}));
-        subscriptionsCache = new Map(subsSnap.docs.map(d => [d.data().courseId, {id:d.id, ...d.data()}]));
-        courseDataCacheIdentity = identity;
-        courseDataLoadedAt = Date.now();
+        try {
+            const queries = [
+                db.collection('courses').get(),
+                db.collection('course_enrollments').where('studentKey', '==', identity).get().catch(() => ({ docs: [] })),
+                db.collection('course_enrollments').where('studentCode', '==', identity).get().catch(() => ({ docs: [] }))
+            ];
+            if (!isNaN(identity) && identity !== '') {
+                const num = Number(identity);
+                queries.push(db.collection('course_enrollments').where('studentKey', '==', num).get().catch(() => ({ docs: [] })));
+                queries.push(db.collection('course_enrollments').where('studentCode', '==', num).get().catch(() => ({ docs: [] })));
+            }
+
+            const results = await Promise.allSettled(queries);
+            if (results[0].status === 'fulfilled' && results[0].value && results[0].value.docs) {
+                coursesCache = results[0].value.docs.map(d => ({ id: d.id, ...d.data() }));
+                try { sessionStorage.setItem('kaiser_cached_courses', JSON.stringify(coursesCache)); } catch(e) {}
+            }
+
+            const subMap = new Map();
+            for (let i = 1; i < results.length; i++) {
+                if (results[i].status === 'fulfilled' && results[i].value && results[i].value.docs) {
+                    results[i].value.docs.forEach(d => {
+                        const data = d.data();
+                        if (data && data.courseId) {
+                            subMap.set(data.courseId, { id: d.id, ...data });
+                        }
+                    });
+                }
+            }
+            subscriptionsCache = subMap;
+            try { sessionStorage.setItem('kaiser_cached_subscriptions', JSON.stringify(Array.from(subMap.entries()))); } catch(e) {}
+            courseDataCacheIdentity = identity;
+            courseDataLoadedAt = Date.now();
+        } catch (e) {
+            console.warn("تعذر تحميل بيانات الكورسات:", e);
+        }
     })();
+
     try { await courseDataLoadPromise; }
     finally { courseDataLoadPromise = null; }
 }
@@ -3532,34 +4016,44 @@ function courseMatchesStudent(course) {
     return course.isPublished !== false && (!course.grade || course.grade === 'الكل' || course.grade === 'كل الصفوف' || !stage || course.grade === stage);
 }
 
-// <i class="fas fa-circle-check"></i> عرض الكورسات مع علامة <i class="fas fa-check"></i> على الصورة بعد الاشتراك
+function renderCoursesListToDOM(box) {
+    const courses = coursesCache.filter(courseMatchesStudent);
+    if (!courses.length) {
+        box.innerHTML = '<p style="text-align:center;color:var(--text-sub);padding:30px;"><i class="fas fa-inbox"></i> لا توجد كورسات متاحة لصفك حالياً.</p>';
+        return;
+    }
+    box.innerHTML = `<div class="courses-grid">${courses.map(c => {
+        const enrolled = subscriptionsCache.has(c.id);
+        return `<article class="course-card" style="position:relative;">
+            ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;"><i class="fas fa-check"></i></span>' : ''}
+            ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;"><i class="fas fa-graduation-cap"></i></div>'}
+            <div class="course-body">
+              ${c.isPaid ? `<span style="display:inline-block;margin-bottom:6px;padding:3px 12px;border-radius:999px;background:rgba(255,190,11,.18);color:#ffda63;font-size:.78rem;font-weight:800;border:1px solid rgba(255,190,11,.4);"><i class="fas fa-gem"></i> كورس مدفوع${c.price ? ' — ' + escapeHtml(String(c.price)) + ' جنيه' : ''}</span>` : ''}
+              ${enrolled ? '<span class="course-status"><i class="fas fa-check"></i> مشترك في الكورس</span>' : ''}
+              <div class="course-grade">${escapeHtml(c.grade || 'كل الصفوف')}</div>
+              <h3>${escapeHtml(c.title || 'كورس بدون اسم')}</h3>
+              <p>${escapeHtml(c.description || 'محتوى تعليمي متكامل: فيديوهات وملفات وامتحانات.')}</p>
+              <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '<i class="fas fa-bullseye"></i> دخول الكورس' : (c.isPaid ? '<i class="fas fa-lock"></i> تفاصيل الكورس المدفوع' : '<i class="fas fa-thumbtack"></i> اشترك في الكورس')}</button>
+            </div>
+        </article>`;
+    }).join('')}</div>`;
+}
+
+// عرض الكورسات فوراً من الكاش ثم التحديث في الخلفية
 async function renderCoursesSection() {
     const box = document.getElementById('courses-list'); if (!box) return;
-    box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل الكورسات...</p>';
+    if (coursesCache.length > 0) {
+        renderCoursesListToDOM(box);
+    } else {
+        box.innerHTML = '<p style="text-align:center;color:var(--text-sub);"><i class="fas fa-hourglass-half"></i> جاري تحميل الكورسات...</p>';
+    }
     try {
         await loadCourseData();
-        const courses = coursesCache.filter(courseMatchesStudent);
-        if (!courses.length) {
-            box.innerHTML = '<p style="text-align:center;color:var(--text-sub);padding:30px;">لا توجد كورسات متاحة لصفك حالياً.</p>';
-            return;
-        }
-        box.innerHTML = `<div class="courses-grid">${courses.map(c => {
-            const enrolled = subscriptionsCache.has(c.id);
-            return `<article class="course-card" style="position:relative;">
-                ${enrolled ? '<span title="مشترك" style="position:absolute;top:10px;left:10px;z-index:5;background:linear-gradient(135deg,#00f5d4,#00b4d8);color:#000;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.5rem;box-shadow:0 4px 15px rgba(0,245,212,0.6);border:2px solid #fff;"><i class="fas fa-check"></i></span>' : ''}
-                ${c.image ? `<img class="course-cover" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.title)}">` : '<div class="course-cover" style="display:grid;place-items:center;font-size:55px;"><i class="fas fa-graduation-cap"></i></div>'}
-                <div class="course-body">
-                  ${c.isPaid ? `<span style="display:inline-block;margin-bottom:6px;padding:3px 12px;border-radius:999px;background:rgba(255,190,11,.18);color:#ffda63;font-size:.78rem;font-weight:800;border:1px solid rgba(255,190,11,.4);"><i class="fas fa-gem"></i> كورس مدفوع${c.price ? ' — ' + escapeHtml(String(c.price)) + ' جنيه' : ''}</span>` : ''}
-                  ${enrolled ? '<span class="course-status"><i class="fas fa-check"></i> مشترك في الكورس</span>' : ''}
-                  <div class="course-grade">${escapeHtml(c.grade || 'كل الصفوف')}</div>
-                  <h3>${escapeHtml(c.title || 'كورس بدون اسم')}</h3>
-                  <p>${escapeHtml(c.description || 'محتوى تعليمي متكامل: فيديوهات وملفات وامتحانات.')}</p>
-                  <button class="course-btn" onclick="${enrolled ? `enterCourse('${c.id}')` : `requestCourseSubscription('${c.id}')`}">${enrolled ? '<i class="fas fa-bullseye"></i> دخول الكورس' : (c.isPaid ? '<i class="fas fa-lock"></i> تفاصيل الكورس المدفوع' : '<i class="fas fa-thumbtack"></i> اشترك في الكورس')}</button>
-                </div>
-            </article>`;
-        }).join('')}</div>`;
+        renderCoursesListToDOM(box);
     } catch (e) {
-        box.innerHTML = '<p style="text-align:center;color:#ff718d;">تعذر تحميل الكورسات.</p>';
+        if (!coursesCache.length) {
+            box.innerHTML = '<p style="text-align:center;color:#ff718d;">تعذر تحميل الكورسات. تحقق من الاتصال بالإنترنت.</p>';
+        }
     }
 }
 
@@ -3761,12 +4255,9 @@ async function renderHomeSection() {
 
     if (savedEl) savedEl.textContent = '0';
 
-    try {
-        await loadCourseData();
+    const updateHomeUI = () => {
         const myCourses = coursesCache.filter(c => subscriptionsCache.has(c.id));
         if (currentEl) currentEl.textContent = myCourses.length;
-
-        try { await Promise.all([loadExamLocksCache(), loadFinishedExamStatsCache()]); } catch (e) {}
 
         let totalItems = 0, doneItems = 0, completedCourses = 0;
         myCourses.forEach(course => {
@@ -3814,6 +4305,15 @@ async function renderHomeSection() {
                 `).join('')}</div>`;
             }
         }
+    };
+
+    // عرض فوري من الكاش (0ms Instant First Paint)
+    updateHomeUI();
+
+    try {
+        await loadCourseData();
+        await Promise.allSettled([loadExamLocksCache(), loadFinishedExamStatsCache()]);
+        updateHomeUI();
     } catch (e) {
         console.error('تعذر تحميل بيانات الرئيسية:', e);
     }
