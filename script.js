@@ -1095,7 +1095,7 @@ function convertDocToHistoryRecord(docData, docId = '', idx = 0) {
     const hasEssayQuestions = (docData.hasEssay === true) || answersArr.some(a => a && (a.type === 'essay' || a.modelAnswer));
     const isExplicitlyReleased = (docData.showScore === true || docData.showResult === true || docData.isResultVisible === true || docData.isGraded === true);
     // إتاحة النتيجة فوراً للامتحانات الاختيارية أو المعتمدة، طالما لم يتم إخفاؤها صراحة أو إلغاء الامتحان
-    const isCancelled = docData.examCancelled === true;
+    const isCancelled = docData.examCancelled === true && !isExplicitlyReleased;
     const isApproved = !isCancelled && (isExplicitlyReleased || (!hasEssayQuestions && docData.showScore !== false));
 
     const score = (docData.finalScore !== undefined) ? docData.finalScore : ((docData.score !== undefined) ? docData.score : ((docData.mcqScore !== undefined) ? docData.mcqScore : 0));
@@ -1311,6 +1311,7 @@ async function syncAccountWithFirebase(forceRefresh = false) {
             const mergedHistory = mergeHistoryRecords(getStoredHistory(), archiveRecords, liveRecords);
             if (mergedHistory.length > 0) {
                 saveStoredHistory(mergedHistory);
+                try { mergedHistory.forEach(r => { if (r && r.examId) finishedExamStatsCache.set(r.examId, r); }); } catch (e) {}
             }
 
             accountHistoryLoadedAt = Date.now();
@@ -4972,7 +4973,7 @@ async function loadReleasedExamIds() {
             if (!recordBelongsToMe(data)) return;
             const released = data.showScore === true || data.showResult === true || data.isResultVisible === true || data.isGraded === true;
             const ex = data.examCode || data.examId;
-            if (ex && released && data.examCancelled !== true) releasedExamIdsCache.add(ex);
+            if (ex && released) releasedExamIdsCache.add(ex);
         }));
     } catch (e) { console.warn('تعذر فحص نشر النتايج:', e); }
 }
@@ -5029,7 +5030,7 @@ async function backfillMistakesFromPastResults(course) {
     records.forEach(record => {
         if (!record || !recordBelongsToMe(record)) return;
         const examId = String(record.examId || record.examCode || '');
-        if (!examId || examId.startsWith('mistake_practice_') || !examIds.has(examId) || record.examCancelled === true || record.score === 'ملغي' || record.percentage === 'ملغي') return;
+        if (!examId || examId.startsWith('mistake_practice_') || !examIds.has(examId) || record.score === 'ملغي' || record.percentage === 'ملغي') return;
         const released = record.canReview === true || record.showScore === true || record.showResult === true || record.isResultVisible === true || record.isGraded === true;
         if (!released) return;
 
